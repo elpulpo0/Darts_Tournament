@@ -1,0 +1,60 @@
+services:
+  backend:
+    container_name: ${APP_NAME}_backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - ./backend/database:/app/database
+      - ./backend/logs:/app/logs
+      - /mnt/backups:/app/backups
+    env_file:
+      - .env
+    environment:
+      - TZ=Europe/Paris
+    command: ["python", "run.py"]
+    ports:
+      - "${PORT_BACK}:${PORT_BACK}"
+    networks:
+      - admin_network
+
+  kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: kuma
+    depends_on:
+      - backend
+    ports:
+      - "3002:3001"
+    volumes:
+      - ./monitoring/uptime-kuma:/app/data
+    restart: unless-stopped
+    networks:
+      - admin_network
+
+  frontend:
+    container_name: ${APP_NAME}_frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+          VITE_APP_NAME: ${APP_NAME}
+          VITE_PORT_BACK: ${PORT_BACK}
+          VITE_PORT_GROUND_CONTROL_BACKEND: ${PORT_GROUND_CONTROL_BACKEND}
+          VITE_PORT_PATENT_ANALYSIS_BACKEND: ${PORT_PATENT_ANALYSIS_BACKEND}
+          VITE_GITHUB_URL: ${GITHUB_URL}
+          VITE_ENV: ${ENV}
+          VITE_GITHUB_PAT: ${GITHUB_PAT}
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - /var/log/nginx:/var/log/nginx
+    ports:
+      - "${PORT_FRONT}:8081"
+    networks:
+      - admin_network
+
+networks:
+  admin_network:
+    driver: bridge

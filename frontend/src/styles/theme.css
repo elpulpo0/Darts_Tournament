@@ -1,0 +1,33 @@
+[data-theme='geek'] {
+  --color-bg: #000000;
+  --color-bg-lighter: #797979;
+  --color-light-shadow: #d6d6d6;
+  --color-fg: #00ff00;
+  --color-fg-darker: #003300;
+  --color-accent: cyan;
+  --color-error: #ff5555;
+  --color-success: #00aa00;
+  --color-main: magenta;
+  --color-link: #89039b;
+  --color-accent-bis: orange;
+  --font-main: 'VT323', monospace;
+  --radius: 0;
+}
+
+[data-theme='badarts'] {
+  --color-bg: #faead8;              /* très clair, doux, apaisant */
+  --color-bg-lighter: #ffeeb6;      /* pour contraste propre */
+  --color-light-shadow: #dce9e8;    /* ombre légère, subtile */
+  --color-fg: #1e293b;              /* texte principal, sombre mais doux */
+  --color-fg-darker: #eba952;       /* texte secondaire */
+  --color-accent: #0e7490;          /* bleu-vert moderne, punchy */
+  --color-error: #f87171;           /* rouge doux mais visible */
+  --color-success: #34d399;         /* vert menthe, frais et positif */
+  --color-main: #0f0781;            /* turquoise moderne, identitaire */
+  --color-link: #3b82f6;            /* bleu dynamique pour les liens */
+  --color-accent-bis: #160d94;      /* variante plus foncée du main */
+  --font-main: 'Inter', sans-serif;
+  --radius: 8px;
+}
+
+

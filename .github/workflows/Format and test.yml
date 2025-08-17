@@ -1,0 +1,52 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  format-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 21
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --prefer-binary -r requirements.txt
+        working-directory: ./backend
+
+      - name: Install Node.js dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Lint Python code with Ruff
+        run: |
+          ruff check --output-format=github .
+
+      - name: Lint JavaScript/Vue with ESLint
+        run: |
+          npx eslint . --ext .js,.vue
+        working-directory: ./frontend
+
+      - name: Create default .env file
+        run: |
+          echo "SECRET_KEY=d8jRkXzKmJ-4nAdP6u9V6HbU0EZRz2VZXB1no4mYQfg" >> .env
+
+      - name: Run tests
+        run: |
+          pytest
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend

@@ -1,0 +1,231 @@
+:root {
+  font-family: var(--font-main);
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--color-fg);
+  background-color: var(--color-bg);
+}
+
+body {
+  margin-bottom: 60px;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+.module {
+  padding: 15px;
+  margin: 15px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-fg);
+  border-radius: var(--radius);
+  flex-wrap: wrap;
+  gap: 30px;
+}
+
+.backup-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+/* Conteneur du tableau pour le scroll horizontal */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  max-height: 60vh;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  background-color: var(--color-bg);;
+  z-index: 1;
+  padding: 15px;
+  border: 1px solid var(--color-fg);
+  color: var(--color-fg);
+}
+
+table th {
+  text-align: center;
+  font-weight: bold;
+  padding: 15px;
+  background-color: var(--color-fg-darker);;
+  color: var(--color-fg);
+}
+
+td {
+  padding: 1px 8px;
+  text-align: center;
+  word-wrap: break-word;
+  overflow: hidden;
+  color: var(--color-fg);
+}
+
+.edit-btn,
+.delete-btn,
+.open-btn {
+  margin-right: 5px;
+  margin-top: 5px;
+  background-color: inherit;
+  color: var(--color-fg);
+  border: none;
+}
+
+button {
+  background-color: var(--color-fg-darker);;
+  color: var(--color-fg);
+  border: 1px solid var(--color-fg);
+  margin-bottom: 10px;
+  border-radius: var(--radius);
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.25s;
+  margin-right: 5px;
+  margin-left: 5px;
+}
+
+button:hover {
+  background-color: var(--color-success);
+}
+
+.form-section {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-fg);
+  border-radius: var(--radius);
+}
+
+.form-section h3 {
+  color: var(--color-fg);
+  font-size: 1.2em;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+textarea,
+input, select {
+  background-color: var(--color-bg);;
+  color: var(--color-fg);
+  border: 1px solid var(--color-fg);
+  width: 95%;
+  padding: 12px;
+  margin-bottom: 10px;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+  border-radius: var(--radius);
+  box-sizing: border-box;
+}
+
+.form-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.form-section {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-section input, select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--color-bg);;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--color-bg);;
+  padding: 20px;
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.card-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.card {
+  border: 1px solid var(--color-fg);
+  padding-left: 1rem;
+  min-width: 100px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.card-title {
+  font-weight: bold;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.form-input {
+  flex: 1;
+  padding: 0.5rem;
+  background-color: var(--color-bg);;
+  color: var(--color-fg);
+  border: 1px solid var(--color-fg);
+  margin-right: 0.5rem;
+}
+
+.add-btn {
+  padding: 0.5rem 1rem;
+  background-color: var(--color-success);;
+  color: black;
+  font-weight: bold;
+  border: 1px solid var(--color-fg);
+  cursor: pointer;
+}
+
+.add-btn:hover {
+  background-color: var(--color-fg);
+  color: black;
+}
+
+.loading {
+  font-style: italic;
+  color: var(--color-fg);
+}
+
+.error {
+  color: var(--color-error);;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.centered-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 20px;
+}
