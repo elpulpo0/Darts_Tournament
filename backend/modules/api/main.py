@@ -31,7 +31,7 @@ def create_app() -> FastAPI:
         allow_origins=[
             f"http://localhost:{PORT_FRONT}",
             f"http://77.37.51.76:{PORT_FRONT}",
-            "badarts.fr",
+            "https://badarts.fr",
         ],
         allow_credentials=True,
         allow_methods=["*"],
