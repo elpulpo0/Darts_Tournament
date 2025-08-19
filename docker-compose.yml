@@ -27,7 +27,6 @@ services:
       args:
           VITE_APP_NAME: ${APP_NAME}
           VITE_PORT_BACK: ${PORT_BACK}
-          VITE_PORT: ${PORT_FRONT}
           VITE_ENV: ${ENV}
     restart: always
     env_file:
