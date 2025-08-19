@@ -22,8 +22,8 @@ PORT_PATENT_ANALYSIS_FRONTEND = os.getenv("PORT_PATENT_ANALYSIS_FRONTEND")
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="Admin Dashboard API",
-        description="API for the Microphyt apps administration dashboard",
+        title="Badarts API",
+        description="API for the Badarts apps administration dashboard",
         version="1.2.0",
     )
 
