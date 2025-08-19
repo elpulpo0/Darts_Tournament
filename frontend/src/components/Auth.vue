@@ -62,7 +62,6 @@ const login = async () => {
     );
 
     if (response.status === 200 && response.data.access_token) {
-      // Récupérer les informations de l'utilisateur via /users/me
       const userResponse = await backendApi.get('/users/users/me', {
         headers: { Authorization: `Bearer ${response.data.access_token}` },
       });
@@ -72,7 +71,7 @@ const login = async () => {
         email: userResponse.data.email,
         name: userResponse.data.name,
         userId: userResponse.data.id,
-        scopes: response.data.scopes || userResponse.data.scopes || [], // Récupérer les scopes depuis login ou users/me
+        scopes: response.data.scopes || userResponse.data.scopes || [],
       });
 
       user.value = {
@@ -83,16 +82,16 @@ const login = async () => {
       };
 
       resetMessages();
-      toast.success('Logged in successfully!');
-      router.push('/tournaments'); // Rediriger vers la page d'informations des tournois
+      toast.success('Connexion réussie !');
+      router.push('/tournaments');
     } else {
-      throw new Error('Missing token or unexpected status.');
+      throw new Error('Jeton manquant ou statut inattendu.');
     }
   } catch (error) {
-    console.error('Login error', error);
+    console.error('Erreur de connexion', error);
     errorMessage.value = axios.isAxiosError(error) && error.response?.data?.detail
       ? error.response.data.detail
-      : 'Login failed. Please check your credentials.';
+      : 'Échec de la connexion. Veuillez vérifier vos identifiants.';
     toast.error(errorMessage.value);
   }
 };
@@ -101,7 +100,7 @@ const register = async () => {
   resetMessages();
   try {
     if (password.value !== confirmPassword.value) {
-      errorMessage.value = 'Passwords do not match.';
+      errorMessage.value = 'Les mots de passe ne correspondent pas.';
       toast.error(errorMessage.value);
       return;
     }
@@ -112,7 +111,7 @@ const register = async () => {
         email: email.value,
         name: name.value,
         password: password.value,
-        role: 'player', // Par défaut, les utilisateurs s'inscrivent comme player
+        role: 'player',
       },
       {
         headers: {
@@ -122,7 +121,7 @@ const register = async () => {
     );
 
     if (response.status === 201) {
-      successMessage.value = 'Registration successful, you can now log in.';
+      successMessage.value = 'Inscription réussie, vous pouvez maintenant vous connecter.';
       toast.success(successMessage.value);
       email.value = '';
       name.value = '';
@@ -131,10 +130,10 @@ const register = async () => {
       isRegistering.value = false;
     }
   } catch (error) {
-    console.error('Registration error', error);
+    console.error('Erreur d\'inscription', error);
     errorMessage.value = axios.isAxiosError(error) && error.response?.data?.detail
       ? error.response.data.detail
-      : 'Account creation failed. Please check the information.';
+      : 'Échec de la création du compte. Veuillez vérifier les informations.';
     toast.error(errorMessage.value);
   }
 };
@@ -143,25 +142,25 @@ const updateProfile = async () => {
   resetMessages();
 
   if (!newName.value.trim() && !newEmail.value.trim() && !newPassword.value.trim()) {
-    errorMessage.value = 'Please fill in at least one field to update your profile';
+    errorMessage.value = 'Veuillez remplir au moins un champ pour mettre à jour votre profil.';
     toast.error(errorMessage.value);
     return;
   }
 
   if (newPassword.value && newPassword.value !== confirmPassword.value) {
-    errorMessage.value = 'Passwords do not match.';
+    errorMessage.value = 'Les mots de passe ne correspondent pas.';
     toast.error(errorMessage.value);
     return;
   }
 
   if (newPassword.value && newPassword.value.length < 6) {
-    errorMessage.value = 'Password must be at least 6 characters long';
+    errorMessage.value = 'Le mot de passe doit comporter au moins 6 caractères.';
     toast.error(errorMessage.value);
     return;
   }
 
   if (newEmail.value && !newEmail.value.includes('@')) {
-    errorMessage.value = 'The entered email is not valid.';
+    errorMessage.value = 'L\'email saisi n\'est pas valide.';
     toast.error(errorMessage.value);
     return;
   }
@@ -180,10 +179,9 @@ const updateProfile = async () => {
       },
     });
 
-    // Rafraîchir les informations utilisateur après mise à jour
     await fetchUser();
 
-    successMessage.value = 'Profile updated successfully.';
+    successMessage.value = 'Profil mis à jour avec succès.';
     toast.success(successMessage.value);
     newEmail.value = '';
     newName.value = '';
@@ -191,10 +189,10 @@ const updateProfile = async () => {
     confirmPassword.value = '';
     showEditForm.value = false;
   } catch (error) {
-    console.error('Update profile error', error);
+    console.error('Erreur de mise à jour du profil', error);
     errorMessage.value = axios.isAxiosError(error) && error.response?.data?.detail
       ? error.response.data.detail
-      : 'An error occurred while updating. Please try again.';
+      : 'Une erreur s\'est produite lors de la mise à jour. Veuillez réessayer.';
     toast.error(errorMessage.value);
   }
 };
@@ -202,7 +200,7 @@ const updateProfile = async () => {
 const fetchUser = async () => {
   try {
     const token = authStore.token;
-    if (!token) throw new Error('No token');
+    if (!token) throw new Error('Aucun jeton');
 
     const response = await backendApi.get('/users/users/me', {
       headers: { Authorization: `Bearer ${token}` },
@@ -223,7 +221,7 @@ const fetchUser = async () => {
       role: response.data.role,
     };
   } catch (error) {
-    console.error('Fetch user error', error);
+    console.error('Erreur de récupération des informations utilisateur', error);
     handleLogout();
   }
 };
@@ -251,73 +249,73 @@ watch(
 <template>
   <div :class="['auth-container', { 'wide': showEditForm }]">
     <div v-if="!authStore.token" class="auth-form">
-      <h2 v-if="!isRegistering">Login</h2>
-      <h2 v-else>Create an account</h2>
+      <h2 v-if="!isRegistering">Connexion</h2>
+      <h2 v-else>Créer un compte</h2>
 
       <form v-if="!isRegistering" @submit.prevent="login" :key="'login-form'">
         <input id="email" v-model="email" type="email" placeholder="Email" autocomplete="username" class="input-auth" />
-        <input id="password" v-model="password" type="password" placeholder="Password" autocomplete="current-password"
-          class="input-auth" />
-        <button type="submit">Log in</button>
+        <input id="password" v-model="password" type="password" placeholder="Mot de passe"
+          autocomplete="current-password" class="input-auth" />
+        <button type="submit">Se connecter</button>
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
         <p v-if="successMessage" class="success">{{ successMessage }}</p>
-        <p>Don't have an account? <a href="#" @click="isRegistering = true; resetMessages()">Create one</a></p>
+        <p>Vous n'avez pas de compte ? <a href="#" @click="isRegistering = true; resetMessages()">Créer un compte</a>
+        </p>
       </form>
 
       <form v-else @submit.prevent="register" :key="'register-form'">
         <input v-model="email" type="email" placeholder="Email" class="input-auth" />
-        <input v-model="name" type="text" placeholder="Name" class="input-auth" />
-        <input v-model="password" type="password" placeholder="Password" autocomplete="new-password"
+        <input v-model="name" type="text" placeholder="Nom" class="input-auth" />
+        <input v-model="password" type="password" placeholder="Mot de passe" autocomplete="new-password"
           class="input-auth" />
-        <input v-model="confirmPassword" type="password" placeholder="Confirm password" autocomplete="new-password"
-          class="input-auth" />
-        <button type="submit">Create an account</button>
+        <input v-model="confirmPassword" type="password" placeholder="Confirmer le mot de passe"
+          autocomplete="new-password" class="input-auth" />
+        <button type="submit">Créer un compte</button>
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
         <p v-if="successMessage" class="success">{{ successMessage }}</p>
-        <p>Already have an account? <a href="#" @click="isRegistering = false; resetMessages()">Log in</a></p>
+        <p>Vous avez déjà un compte ? <a href="#" @click="isRegistering = false; resetMessages()">Se connecter</a></p>
       </form>
     </div>
 
     <div v-else class="user-info">
-      <h2>Welcome {{ user?.name }}</h2>
+      <h2>Bienvenue {{ user?.name }}</h2>
       <button @click="showEditForm = !showEditForm; resetMessages()">
-        {{ showEditForm ? 'Cancel' : 'View / Edit my profile' }}
+        {{ showEditForm ? 'Annuler' : 'Voir / Modifier mon profil' }}
       </button>
 
       <div v-if="showEditForm" class="edit-form">
         <div class="user-details">
-          <p><strong>Name:</strong> {{ user?.name }}</p>
-          <p><strong>Email:</strong> {{ user?.email }}</p>
-          <p><strong>Role:</strong> {{ user?.role }}</p>
+          <p><strong>Nom :</strong> {{ user?.name }}</p>
+          <p><strong>Email :</strong> {{ user?.email }}</p>
         </div>
 
         <div>
-          <h2>Edit my information</h2>
+          <h2>Modifier mes informations</h2>
           <form class="form-grid">
-            <label for="newName">Name</label>
-            <input id="newName" v-model="newName" type="text" placeholder="Name" autocomplete="name"
+            <label for="newName">Nom</label>
+            <input id="newName" v-model="newName" type="text" placeholder="Nom" autocomplete="name"
               class="input-auth" />
 
             <label for="newEmail">Email</label>
             <input id="newEmail" v-model="newEmail" type="email" placeholder="Email" autocomplete="email"
               class="input-auth" />
 
-            <label for="newPassword">Password</label>
-            <input id="newPassword" v-model="newPassword" type="password" placeholder="Password"
+            <label for="newPassword">Mot de passe</label>
+            <input id="newPassword" v-model="newPassword" type="password" placeholder="Mot de passe"
               autocomplete="new-password" class="input-auth" />
 
-            <label for="confirmPassword">Confirm password</label>
-            <input id="confirmPassword" v-model="confirmPassword" type="password" placeholder="Confirm password"
-              autocomplete="new-password" class="input-auth" />
+            <label for="confirmPassword">Confirmer le mot de passe</label>
+            <input id="confirmPassword" v-model="confirmPassword" type="password"
+              placeholder="Confirmer le mot de passe" autocomplete="new-password" class="input-auth" />
           </form>
 
-          <button @click.prevent="updateProfile">Save changes</button>
+          <button @click.prevent="updateProfile">Enregistrer les modifications</button>
 
           <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
           <p v-if="successMessage" class="success">{{ successMessage }}</p>
         </div>
       </div>
-      <button @click="handleLogout">Log out</button>
+      <button @click="handleLogout">Se déconnecter</button>
     </div>
   </div>
 </template>
