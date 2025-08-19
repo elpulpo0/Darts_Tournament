@@ -23,7 +23,7 @@ export const useThemeStore = defineStore('theme', () => {
     if (savedTheme && ['geek', 'badarts'].includes(savedTheme)) {
       setTheme(savedTheme as Theme);
     } else {
-      setTheme('geek'); // Default theme
+      setTheme('badarts'); // Default theme
     }
   };
 
