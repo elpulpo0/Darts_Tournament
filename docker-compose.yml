@@ -19,11 +19,11 @@ services:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.api-badarts.rule=Host(`api.badarts.fr`) || Host(`www.api.badarts.fr`)"
+      - "traefik.http.routers.api-badarts.rule=Host(`api.badarts.fr`)"
       - "traefik.http.routers.api-badarts.entrypoints=websecure"
       - "traefik.http.routers.api-badarts.tls=true"
       - "traefik.http.routers.api-badarts.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.api-badarts-http.rule=Host(`api.badarts.fr`) || Host(`www.api.badarts.fr`)"
+      - "traefik.http.routers.api-badarts-http.rule=Host(`api.badarts.fr`)"
       - "traefik.http.routers.api-badarts-http.entrypoints=web"
       - "traefik.http.routers.api-badarts-http.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
