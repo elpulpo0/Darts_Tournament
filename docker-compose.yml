@@ -39,16 +39,16 @@ services:
       - badarts
       - proxy
     labels:
-    - "traefik.enable=true"
-    - "traefik.http.routers.tournois-badarts.rule=Host(`badarts.fr`,`www.badarts.fr`)"
-    - "traefik.http.routers.tournois-badarts.entrypoints=websecure"
-    - "traefik.http.routers.tournois-badarts.tls=true"
-    - "traefik.http.routers.tournois-badarts.tls.certresolver=letsencrypt"
-    - "traefik.http.routers.tournois-badarts-http.rule=Host(`badarts.fr`,`www.badarts.fr`)"
-    - "traefik.http.routers.tournois-badarts-http.entrypoints=web"
-    - "traefik.http.routers.tournois-badarts-http.middlewares=redirect-to-https"
-    - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-    - "traefik.http.services.tournois-badarts.loadbalancer.server.port=8081"
+      - "traefik.enable=true"
+      - "traefik.http.routers.tournois-badarts.rule=Host(`badarts.fr`) || Host(`www.badarts.fr`)"
+      - "traefik.http.routers.tournois-badarts.entrypoints=websecure"
+      - "traefik.http.routers.tournois-badarts.tls=true"
+      - "traefik.http.routers.tournois-badarts.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.tournois-badarts-http.rule=Host(`badarts.fr`) || Host(`www.badarts.fr`)"
+      - "traefik.http.routers.tournois-badarts-http.entrypoints=web"
+      - "traefik.http.routers.tournois-badarts-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.services.tournois-badarts.loadbalancer.server.port=8081"
 
 networks:
   badarts:
