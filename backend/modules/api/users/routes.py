@@ -135,7 +135,7 @@ def create_user(
             status_code=400, detail="A user with this email already exists."
         )
 
-    role_name = user_data.role if user_data.role else "reader"
+    role_name = user_data.role if user_data.role else "player"
 
     if (
         current_user
@@ -145,12 +145,12 @@ def create_user(
     ):
         role_name = user_data.role
     else:
-        role_name = "reader"
+        role_name = "player"
 
     role_obj = db.query(Role).filter_by(role=role_name).first()
     if not role_obj:
         raise HTTPException(
-            status_code=400 if role_name != "reader" else 500,
+            status_code=400 if role_name != "player" else 500,
             detail=f"The role '{role_name}' could not be found.",
         )
 
