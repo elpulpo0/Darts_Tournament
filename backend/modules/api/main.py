@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PORT_FRONT = os.getenv("PORT_FRONT")
-PORT_BACK = os.getenv("PORT_BACK")
 
 
 def create_app() -> FastAPI:
@@ -31,9 +30,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=[
             f"http://localhost:{PORT_FRONT}",
-            f"http://77.37.51.76:{PORT_BACK}",
-            "https://patent.microphyt.net",
-            "https://ground-control.microphyt.net",
+            f"http://77.37.51.76:{PORT_FRONT}",
         ],
         allow_credentials=True,
         allow_methods=["*"],
