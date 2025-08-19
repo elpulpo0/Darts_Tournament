@@ -1,9 +1,9 @@
 <template>
     <div v-if="authStore.isAuthenticated">
-        <div v-if="loading">Loading tournaments...</div>
+        <div v-if="loading">Chargement des tournois...</div>
 
         <div v-if="tournaments.length" class="module">
-            <h2>Tournaments</h2>
+            <h2>Tournois</h2>
             <div class="tournament-tiles">
                 <div v-for="tournament in tournaments" class="tile"
                     :class="{ 'selected': selectedTournament?.id === tournament.id }"
@@ -25,70 +25,30 @@
             </div>
 
             <div v-if="selectedTournament" class="tournament-details">
-                <p>{{ selectedTournament.description || 'No description' }}</p>
+                <p>{{ selectedTournament.description || 'Aucune description' }}</p>
 
                 <button v-if="isEditor"
                     @click="router.push({ name: 'TournamentManagement', params: { tournamentId: selectedTournament.id } })">
-                    Manage Tournament
+                    Gérer le tournoi
                 </button>
 
                 <!-- Register or Unregister button -->
-                <div v-if="selectedTournament.status === 'open' && !registrationStatus[selectedTournament.id]">
-                    <button @click="registerToTournament(selectedTournament.id)">Register</button>
+                <div v-if="selectedTournament.status === 'open'">
+                    <div v-if="!registrationStatus[selectedTournament.id]">
+                        <button @click="registerToTournament(selectedTournament.id)">S’inscrire</button>
+                    </div>
+                    <div v-else>
+                        <button @click="unregisterFromTournament(selectedTournament.id)">Se désinscrire</button>
+                        <p>Vous êtes déjà inscrit à ce tournoi.</p>
+                    </div>
                 </div>
-
-                <div v-else-if="registrationStatus[selectedTournament.id]">
-                    <button @click="unregisterFromTournament(selectedTournament.id)">Unregister</button>
-                    <p>You are already registered for this tournament.</p>
-                </div>
-
                 <div v-else>
-                    <p>Registrations are closed for this tournament.</p>
+                    <p>Les inscriptions sont closes pour ce tournoi.</p>
                 </div>
 
-                <h4>Matches</h4>
-                <table v-if="matches[selectedTournament.id]?.length">
-                    <thead>
-                        <tr>
-                            <th>Players</th>
-                            <th>Status</th>
-                            <th>Scores</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="match in matches[selectedTournament.id]" :key="match.id">
-                            <td>{{match.players.map((p) => p?.name || 'Unknown').join(' vs ')}}</td>
-                            <td>{{ match.status }}</td>
-                            <td>
-                                <span v-if="match.players?.length">
-                                    {{match.players.map((p) => `${p?.name || 'Unknown'}: ${p?.score ?? 0}`).join(', ')}}
-                                </span>
-                                <span v-else>No scores available</span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p v-else>No matches available</p>
-
-                <h4>Leaderboard</h4>
-                <div v-if="leaderboardsStore.tournamentLeaderboardLoading">Chargement du classement...</div>
-                <div v-if="leaderboardsStore.tournamentLeaderboardError" class="error">{{
-                    leaderboardsStore.tournamentLeaderboardError }}</div>
-                <table v-if="leaderboardsStore.tournamentLeaderboard.length">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Total Score</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="entry in leaderboardsStore.tournamentLeaderboard" :key="entry.user_id">
-                            <td>{{ entry.name }}</td>
-                            <td>{{ entry.total_manches }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p v-else>Pas de classement disponible</p>
+                <button v-if="selectedTournament" @click="openProjection">
+                    Projeter l’arborescence
+                </button>
             </div>
         </div>
 
@@ -97,20 +57,20 @@
         </div>
 
         <button v-if="isEditor" @click="toggleCreateTournamentForm">
-            {{ showCreateTournament ? 'Cancel' : 'Add Tournament' }}
+            {{ showCreateTournament ? 'Annuler' : 'Ajouter un tournoi' }}
         </button>
         <div v-if="showCreateTournament" class="module">
-            <h3>Add Tournament</h3>
-            <input v-model="newTournamentName" placeholder="Name" class="form-input" />
+            <h3>Ajouter un tournoi</h3>
+            <input v-model="newTournamentName" placeholder="Nom" class="form-input" />
             <input v-model="newTournamentDescription" placeholder="Description" class="form-input" />
             <input v-model="newTournamentStartDate" type="datetime-local" class="form-input" />
-            <button @click="createTournament">Add</button>
+            <button @click="createTournament">Ajouter</button>
         </div>
     </div>
 
     <div v-if="!authStore.isAuthenticated" class="centered-block">
-        <h2>🔒 Login required</h2>
-        <p>Please log in to view tournament information.</p>
+        <h2>🔒 Connexion requise</h2>
+        <p>Veuillez vous connecter pour voir les informations des tournois.</p>
     </div>
 </template>
 
@@ -121,11 +81,11 @@ import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../stores/useAuthStore';
 import { handleError, formatDate } from '../functions/utils';
 import { useRouter } from 'vue-router';
-import { useLeaderboardsStore } from '../stores/useLeaderboardsStore'
+import { useLeaderboardsStore } from '../stores/useLeaderboardsStore';
 
 const router = useRouter();
 const authStore = useAuthStore();
-const leaderboardsStore = useLeaderboardsStore()
+const leaderboardsStore = useLeaderboardsStore();
 const toast = useToast();
 
 const tournaments = ref<Tournament[]>([]);
@@ -167,9 +127,9 @@ const createTournament = async () => {
         newTournamentIsActive.value = true;
         showCreateTournament.value = false;
         fetchTournaments();
-        toast.success('Tournament created successfully. Players can now register.');
+        toast.success('Tournoi créé avec succès. Les joueurs peuvent maintenant s’inscrire.');
     } catch (err) {
-        handleError(err, 'creating tournament');
+        handleError(err, 'création du tournoi');
     }
 };
 
@@ -195,7 +155,7 @@ const fetchTournaments = async () => {
 
         await Promise.all(outerPromises);
     } catch (err) {
-        handleError(err, 'fetching tournaments');
+        handleError(err, 'récupération des tournois');
     } finally {
         loading.value = false;
     }
@@ -212,22 +172,26 @@ const registerToTournament = async (tournamentId: number) => {
             '/tournaments/registrations/', playerData,
             { headers: { Authorization: `Bearer ${authStore.token}` } }
         );
-        toast.success('Successfully registered to the tournament.');
+        toast.success('Inscription au tournoi réussie.');
         registrationStatus.value[tournamentId] = true;
     } catch (err) {
-        handleError(err, 'registering to tournament');
+        handleError(err, 'inscription au tournoi');
     }
 };
 
 // Check if the user is already registered
 const checkIfUserRegistered = async (tournamentId: number): Promise<boolean> => {
     try {
-        const { data } = await backendApi.get(`/tournaments/registrations/${tournamentId}`, {
+        const { data } = await backendApi.get(`/tournaments/${tournamentId}/my-registration`, {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
-        return data.some((registration: any) => registration.user_id === authStore.userId);
-    } catch (err) {
-        handleError(err, 'checking registration status');
+        return data;
+    } catch (err: any) {
+        if (err.response?.status === 401) {
+            toast.error('Veuillez vous connecter pour vérifier l’état de l’inscription.');
+        } else {
+            handleError(err, 'vérification de l’état de l’inscription');
+        }
         return false;
     }
 };
@@ -239,11 +203,10 @@ const unregisterFromTournament = async (tournamentId: number) => {
             `/tournaments/registrations/${tournamentId}`,
             { headers: { Authorization: `Bearer ${authStore.token}` } }
         );
-        toast.success('Successfully unregistered from the tournament.');
-        // Update registration status locally
+        toast.success('Désinscription du tournoi réussie.');
         registrationStatus.value[tournamentId] = false;
     } catch (err) {
-        handleError(err, 'unregistering from tournament');
+        handleError(err, 'désinscription du tournoi');
     }
 };
 
@@ -255,7 +218,7 @@ const fetchMatches = async (tournamentId: number) => {
         });
         matches.value[tournamentId] = data;
     } catch (err) {
-        handleError(err, 'fetching matches');
+        handleError(err, 'récupération des matchs');
     }
 };
 
@@ -265,6 +228,11 @@ const selectTournament = (tournament: Tournament) => {
 };
 
 fetchTournaments();
+
+const openProjection = () => {
+    if (!selectedTournament.value) return;
+    window.open(`/tournaments/${selectedTournament.value.id}/projection`, '_blank');
+};
 </script>
 
 <style>
@@ -296,6 +264,5 @@ fetchTournaments();
     border-top: 1px solid var(--color-light-shadow);
     padding-top: 1rem;
     font-family: var(--font-main);
-    color: var(--color-fg-darker);
 }
 </style>

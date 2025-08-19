@@ -309,7 +309,7 @@ const launchTournament = async () => {
     }
 };
 
-const generateFinalStage = async () => {
+async function generateFinalStage() {
     try {
         let qualified: { user_id: number, name: string, pool_id: number }[] = [];
         let nextRound = currentRound.value + 1;
@@ -324,8 +324,9 @@ const generateFinalStage = async () => {
         }
 
         if (currentRound.value === 0) {
-            // Phase post-poules : sélectionner les top joueurs des poules
+            // Phase post-poules : sélectionner les joueurs qualifiés
             if (poolIds.value.length === 1) {
+                // Cas d'une seule poule : top 4
                 const poolMatches = matches.value.filter(m => m.pool_id != null);
                 qualified = computePoolRanking(poolMatches).slice(0, 4).map(entry => ({
                     user_id: entry.user_id,
@@ -333,89 +334,60 @@ const generateFinalStage = async () => {
                     pool_id: poolIds.value[0]
                 }));
             } else {
+                // Multi-poules : top 3 pour poules de 4+, top 2 pour poules de 3 ou moins
                 for (const poolId of poolIds.value) {
                     const poolMatches = matches.value.filter(m => m.pool_id === poolId);
-                    const top2 = computePoolRanking(poolMatches).slice(0, 2).map(entry => ({
+                    const poolSize = new Set(poolMatches.flatMap(m => m.players.map(p => p?.user_id))).size;
+                    const numToQualify = poolSize >= 4 ? 3 : 2; // Top 3 pour 4+, top 2 sinon
+                    const topPlayers = computePoolRanking(poolMatches).slice(0, numToQualify).map(entry => ({
                         user_id: entry.user_id,
                         name: entry.name,
                         pool_id: poolId
                     }));
-                    qualified = qualified.concat(top2);
+                    qualified = qualified.concat(topPlayers);
+                }
+
+                // Pour 11 joueurs (3 pools: 4,4,3), on a 3+3+2=8 qualifiés
+                // Si plus ou moins de 8, ajuster pour éviter les byes
+                if (qualified.length > 8) {
+                    // Réduire au top 8 basé sur les victoires/points globaux
+                    qualified = qualified
+                        .map(player => {
+                            const poolMatches = matches.value.filter(m => m.pool_id === player.pool_id);
+                            const stats = computePoolRanking(poolMatches).find(e => e.user_id === player.user_id);
+                            return { ...player, wins: stats?.wins || 0, points: stats?.points || 0 };
+                        })
+                        .sort((a, b) => b.wins - a.wins || b.points - a.points)
+                        .slice(0, 8);
+                } else if (qualified.length < 8 && qualified.length % 2 !== 0) {
+                    // Réduire à la puissance de 2 inférieure pour éviter les byes
+                    qualified = qualified.slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
                 }
             }
 
-            // Organiser les qualifiés par poule et position
-            const qualifiedByPool: { [poolId: number]: { user_id: number, name: string }[] } = {};
-            for (const player of qualified) {
-                if (!qualifiedByPool[player.pool_id]) {
-                    qualifiedByPool[player.pool_id] = [];
-                }
-                qualifiedByPool[player.pool_id].push({ user_id: player.user_id, name: player.name });
-            }
-
-            // Créer les matchs croisés pour la phase éliminatoire
+            // Organiser les qualifiés avec seeding (top seed vs bas seed)
             const nextMatches: Match[] = [];
-            if (poolIds.value.length > 1) {
-                // Cas multi-poules : 1er d'une poule contre 2e d'une autre
-                const poolIdsList = Object.keys(qualifiedByPool).map(Number);
-                if (poolIdsList.length >= 2) {
-                    const pool1 = qualifiedByPool[poolIdsList[0]]; // [1er, 2e]
-                    const pool2 = qualifiedByPool[poolIdsList[1]]; // [1er, 2e]
-                    if (pool1.length >= 2 && pool2.length >= 2) {
-                        nextMatches.push({
-                            id: 0,
-                            tournament_id: tournamentId.value,
-                            match_date: null,
-                            players: [
-                                { user_id: pool1[0].user_id, name: pool1[0].name, score: null }, // 1er poule 1
-                                { user_id: pool2[1].user_id, name: pool2[1].name, score: null }, // 2e poule 2
-                            ],
-                            status: 'pending',
-                            round: nextRound,
-                            pool_id: undefined,
-                        });
-                        nextMatches.push({
-                            id: 0,
-                            tournament_id: tournamentId.value,
-                            match_date: null,
-                            players: [
-                                { user_id: pool2[0].user_id, name: pool2[0].name, score: null }, // 1er poule 2
-                                { user_id: pool1[1].user_id, name: pool1[1].name, score: null }, // 2e poule 1
-                            ],
-                            status: 'pending',
-                            round: nextRound,
-                            pool_id: undefined,
-                        });
-                    }
-                }
-            } else {
-                // Cas d'une seule poule : appariements 1er vs 4e, 2e vs 3e
-                if (qualified.length >= 4) {
-                    nextMatches.push({
-                        id: 0,
-                        tournament_id: tournamentId.value,
-                        match_date: null,
-                        players: [
-                            { user_id: qualified[0].user_id, name: qualified[0].name, score: null }, // 1er
-                            { user_id: qualified[3].user_id, name: qualified[3].name, score: null }, // 4e
-                        ],
-                        status: 'pending',
-                        round: nextRound,
-                        pool_id: undefined,
-                    });
-                    nextMatches.push({
-                        id: 0,
-                        tournament_id: tournamentId.value,
-                        match_date: null,
-                        players: [
-                            { user_id: qualified[1].user_id, name: qualified[1].name, score: null }, // 2e
-                            { user_id: qualified[2].user_id, name: qualified[2].name, score: null }, // 3e
-                        ],
-                        status: 'pending',
-                        round: nextRound,
-                        pool_id: undefined,
-                    });
-                }
+            qualified = qualified
+                .map(player => {
+                    const poolMatches = matches.value.filter(m => m.pool_id === player.pool_id);
+                    const stats = computePoolRanking(poolMatches).find(e => e.user_id === player.user_id);
+                    return { ...player, wins: stats?.wins || 0, points: stats?.points || 0 };
+                })
+                .sort((a, b) => b.wins - a.wins || b.points - a.points);
+            // Pair top seed vs lower seed, e.g., 1 vs 8, 2 vs 7, 3 vs 6, 4 vs 5
+            for (let i = 0; i < qualified.length / 2; i++) {
+                nextMatches.push({
+                    id: 0,
+                    tournament_id: tournamentId.value,
+                    match_date: null,
+                    players: [
+                        { user_id: qualified[i].user_id, name: qualified[i].name, score: null },
+                        { user_id: qualified[qualified.length - 1 - i].user_id, name: qualified[qualified.length - 1 - i].name, score: null },
+                    ],
+                    status: 'pending',
+                    round: nextRound,
+                    pool_id: undefined,
+                });
             }
 
             if (nextMatches.length === 0) {
@@ -423,13 +395,14 @@ const generateFinalStage = async () => {
                 return;
             }
 
+            console.log('Qualifiés pour tour', nextRound, ':', qualified);
             console.log('Matchs générés pour tour', nextRound, ':', nextMatches);
 
             for (const match of nextMatches) {
                 await createAndPersistMatch(match);
             }
         } else {
-            // Rounds éliminatoires suivants : sélectionner les gagnants du tour précédent
+            // Rounds éliminatoires suivants : même logique que avant, mais sans byes
             const previousRoundMatches = matches.value.filter(
                 m => m.pool_id == null && m.round === currentRound.value
             );
@@ -445,13 +418,12 @@ const generateFinalStage = async () => {
                 return;
             }
             if (qualified.length % 2 !== 0) {
-                toast.error('Nombre impair de qualifiés non supporté sans bye');
-                return;
+                // Réduire à la puissance de 2 inférieure pour éviter les byes
+                qualified = qualified.slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
             }
 
-            // Créer les matchs pour le tour suivant
             const nextMatches: Match[] = [];
-            const shuffledQualified = [...qualified].sort(() => Math.random() - 0.5); // Mélange aléatoire
+            const shuffledQualified = [...qualified].sort(() => Math.random() - 0.5);
             for (let i = 0; i < shuffledQualified.length; i += 2) {
                 if (i + 1 < shuffledQualified.length) {
                     nextMatches.push({
@@ -489,7 +461,7 @@ const generateFinalStage = async () => {
         console.error('Erreur lors de la génération du tour suivant:', err);
         handleError(err, 'générant le tour suivant');
     }
-};
+}
 
 function extractPlayerId(p: any): number | null {
     if (p && typeof p.user_id === 'number') return p.user_id;
@@ -800,6 +772,34 @@ onMounted(() => {
                 </div>
             </div>
 
+            <!-- Classements par poule -->
+            <h4>Classements par poule</h4>
+            <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
+            <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
+                leaderboardsStore.poolsLeaderboardError }}</div>
+            <div v-if="leaderboardsStore.poolsLeaderboard.length">
+                <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
+                    <h5>{{ poolLeaderboard.pool_name }}</h5>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Victoires (Principal)</th>
+                                <th>Manches gagnées (Tiebreaker)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="entry in poolLeaderboard.leaderboard" :key="entry.user_id">
+                                <td>{{ entry.name }}</td>
+                                <td>{{ entry.wins }}</td>
+                                <td>{{ entry.total_manches }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <p v-else>Aucun classement par poule disponible.</p>
+
             <div v-if="tournament.status === 'running' || tournament.status === 'closed'" class="matches-section">
                 <h4>Matchs</h4>
                 <div v-for="round in Array.from({ length: currentRound + 1 }, (_, i) => i)" :key="round">
@@ -846,34 +846,6 @@ onMounted(() => {
                 <button v-else-if="isCurrentRoundFinished" @click="generateFinalStage">
                     Générer le tour {{ currentRound === 0 ? 'des éliminatoires' : currentRound + 1 }}
                 </button>
-
-                <!-- Classements par poule -->
-                <h4>Classements par poule</h4>
-                <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
-                <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
-                    leaderboardsStore.poolsLeaderboardError }}</div>
-                <div v-if="leaderboardsStore.poolsLeaderboard.length">
-                    <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
-                        <h5>{{ poolLeaderboard.pool_name }}</h5>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Nom</th>
-                                    <th>Victoires (Principal)</th>
-                                    <th>Manches gagnées (Tiebreaker)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="entry in poolLeaderboard.leaderboard" :key="entry.user_id">
-                                    <td>{{ entry.name }}</td>
-                                    <td>{{ entry.wins }}</td>
-                                    <td>{{ entry.total_manches }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <p v-else>Aucun classement par poule disponible.</p>
             </div>
         </div>
     </div>

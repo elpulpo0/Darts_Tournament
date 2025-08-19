@@ -475,6 +475,33 @@ def get_tournament_registrations(
     ]
 
 
+@tournaments_router.get(
+    "/{tournament_id}/my-registration",
+    response_model=bool,
+    summary="Check if the current user is registered for a tournament",
+)
+def check_user_registration(
+    tournament_id: int,
+    db: Session = Depends(get_users_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    # Verify tournament exists
+    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    # Check if the current user is registered
+    registration = (
+        db.query(TournamentRegistration)
+        .filter(
+            TournamentRegistration.tournament_id == tournament_id,
+            TournamentRegistration.user_id == current_user.id,
+        )
+        .first()
+    )
+    return registration is not None
+
+
 @tournaments_router.post(
     "/matches/", response_model=MatchResponse, status_code=status.HTTP_201_CREATED
 )
@@ -761,46 +788,68 @@ def get_season_leaderboard(
     season_start_year = year if datetime.now().month >= 9 else year - 1
     season_end_year = season_start_year + 1
 
-    # Récupérer tous les matchs complétés de la saison
+    # Include tournaments from both season start year and provided year
     matches = (
         db.query(Match)
         .join(Tournament, Match.tournament_id == Tournament.id)
-        .filter(func.extract("year", Tournament.start_date) == season_start_year)
+        .filter(
+            func.extract("year", Tournament.start_date).in_([season_start_year, year])
+        )
         .filter(Match.status == "completed")
         .all()
     )
 
-    # Calculer stats par joueur
+    # Debug logging
+    print(
+        f"Fetching matches for season {season_start_year}-{season_end_year} and year {year}"
+    )
+    print(f"Found {len(matches)} completed matches")
+
     stats = {}
     for match in matches:
         if len(match.match_players) != 2:
-            continue  # Ignorer les matchs non binaires
+            continue
         p1, p2 = match.match_players
         if p1.score is None or p2.score is None:
             continue
-        # Initialiser stats si nécessaire
         if p1.user_id not in stats:
-            stats[p1.user_id] = {"name": p1.user.name, "total_points": 0}
+            stats[p1.user_id] = {
+                "name": p1.user.name,
+                "total_points": 0,
+                "wins": 0,
+                "total_manches": 0,
+            }
         if p2.user_id not in stats:
-            stats[p2.user_id] = {"name": p2.user.name, "total_points": 0}
-        # Ajouter manches gagnées + bonus pour victoire
-        stats[p1.user_id]["total_points"] += p1.score
-        stats[p2.user_id]["total_points"] += p2.score
+            stats[p2.user_id] = {
+                "name": p2.user.name,
+                "total_points": 0,
+                "wins": 0,
+                "total_manches": 0,
+            }
+        # Add manches (scores)
+        stats[p1.user_id]["total_manches"] += p1.score
+        stats[p2.user_id]["total_manches"] += p2.score
+        # Add win bonus to total_points (as before)
         if p1.score > p2.score:
-            stats[p1.user_id]["total_points"] += 1  # Bonus de victoire
+            stats[p1.user_id]["wins"] += 1
+            stats[p1.user_id]["total_points"] += p1.score + 1  # Score + win bonus
+            stats[p2.user_id]["total_points"] += p2.score
         elif p2.score > p1.score:
-            stats[p2.user_id]["total_points"] += 1  # Bonus de victoire
+            stats[p2.user_id]["wins"] += 1
+            stats[p2.user_id]["total_points"] += p2.score + 1  # Score + win bonus
+            stats[p1.user_id]["total_points"] += p1.score
 
-    # Créer les entrées et trier (total_points desc)
     leaderboard_entries = [
         LeaderboardEntry(
             user_id=user_id,
             name=data["name"],
             total_points=data["total_points"],
+            wins=data["wins"],
+            total_manches=data["total_manches"],
         )
         for user_id, data in stats.items()
     ]
-    leaderboard_entries.sort(key=lambda e: -e.total_points)
+    leaderboard_entries.sort(key=lambda e: (-e.total_points, -e.wins, -e.total_manches))
 
     return SeasonLeaderboardResponse(
         season=f"{season_start_year}-{season_end_year}",

@@ -93,6 +93,8 @@ class LeaderboardEntry(BaseModel):
     user_id: int
     name: str
     total_points: float
+    wins: int
+    total_manches: int
 
 
 class TournamentLeaderboardEntry(BaseModel):

@@ -19,11 +19,11 @@ onMounted(() => {
     leaderboardsStore.fetchSeasonLeaderboard(currentYear, authStore.token);
 });
 
-const finalMatches = computed(() => tournamentStore.tournamentDetail?.final_matches || [] as Match[]);
 const maxRounds = computed(() => {
     const highestRound = Math.max(...finalMatches.value.map((m: Match) => m.round || 0), 0);
     return highestRound + 1; // Only include rounds that exist in the data
 });
+const finalMatches = computed(() => tournamentStore.tournamentDetail?.final_matches || [] as Match[]);
 const matchesByRound = computed(() => {
     const rounds: { [key: number]: Match[] } = {};
     finalMatches.value.forEach((match: Match) => {
@@ -34,6 +34,15 @@ const matchesByRound = computed(() => {
     return rounds;
 });
 
+// Calculate the total number of elimination rounds based on the first round's matches
+const totalEliminationRounds = computed(() => {
+    const firstRoundMatches = matchesByRound.value[1]?.length || 0; // Matches in round 1
+    if (firstRoundMatches === 0) return 1; // Default to 1 if no matches
+    const numPlayers = firstRoundMatches * 2; // 4 matches = 8 players
+    return Math.ceil(Math.log2(numPlayers)); // e.g., log₂(8) = 3 rounds
+});
+
+// Map round numbers to names based on total rounds
 const getRoundName = computed(() => {
     const roundNames = [
         'Finale',
@@ -45,7 +54,8 @@ const getRoundName = computed(() => {
         'Soixante-quatrième de finale'
     ];
     return (round: number) => {
-        const roundIndex = maxRounds.value - round - 1;
+        // Adjust index based on total elimination rounds
+        const roundIndex = totalEliminationRounds.value - round;
         return roundIndex >= 0 && roundIndex < roundNames.length ? roundNames[roundIndex] : `Tour ${round}`;
     };
 });
@@ -65,7 +75,7 @@ const getRoundName = computed(() => {
                         <h4>{{ pool.name || pool.id }}</h4>
                         <div class="pool-players">
                             <span v-for="player in pool.players" class="player-in-pool" :key="player.id">{{ player.name
-                                }}</span>
+                            }}</span>
                         </div>
                         <div v-for="match in pool.matches" class="pool-match" :key="match.id">
                             <div class="players">
@@ -127,7 +137,7 @@ const getRoundName = computed(() => {
                                 <div v-for="(player, index) in match.players" class="player-slot" :key="index">
                                     <span>{{ player?.name || 'TBD' }}</span>
                                     <span v-if="typeof player?.score === 'number'" class="score">({{ player.score
-                                        }})</span>
+                                    }})</span>
                                 </div>
                                 <div class="match-status">
                                     <span v-if="match.status === 'completed'">Terminé</span>
