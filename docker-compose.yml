@@ -17,20 +17,7 @@ services:
     ports:
       - "${PORT_BACK}:${PORT_BACK}"
     networks:
-      - admin_network
-
-  kuma:
-    image: louislam/uptime-kuma:latest
-    container_name: kuma
-    depends_on:
-      - backend
-    ports:
-      - "3002:3001"
-    volumes:
-      - ./monitoring/uptime-kuma:/app/data
-    restart: unless-stopped
-    networks:
-      - admin_network
+      - badarts
 
   frontend:
     container_name: ${APP_NAME}_frontend
@@ -49,8 +36,8 @@ services:
     ports:
       - "${PORT_FRONT}:8081"
     networks:
-      - admin_network
+      - badarts
 
 networks:
-  admin_network:
+  badarts:
     driver: bridge
