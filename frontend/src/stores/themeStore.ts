@@ -1,16 +1,31 @@
-import { ref } from 'vue'
+import { defineStore } from 'pinia';
+import { ref } from 'vue';
 
-const currentTheme = ref<'geek' | 'badarts'>(localStorage.getItem('theme') as 'geek' | 'badarts' || 'geek')
+// Define valid theme values
+type Theme = 'geek' | 'badarts';
 
-export function useThemeStore() {
-  const setTheme = (theme: 'geek' | 'badarts') => {
-    currentTheme.value = theme
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('theme', theme)
-  }
+export const useThemeStore = defineStore('theme', () => {
+  // Initialize theme from localStorage or default to 'badarts'
+  const currentTheme = ref<Theme>(
+    (localStorage.getItem('theme') as Theme) || 'badarts'
+  );
 
-  return {
-    currentTheme,
-    setTheme
-  }
-}
+  // Function to set the theme
+  const setTheme = (theme: Theme) => {
+    currentTheme.value = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  };
+
+  // Initialize theme on store creation
+  const initializeTheme = () => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme && ['geek', 'badarts'].includes(savedTheme)) {
+      setTheme(savedTheme as Theme);
+    } else {
+      setTheme('geek'); // Default theme
+    }
+  };
+
+  return { currentTheme, setTheme, initializeTheme };
+});

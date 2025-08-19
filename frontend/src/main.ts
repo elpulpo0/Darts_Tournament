@@ -3,21 +3,22 @@ import './styles/theme.css'
 import './styles/styles.css'
 import App from './App.vue'
 import router from './router'
-import { createPinia } from 'pinia';
+import { createPinia } from 'pinia'
 import { useThemeStore } from './stores/themeStore'
 import Toast from 'vue-toastification'
 import 'vue-toastification/dist/index.css'
+import { watch } from 'vue'
 
-const app = createApp(App);
+const app = createApp(App)
 
-const pinia = createPinia();
+const pinia = createPinia()
 
 app.use(pinia)
 
 app.use(router)
 
 app.use(Toast, {
-  position: "bottom-right",
+  position: 'bottom-right',
   timeout: 3000,
   closeOnClick: true,
   pauseOnFocusLoss: true,
@@ -26,12 +27,23 @@ app.use(Toast, {
   draggablePercent: 0.6,
   showCloseButtonOnHover: false,
   hideProgressBar: false,
-  closeButton: "button",
+  closeButton: 'button',
   icon: true,
   rtl: false,
-})
+});
 
-const { currentTheme } = useThemeStore()
-document.documentElement.setAttribute('data-theme', currentTheme.value)
+// Access the store after Pinia is initialized
+const themeStore = useThemeStore();
 
-app.mount('#app')
+// Initialize the theme
+themeStore.initializeTheme();
+
+// Watch for theme changes to update data-theme reactively
+watch(
+  () => themeStore.currentTheme,
+  (newTheme) => {
+    document.documentElement.setAttribute('data-theme', newTheme);
+  }
+);
+
+app.mount('#app');
