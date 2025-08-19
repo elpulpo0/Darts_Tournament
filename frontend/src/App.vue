@@ -17,8 +17,7 @@ const authStore = useAuthStore();
             <router-link to="/tournaments" class="nav-link">Tournois</router-link>
           </li>
           <li v-if="authStore.isAuthenticated">
-            <router-link to="/leaderboard" class="nav-link">Classement
-            </router-link>
+            <router-link to="/leaderboard" class="nav-link">Classement</router-link>
           </li>
           <!-- Liens réservés aux admins -->
           <li v-if="authStore.scopes.includes('admin')">
@@ -44,7 +43,7 @@ const authStore = useAuthStore();
 </template>
 
 <style scoped>
-/* Header façon terminal */
+/* Header layout */
 .header {
   display: flex;
   justify-content: space-between;
@@ -56,10 +55,12 @@ const authStore = useAuthStore();
 /* Logo */
 .logo {
   height: 250px;
-  margin-bottom: 50px;
+  /* Default size for desktop */
+  margin-bottom: 20px;
+  /* Reduced for better spacing */
 }
 
-/* Liens de navigation façon terminal */
+/* Navigation links */
 .nav-links {
   display: flex;
   list-style: none;
@@ -77,5 +78,50 @@ const authStore = useAuthStore();
 
 .nav-link:hover {
   color: var(--color-success);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    /* Stack elements vertically */
+    align-items: center;
+    /* Center all content */
+    padding: 10px;
+    /* Reduce padding for mobile */
+  }
+
+  .left-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Center logo and nav links */
+    width: 100%;
+    /* Ensure full width */
+  }
+
+  .logo {
+    height: 100px;
+    /* Smaller logo size for mobile */
+    margin-bottom: 10px;
+    /* Adjust spacing */
+  }
+
+  .nav-links {
+    flex-direction: column;
+    /* Stack nav links vertically */
+    align-items: center;
+    gap: 15px;
+    /* Smaller gap for mobile */
+  }
+
+  /* Ensure Auth component is centered and full-width */
+  .auth-container {
+    width: 100%;
+    max-width: 300px;
+    /* Slightly smaller than desktop */
+    margin-top: 10px;
+    /* Space above login section */
+  }
 }
 </style>
