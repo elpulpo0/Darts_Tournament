@@ -37,7 +37,17 @@ services:
       - "${PORT_FRONT}:8081"
     networks:
       - badarts
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tournois-badarts.rule=Host(`badarts.fr`)"
+      - "traefik.http.routers.tournois-badarts.entrypoints=websecure"
+      - "traefik.http.routers.tournois-badarts.tls=true"
+      - "traefik.http.routers.tournois-badarts.tls.certresolver=letsencrypt"
+      - "traefik.http.services.tournois-badarts.loadbalancer.server.port=8081"
 
 networks:
   badarts:
     driver: bridge
+  proxy:
+    external: true
