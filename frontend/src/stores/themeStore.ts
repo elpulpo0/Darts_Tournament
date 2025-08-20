@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-// Define valid theme values
 type Theme = 'geek' | 'badarts';
 
 export const useThemeStore = defineStore('theme', () => {
@@ -17,15 +16,13 @@ export const useThemeStore = defineStore('theme', () => {
     localStorage.setItem('theme', theme);
   };
 
-  // Initialize theme on store creation
-  const initializeTheme = () => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme && ['geek', 'badarts'].includes(savedTheme)) {
-      setTheme(savedTheme as Theme);
-    } else {
-      setTheme('badarts'); // Default theme
-    }
-  };
+  // Initialize theme immediately
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme && ['geek', 'badarts'].includes(savedTheme)) {
+    setTheme(savedTheme as Theme);
+  } else {
+    setTheme('badarts'); // Default theme
+  }
 
-  return { currentTheme, setTheme, initializeTheme };
+  return { currentTheme, setTheme };
 });

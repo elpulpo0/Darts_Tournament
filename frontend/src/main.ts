@@ -1,22 +1,19 @@
-import { createApp } from 'vue'
-import './styles/theme.css'
-import './styles/styles.css'
-import App from './App.vue'
-import router from './router'
-import { createPinia } from 'pinia'
-import { useThemeStore } from './stores/themeStore'
-import Toast from 'vue-toastification'
-import 'vue-toastification/dist/index.css'
-import { watch } from 'vue'
+import { createApp } from 'vue';
+import './styles/theme.css';
+import './styles/styles.css';
+import App from './App.vue';
+import router from './router';
+import { createPinia } from 'pinia';
+import { useThemeStore } from './stores/themeStore';
+import Toast from 'vue-toastification';
+import 'vue-toastification/dist/index.css';
+import { watch } from 'vue';
 
-const app = createApp(App)
+const app = createApp(App);
+const pinia = createPinia();
 
-const pinia = createPinia()
-
-app.use(pinia)
-
-app.use(router)
-
+app.use(pinia);
+app.use(router);
 app.use(Toast, {
   position: 'bottom-right',
   timeout: 3000,
@@ -32,11 +29,7 @@ app.use(Toast, {
   rtl: false,
 });
 
-// Access the store after Pinia is initialized
 const themeStore = useThemeStore();
-
-// Initialize the theme
-themeStore.initializeTheme();
 
 // Watch for theme changes to update data-theme reactively
 watch(
