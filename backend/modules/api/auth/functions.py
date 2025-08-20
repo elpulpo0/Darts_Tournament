@@ -1,4 +1,4 @@
-from modules.api.auth.security import verify_password, anonymize, hash_token
+from modules.api.auth.security import verify_password, hash_token
 from datetime import datetime, timedelta, UTC
 from zoneinfo import ZoneInfo
 from jose import jwt
