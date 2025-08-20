@@ -38,6 +38,6 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_APP_LAST_COMMIT_HASH': JSON.stringify(buildMeta.hash),
       'import.meta.env.VITE_APP_LAST_COMMIT_MESSAGE': JSON.stringify(buildMeta.message),
     },
-    base: './',
+    base: '/',
   }
 })
