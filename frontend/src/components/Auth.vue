@@ -32,7 +32,7 @@ const newName = ref('');
 const newEmail = ref('');
 const newPassword = ref('');
 
-let isFetchingUser = false
+let isFetchingUser = false;
 
 function isTokenExpired(token: string): boolean {
   return !authStore.isTokenValid(token);
@@ -55,6 +55,20 @@ function checkToken() {
 function resetMessages() {
   errorMessage.value = '';
   successMessage.value = '';
+}
+
+// Client-side validation for the name field
+function validateName(name: string): string | null {
+  if (!name.trim()) {
+    return 'Le nom est requis.';
+  }
+  if (name.length < 3 || name.length > 20) {
+    return 'Le nom doit contenir entre 3 et 20 caractères.';
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+    return 'Le nom ne peut contenir que des lettres, chiffres, tirets ou underscores.';
+  }
+  return null;
 }
 
 const login = async () => {
@@ -98,8 +112,28 @@ const login = async () => {
 const register = async () => {
   resetMessages();
   try {
+    // Client-side validation
+    const nameError = validateName(name.value);
+    if (nameError) {
+      errorMessage.value = nameError;
+      toast.error(errorMessage.value);
+      return;
+    }
+
+    if (!email.value.includes('@')) {
+      errorMessage.value = "L'email saisi n'est pas valide.";
+      toast.error(errorMessage.value);
+      return;
+    }
+
     if (password.value !== confirmPassword.value) {
       errorMessage.value = "Les mots de passe ne correspondent pas.";
+      toast.error(errorMessage.value);
+      return;
+    }
+
+    if (password.value.length < 6) {
+      errorMessage.value = "Le mot de passe doit contenir au moins 6 caractères.";
       toast.error(errorMessage.value);
       return;
     }
@@ -131,12 +165,19 @@ const register = async () => {
   } catch (error: unknown) {
     console.error(error);
 
-    if (axios.isAxiosError(error)) {
-      errorMessage.value = error.response?.data.detail || 'Échec de la création du compte. Vérifiez les informations.';
+    if (axios.isAxiosError(error) && error.response?.status === 400) {
+      const detail = error.response.data.detail;
+      if (detail === 'A user with this name already exists.') {
+        errorMessage.value = 'Ce nom est déjà utilisé. Veuillez en choisir un autre.';
+      } else if (detail === 'A user with this email already exists.') {
+        errorMessage.value = 'Cet email est déjà utilisé. Veuillez en choisir un autre.';
+      } else {
+        errorMessage.value = detail || 'Échec de la création du compte. Vérifiez les informations.';
+      }
     } else {
       errorMessage.value = 'Une erreur s\'est produite, veuillez réessayer plus tard.';
-      toast.error(errorMessage.value);
     }
+    toast.error(errorMessage.value);
   }
 };
 
@@ -147,6 +188,16 @@ const updateProfile = async () => {
     errorMessage.value = 'Veuillez remplir au moins un champ pour mettre à jour votre profil.';
     toast.error(errorMessage.value);
     return;
+  }
+
+  // Validate new name if provided
+  if (newName.value.trim()) {
+    const nameError = validateName(newName.value);
+    if (nameError) {
+      errorMessage.value = nameError;
+      toast.error(errorMessage.value);
+      return;
+    }
   }
 
   if (newPassword.value && newPassword.value !== confirmPassword.value) {
@@ -192,11 +243,20 @@ const updateProfile = async () => {
   } catch (error) {
     console.error('Update profile error:', error);
     if (axios.isAxiosError(error) && error.response?.status === 401) {
-      errorMessage.value = "Session expirée"
+      errorMessage.value = "Session expirée";
+    } else if (axios.isAxiosError(error) && error.response?.status === 400) {
+      const detail = error.response.data.detail;
+      if (detail === 'A user with this name already exists.') {
+        errorMessage.value = 'Ce nom est déjà utilisé. Veuillez en choisir un autre.';
+      } else if (detail === 'A user with this email already exists.') {
+        errorMessage.value = 'Cet email est déjà utilisé. Veuillez en choisir un autre.';
+      } else {
+        errorMessage.value = detail || 'Échec de la mise à jour du profil. Vérifiez les informations.';
+      }
     } else {
       errorMessage.value = "Une erreur est survenue lors de la mise à jour. Veuillez réessayer.";
-      toast.error(errorMessage.value);
     }
+    toast.error(errorMessage.value);
   }
 };
 
@@ -204,7 +264,7 @@ const fetchUser = async () => {
   if (isFetchingUser) {
     return;
   }
-  isFetchingUser = true
+  isFetchingUser = true;
   try {
     let accessToken = authStore.token;
     if (!accessToken) throw new Error('Pas de token');
@@ -212,7 +272,7 @@ const fetchUser = async () => {
     if (isTokenExpired(accessToken) && authStore.refreshToken) {
       const refreshed = await authStore.refreshAccessToken();
       if (!refreshed) throw new Error('Erreur lors du refresh');
-      accessToken = authStore.token
+      accessToken = authStore.token;
     }
 
     const response = await backendApi.get(`/users/users/me`, {

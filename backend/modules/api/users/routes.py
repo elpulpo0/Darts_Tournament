@@ -129,10 +129,18 @@ def create_user(
     db: Session = Depends(get_users_db),
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    existing_user = get_user_by_email(user_data.email, db)
-    if existing_user:
+    # Check if a user with the same email already exists
+    existing_user_email = get_user_by_email(user_data.email, db)
+    if existing_user_email:
         raise HTTPException(
             status_code=400, detail="A user with this email already exists."
+        )
+
+    # Check if a user with the same name already exists
+    existing_user_name = db.query(User).filter_by(name=user_data.name).first()
+    if existing_user_name:
+        raise HTTPException(
+            status_code=400, detail="A user with this name already exists."
         )
 
     role_name = user_data.role if user_data.role else "player"
@@ -182,6 +190,8 @@ def create_user(
 
     notify_telegram(notify_user)
 
+    logger.info(f"User {new_user.name} successfully created")
+
     return UserResponse(
         id=new_user.id,
         name=new_user.name,
@@ -201,6 +211,28 @@ def update_current_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
+    # Check for duplicate name (excluding the current user)
+    if update_data.name and update_data.name != user.name:
+        existing_user_name = (
+            db.query(User)
+            .filter_by(name=update_data.name)
+            .filter(User.id != user.id)
+            .first()
+        )
+        if existing_user_name:
+            raise HTTPException(
+                status_code=400, detail="A user with this name already exists."
+            )
+
+    # Check for duplicate email (if applicable)
+    if update_data.email and update_data.email != user.email:
+        existing_user_email = get_user_by_email(update_data.email, db)
+        if existing_user_email:
+            raise HTTPException(
+                status_code=400, detail="A user with this email already exists."
+            )
+
+    # Update fields
     if update_data.name:
         user.name = update_data.name
 

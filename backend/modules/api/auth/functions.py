@@ -9,7 +9,7 @@ from modules.api.users.functions import get_user_by_email
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from modules.api.auth.models import RefreshToken
-from modules.api.users.telegram import notify_telegram
+# from modules.api.users.telegram import notify_telegram
 
 
 logger = configure_logger()
@@ -34,7 +34,7 @@ def create_token(data: dict, expires_delta: timedelta = None):
         expires_delta if expires_delta else timedelta(minutes=60)
     )
     role = data.get("role")
-    name = data.get("name")
+    # name = data.get("name")
 
     scopes_map = {
         "admin": ["admin", "editor", "player", "me"],
@@ -63,11 +63,11 @@ def create_token(data: dict, expires_delta: timedelta = None):
             f"Expire at {expire_local.strftime('%Y-%m-%d %H:%M:%S')}"
         )
 
-        if not os.getenv("TEST_MODE") and os.getenv("ENV") != "dev":
-            notify_user = NotifyUserLogin(
-                name=name, role=role, scopes=scopes, type="login"
-            )
-            notify_telegram(notify_user)
+        # if not os.getenv("TEST_MODE") and os.getenv("ENV") != "dev":
+        #     notify_user = NotifyUserLogin(
+        #         name=name, role=role, scopes=scopes, type="login"
+        #     )
+        #     notify_telegram(notify_user)
 
     else:
         logger.info(
