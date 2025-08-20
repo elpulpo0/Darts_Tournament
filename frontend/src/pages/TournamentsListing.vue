@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import backendApi from '../axios/backendApi';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -227,7 +227,15 @@ const selectTournament = (tournament: Tournament) => {
     selectedTournament.value = tournament;
 };
 
-fetchTournaments();
+watch(
+    () => authStore.isAuthenticated,
+    (isAuthenticated: boolean) => {
+        if (isAuthenticated) {
+            fetchTournaments();
+        }
+    },
+    { immediate: true }
+);
 
 const openProjection = () => {
     if (!selectedTournament.value) return;

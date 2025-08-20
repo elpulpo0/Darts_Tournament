@@ -1,5 +1,5 @@
 from utils.logger_config import configure_logger
-from datetime import timedelta, timezone, datetime
+from datetime import timedelta, datetime, UTC
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -52,7 +52,7 @@ def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token_expires = timedelta(minutes=15)
+    access_token_expires = timedelta(minutes=60)
     refresh_token_expires = timedelta(days=7)
 
     access_token = create_token(
@@ -66,11 +66,15 @@ def login_for_access_token(
     )
 
     refresh_token = create_token(
-        data={"sub": user_data["email"], "type": "refresh"},
+        data={
+            "sub": user_data["email"],
+            "role": user_data["role"],
+            "type": "refresh",
+        },
         expires_delta=refresh_token_expires,
     )
 
-    refresh_expiry = datetime.now(timezone.utc) + refresh_token_expires
+    refresh_expiry = datetime.now(UTC) + refresh_token_expires
     hashed_token = hash_token(refresh_token)
     store_refresh_token(db, user_data["user_id"], hashed_token, refresh_expiry)
 
@@ -90,7 +94,6 @@ def refresh_token(
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
-        role = payload.get("role")
         token_type = payload.get("type")
         if token_type != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token for refresh")
@@ -103,9 +106,7 @@ def refresh_token(
     if not refresh_token_db:
         raise HTTPException(status_code=401, detail="Refresh token not found")
 
-    if refresh_token_db.expires_at.replace(tzinfo=timezone.utc) < datetime.now(
-        timezone.utc
-    ):
+    if refresh_token_db.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
         raise HTTPException(status_code=401, detail="Refresh token expired")
 
     refresh_token_db.revoked = True
@@ -114,19 +115,45 @@ def refresh_token(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
+    # Use user's role from DB, not payload, to ensure valid role
+    role = user.role.role if user.role else "player"
+    # Calculate scopes based on role
+    scopes_map = {
+        "admin": ["admin", "editor", "player", "me"],
+        "editor": ["editor", "player", "me"],
+        "player": ["player", "me"],
+        "user": ["me"],
+    }
+    scopes = scopes_map.get(role, [])
+
     new_access_token = create_token(
-        data={"sub": email, "role": role}, expires_delta=timedelta(minutes=15)
+        data={
+            "sub": email,
+            "role": role,
+            "type": "access",
+            "name": user.name,
+            "scopes": scopes,  # Explicitly include scopes
+        },
+        expires_delta=timedelta(minutes=60),
     )
 
     new_refresh_token = create_token(
-        data={"sub": email, "role": role, "type": "refresh", "jti": str(uuid4())},
+        data={
+            "sub": email,
+            "role": role,
+            "type": "refresh",
+            "jti": str(uuid4()),
+        },
         expires_delta=timedelta(days=7),
     )
     hashed_new_refresh_token = hash_token(new_refresh_token)
-    refresh_expiry = datetime.now(timezone.utc) + timedelta(days=7)
+    refresh_expiry = datetime.now(UTC) + timedelta(days=7)
 
     store_refresh_token(
-        db, user_id=user.id, token=hashed_new_refresh_token, expires_at=refresh_expiry
+        db,
+        user_id=user.id,
+        token=hashed_new_refresh_token,
+        expires_at=refresh_expiry,
     )
 
     db.commit()

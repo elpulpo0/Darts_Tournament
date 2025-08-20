@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, watch, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import backendApi from '../axios/backendApi';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
@@ -8,7 +8,9 @@ import { useAuthStore } from '../stores/useAuthStore';
 
 const authStore = useAuthStore();
 const toast = useToast();
-const router = useRouter();
+const route = useRoute();
+
+const tokenCheckInterval = ref<number | null>(null);
 
 interface User {
   email: string;
@@ -30,14 +32,24 @@ const newName = ref('');
 const newEmail = ref('');
 const newPassword = ref('');
 
+let isFetchingUser = false
+
 function isTokenExpired(token: string): boolean {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const now = Math.floor(Date.now() / 1000);
-    return payload.exp < now;
-  } catch (e) {
-    return true;
-  }
+  return !authStore.isTokenValid(token);
+}
+
+function checkToken() {
+  tokenCheckInterval.value = setInterval(async () => {
+    if (authStore.token && !isFetchingUser) {
+      if (isTokenExpired(authStore.token)) {
+        if (authStore.refreshToken) {
+          await fetchUser();
+        } else {
+          handleLogout();
+        }
+      }
+    }
+  }, 30000); // Check every 30 seconds
 }
 
 function resetMessages() {
@@ -49,49 +61,36 @@ const login = async () => {
   resetMessages();
   try {
     const response = await backendApi.post(
-      '/auth/login',
+      `/auth/login`,
       new URLSearchParams({
         username: email.value,
         password: password.value,
       }),
       {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
       }
     );
 
     if (response.status === 200 && response.data.access_token) {
-      const userResponse = await backendApi.get('/users/users/me', {
-        headers: { Authorization: `Bearer ${response.data.access_token}` },
-      });
-
       authStore.setAuthData({
         token: response.data.access_token,
-        email: userResponse.data.email,
-        name: userResponse.data.name,
-        userId: userResponse.data.id,
-        scopes: response.data.scopes || userResponse.data.scopes || [],
+        refreshToken: response.data.refresh_token,
+        email: email.value,
+        name: '',
+        userId: response.data.id,
+        scopes: [],
       });
 
-      user.value = {
-        email: userResponse.data.email,
-        password: '',
-        name: userResponse.data.name.charAt(0).toUpperCase() + userResponse.data.name.slice(1),
-        role: userResponse.data.role,
-      };
-
+      await fetchUser();
       resetMessages();
-      toast.success('Connexion réussie !');
-      router.push('/tournaments');
     } else {
-      throw new Error('Jeton manquant ou statut inattendu.');
+      throw new Error("Token manquant ou statut inattendu");
     }
   } catch (error) {
-    console.error('Erreur de connexion', error);
-    errorMessage.value = axios.isAxiosError(error) && error.response?.data?.detail
-      ? error.response.data.detail
-      : 'Échec de la connexion. Veuillez vérifier vos identifiants.';
+    console.error(error);
+    errorMessage.value = "Échec de la connexion. Vérifiez vos identifiants.";
     toast.error(errorMessage.value);
   }
 };
@@ -100,18 +99,17 @@ const register = async () => {
   resetMessages();
   try {
     if (password.value !== confirmPassword.value) {
-      errorMessage.value = 'Les mots de passe ne correspondent pas.';
+      errorMessage.value = "Les mots de passe ne correspondent pas.";
       toast.error(errorMessage.value);
       return;
     }
 
     const response = await backendApi.post(
-      '/users/users/',
+      `/users/users/`,
       {
         email: email.value,
         name: name.value,
         password: password.value,
-        role: 'player',
       },
       {
         headers: {
@@ -121,6 +119,7 @@ const register = async () => {
     );
 
     if (response.status === 201) {
+      errorMessage.value = '';
       successMessage.value = 'Inscription réussie, vous pouvez maintenant vous connecter.';
       toast.success(successMessage.value);
       email.value = '';
@@ -129,12 +128,15 @@ const register = async () => {
       confirmPassword.value = '';
       isRegistering.value = false;
     }
-  } catch (error) {
-    console.error('Erreur d\'inscription', error);
-    errorMessage.value = axios.isAxiosError(error) && error.response?.data?.detail
-      ? error.response.data.detail
-      : 'Échec de la création du compte. Veuillez vérifier les informations.';
-    toast.error(errorMessage.value);
+  } catch (error: unknown) {
+    console.error(error);
+
+    if (axios.isAxiosError(error)) {
+      errorMessage.value = error.response?.data.detail || 'Échec de la création du compte. Vérifiez les informations.';
+    } else {
+      errorMessage.value = 'Une erreur s\'est produite, veuillez réessayer plus tard.';
+      toast.error(errorMessage.value);
+    }
   }
 };
 
@@ -148,19 +150,19 @@ const updateProfile = async () => {
   }
 
   if (newPassword.value && newPassword.value !== confirmPassword.value) {
-    errorMessage.value = 'Les mots de passe ne correspondent pas.';
+    errorMessage.value = "Les mots de passe ne correspondent pas.";
     toast.error(errorMessage.value);
     return;
   }
 
   if (newPassword.value && newPassword.value.length < 6) {
-    errorMessage.value = 'Le mot de passe doit comporter au moins 6 caractères.';
+    errorMessage.value = "Le mot de passe doit contenir au moins 6 caractères.";
     toast.error(errorMessage.value);
     return;
   }
 
   if (newEmail.value && !newEmail.value.includes('@')) {
-    errorMessage.value = 'L\'email saisi n\'est pas valide.';
+    errorMessage.value = "L'email saisi n'est pas valide.";
     toast.error(errorMessage.value);
     return;
   }
@@ -172,57 +174,72 @@ const updateProfile = async () => {
   if (newPassword.value.trim()) payload.password = newPassword.value;
 
   try {
-    await backendApi.patch('/users/users/me', payload, {
+    await backendApi.patch(`/users/users/me`, payload, {
       headers: {
         Authorization: `Bearer ${authStore.token}`,
         'Content-Type': 'application/json',
-      },
+      }
     });
-
-    await fetchUser();
 
     successMessage.value = 'Profil mis à jour avec succès.';
     toast.success(successMessage.value);
+    errorMessage.value = '';
     newEmail.value = '';
     newName.value = '';
     newPassword.value = '';
     confirmPassword.value = '';
-    showEditForm.value = false;
+    await fetchUser();
   } catch (error) {
-    console.error('Erreur de mise à jour du profil', error);
-    errorMessage.value = axios.isAxiosError(error) && error.response?.data?.detail
-      ? error.response.data.detail
-      : 'Une erreur s\'est produite lors de la mise à jour. Veuillez réessayer.';
-    toast.error(errorMessage.value);
+    console.error('Update profile error:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      errorMessage.value = "Session expirée"
+    } else {
+      errorMessage.value = "Une erreur est survenue lors de la mise à jour. Veuillez réessayer.";
+      toast.error(errorMessage.value);
+    }
   }
 };
 
 const fetchUser = async () => {
+  if (isFetchingUser) {
+    return;
+  }
+  isFetchingUser = true
   try {
-    const token = authStore.token;
-    if (!token) throw new Error('Aucun jeton');
+    let accessToken = authStore.token;
+    if (!accessToken) throw new Error('Pas de token');
 
-    const response = await backendApi.get('/users/users/me', {
-      headers: { Authorization: `Bearer ${token}` },
+    if (isTokenExpired(accessToken) && authStore.refreshToken) {
+      const refreshed = await authStore.refreshAccessToken();
+      if (!refreshed) throw new Error('Erreur lors du refresh');
+      accessToken = authStore.token
+    }
+
+    const response = await backendApi.get(`/users/users/me`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
 
     authStore.setAuthData({
-      token,
-      email: response.data.email,
+      token: accessToken,
+      refreshToken: authStore.refreshToken,
+      email: authStore.email,
       name: response.data.name,
       userId: response.data.id,
-      scopes: response.data.scopes || [],
+      scopes: response.data.scopes
     });
 
     user.value = {
-      email: response.data.email,
+      email: authStore.email,
       password: '',
       name: response.data.name.charAt(0).toUpperCase() + response.data.name.slice(1),
-      role: response.data.role,
+      role: response.data.role
     };
   } catch (error) {
-    console.error('Erreur de récupération des informations utilisateur', error);
+    console.error('Fetch user error:', error);
+    errorMessage.value = 'Session expirée';
     handleLogout();
+  } finally {
+    isFetchingUser = false;
   }
 };
 
@@ -230,20 +247,32 @@ const handleLogout = () => {
   authStore.logout();
   user.value = null;
   resetMessages();
-  router.push('/login');
 };
 
-watch(
-  () => authStore.token,
-  async (newToken) => {
-    if (newToken && !isTokenExpired(newToken)) {
-      await fetchUser();
-    } else {
-      handleLogout();
-    }
-  },
-  { immediate: true }
-);
+onMounted(() => {
+  checkToken();
+});
+
+// Watch route changes for page navigation
+watch(() => route.path, async () => {
+  if (authStore.token && !isFetchingUser) {
+    await fetchUser();
+  }
+});
+
+// Watch token changes
+watch(() => authStore.token, async (newToken) => {
+  if (isFetchingUser) {
+    return;
+  }
+  if (!newToken) {
+    handleLogout();
+  } else if (isTokenExpired(newToken) && authStore.refreshToken) {
+    await fetchUser();
+  } else {
+    await fetchUser();
+  }
+}, { immediate: true });
 </script>
 
 <template>

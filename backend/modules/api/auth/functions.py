@@ -1,5 +1,6 @@
-from modules.api.auth.security import verify_password, hash_token
-from datetime import datetime, timedelta
+from modules.api.auth.security import verify_password, anonymize, hash_token
+from datetime import datetime, timedelta, UTC
+from zoneinfo import ZoneInfo
 from jose import jwt
 import os
 from dotenv import load_dotenv
@@ -8,7 +9,7 @@ from modules.api.users.functions import get_user_by_email
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from modules.api.auth.models import RefreshToken
-from modules.api.users.telegram import notify_new_user_telegram
+from modules.api.users.telegram import notify_telegram
 
 
 logger = configure_logger()
@@ -29,7 +30,7 @@ class NotifyUserLogin:
 
 def create_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
-    expire = datetime.now() + (
+    expire = datetime.now(UTC) + (
         expires_delta if expires_delta else timedelta(minutes=60)
     )
     role = data.get("role")
@@ -53,20 +54,25 @@ def create_token(data: dict, expires_delta: timedelta = None):
     to_encode["exp"] = expire
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+    local_tz = ZoneInfo("Europe/Paris")
+    expire_local = expire.astimezone(local_tz)
+
     if token_type == "access":
         logger.info(
-            f"Token {token_type} created (role: {role} with scopes {scopes} - "
-            f"Expire at {expire.strftime('%Y-%m-%d %H:%M:%S')}"
+            f"Token {token_type} created (role: {role}) with scopes {scopes} - "
+            f"Expire at {expire_local.strftime('%Y-%m-%d %H:%M:%S')}"
         )
 
-        notify_user = NotifyUserLogin(name=name, role=role, scopes=scopes, type="login")
-
-        notify_new_user_telegram(notify_user)
+        if not os.getenv("TEST_MODE") and os.getenv("ENV") != "dev":
+            notify_user = NotifyUserLogin(
+                name=name, role=role, scopes=scopes, type="login"
+            )
+            notify_telegram(notify_user)
 
     else:
         logger.info(
             f"Token {token_type} created - "
-            f"Expire at {expire.strftime('%Y-%m-%d %H:%M:%S')}"
+            f"Expire at {expire_local.strftime('%Y-%m-%d %H:%M:%S')}"
         )
 
     return encoded_jwt
@@ -118,9 +124,9 @@ def store_refresh_token(db: Session, user_id: int, token: str, expires_at: datet
         raise ValueError("Token collision occurred, please try again.")
 
 
-def find_refresh_token(db: Session, provided_token: str) -> RefreshToken | None:
+def find_refresh_token(db: Session, hashed_token: str) -> RefreshToken | None:
     refresh_token = (
-        db.query(RefreshToken).filter(RefreshToken.token == provided_token).first()
+        db.query(RefreshToken).filter(RefreshToken.token == hashed_token).first()
     )
     if refresh_token:
         logger.info(

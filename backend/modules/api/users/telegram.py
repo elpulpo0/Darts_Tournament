@@ -10,7 +10,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 
-def notify_new_user_telegram(user):
+def notify_telegram(user):
     if user.type == "userCreate":
         message = (
             "<b>🧩 New user created!</b>\n\n"

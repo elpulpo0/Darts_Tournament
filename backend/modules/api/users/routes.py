@@ -13,7 +13,7 @@ from modules.api.users.schemas import UserResponse, UserCreate, UserUpdate, Toke
 from modules.api.users.models import User, Role
 from modules.api.auth.security import anonymize, hash_password
 from typing import Optional
-from modules.api.users.telegram import notify_new_user_telegram
+from modules.api.users.telegram import notify_telegram
 
 
 logger = configure_logger()
@@ -180,7 +180,7 @@ def create_user(
         type="userCreate",
     )
 
-    notify_new_user_telegram(notify_user)
+    notify_telegram(notify_user)
 
     return UserResponse(
         id=new_user.id,

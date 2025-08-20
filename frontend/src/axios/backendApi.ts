@@ -8,11 +8,23 @@ const backendApi = axios.create({
 
 backendApi.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response) {
-      if (error.response.status === 401) {
+      if (error.response.status === 401 && !error.config._retry) {
         const authStore = useAuthStore();
-        authStore.logout();
+        error.config._retry = true; // Mark request as retried to prevent infinite loops
+
+        // Attempt to refresh the token
+        const refreshed = await authStore.refreshAccessToken();
+        if (refreshed) {
+          // Update the Authorization header with the new access token
+          error.config.headers['Authorization'] = `Bearer ${authStore.token}`;
+          return backendApi(error.config); // Retry the original request
+        } else {
+          // Refresh failed, log out
+          authStore.logout();
+          console.error('Échec de la réactualisation du token, déconnexion.');
+        }
       }
 
       if (error.response.status === 400) {
