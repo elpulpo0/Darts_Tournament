@@ -79,7 +79,7 @@ const isCurrentRoundFinished = computed(() => {
 
 const openProjection = () => {
     if (!tournament.value) return;
-    window.open(`/tournaments/${tournament.value.id}/projection`, '_blank');
+    router.push(`/tournaments/${tournament.value.id}/projection`);
 };
 
 const fetchTournament = async (id: number) => {
@@ -685,7 +685,7 @@ onMounted(() => {
                 <button @click="cancelEditing">Annuler</button>
             </div>
 
-            <button v-if="tournament" @click="openProjection">
+            <button v-if="tournament && ['running', 'closed'].includes(tournament.status)" @click="openProjection">
                 Projeter l’arborescence
             </button>
 

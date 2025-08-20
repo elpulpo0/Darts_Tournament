@@ -46,7 +46,8 @@
                     <p>Les inscriptions sont closes pour ce tournoi.</p>
                 </div>
 
-                <button v-if="selectedTournament" @click="openProjection">
+                <button v-if="selectedTournament && ['running', 'closed'].includes(selectedTournament.status)"
+                    @click="openProjection">
                     Projeter l’arborescence
                 </button>
             </div>
@@ -239,7 +240,7 @@ watch(
 
 const openProjection = () => {
     if (!selectedTournament.value) return;
-    window.open(`/tournaments/${selectedTournament.value.id}/projection`, '_blank');
+    router.push(`/tournaments/${selectedTournament.value.id}/projection`);
 };
 </script>
 
