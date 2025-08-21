@@ -27,6 +27,7 @@ from modules.api.auth.security import hash_token
 from fastapi.responses import JSONResponse
 from uuid import uuid4
 from typing import List
+from modules.api.users.telegram import notify_telegram
 
 load_dotenv()
 
@@ -36,6 +37,13 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
 auth_router = APIRouter()
+
+class NotifyUserLogin:
+    def __init__(self, name, role, scopes, type):
+        self.name = name
+        self.role = role
+        self.scopes = scopes
+        self.type = type
 
 
 @auth_router.post("/login", response_model=Token)
@@ -55,6 +63,15 @@ def login_for_access_token(
     access_token_expires = timedelta(minutes=60)
     refresh_token_expires = timedelta(days=7)
 
+    scopes_map = {
+        "admin": ["admin", "editor", "player", "me"],
+        "editor": ["editor", "player", "me"],
+        "player": ["player", "me"],
+        "user": ["me"],
+    }
+
+    scopes = scopes_map.get(user_data["role"], [])
+
     access_token = create_token(
         data={
             "sub": user_data["email"],
@@ -70,6 +87,7 @@ def login_for_access_token(
             "sub": user_data["email"],
             "role": user_data["role"],
             "type": "refresh",
+            "name": user_data["name"],
         },
         expires_delta=refresh_token_expires,
     )
@@ -77,6 +95,12 @@ def login_for_access_token(
     refresh_expiry = datetime.now(UTC) + refresh_token_expires
     hashed_token = hash_token(refresh_token)
     store_refresh_token(db, user_data["user_id"], hashed_token, refresh_expiry)
+
+    if not os.getenv("TEST_MODE") and os.getenv("ENV") != "dev":
+            notify_user = NotifyUserLogin(
+                name=user_data["name"], role=user_data["role"], scopes=scopes, type="login"
+            )
+            notify_telegram(notify_user)
 
     return JSONResponse(
         {
