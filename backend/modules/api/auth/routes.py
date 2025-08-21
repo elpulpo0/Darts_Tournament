@@ -167,6 +167,7 @@ def refresh_token(
             "role": role,
             "type": "refresh",
             "jti": str(uuid4()),
+            "name": user.name
         },
         expires_delta=timedelta(days=7),
     )
