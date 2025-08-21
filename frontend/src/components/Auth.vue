@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import backendApi from '../axios/backendApi';
 import axios from 'axios';
@@ -42,11 +42,7 @@ function checkToken() {
   tokenCheckInterval.value = setInterval(async () => {
     if (authStore.token && !isFetchingUser) {
       if (isTokenExpired(authStore.token)) {
-        if (authStore.refreshToken) {
-          await fetchUser();
-        } else {
-          handleLogout();
-        }
+        handleLogout();
       }
     }
   }, 30000); // Check every 30 seconds
@@ -304,6 +300,10 @@ const fetchUser = async () => {
 };
 
 const handleLogout = () => {
+  if (tokenCheckInterval.value) {
+    clearInterval(tokenCheckInterval.value);
+    tokenCheckInterval.value = null;
+  }
   authStore.logout();
   user.value = null;
   resetMessages();
@@ -313,10 +313,22 @@ onMounted(() => {
   checkToken();
 });
 
+onUnmounted(() => {
+  if (tokenCheckInterval.value) {
+    clearInterval(tokenCheckInterval.value);
+    tokenCheckInterval.value = null;
+  }
+});
+
 // Watch route changes for page navigation
 watch(() => route.path, async () => {
   if (authStore.token && !isFetchingUser) {
     await fetchUser();
+  }
+  if (authStore.token && tokenCheckInterval.value) {
+    clearInterval(tokenCheckInterval.value);
+    tokenCheckInterval.value = null;
+    checkToken();
   }
 });
 
