@@ -9,8 +9,6 @@ from modules.api.users.functions import get_user_by_email
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from modules.api.auth.models import RefreshToken
-# from modules.api.users.telegram import notify_telegram
-
 
 logger = configure_logger()
 
@@ -20,21 +18,13 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
 
-class NotifyUserLogin:
-    def __init__(self, name, role, scopes, type):
-        self.name = name
-        self.role = role
-        self.scopes = scopes
-        self.type = type
-
-
 def create_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     expire = datetime.now(UTC) + (
         expires_delta if expires_delta else timedelta(minutes=60)
     )
     role = data.get("role")
-    # name = data.get("name")
+    name = data.get("name")
 
     scopes_map = {
         "admin": ["admin", "editor", "player", "me"],
@@ -59,20 +49,16 @@ def create_token(data: dict, expires_delta: timedelta = None):
 
     if token_type == "access":
         logger.info(
-            f"Token {token_type} created (role: {role}) with scopes {scopes} - "
-            f"Expire at {expire_local.strftime('%Y-%m-%d %H:%M:%S')}"
+            f"""
+            New token {token_type} created for {name} with role {role} and scopes {scopes}
+            Expire at {expire_local.strftime('%Y-%m-%d %H:%M:%S')}"""
         )
-
-        # if not os.getenv("TEST_MODE") and os.getenv("ENV") != "dev":
-        #     notify_user = NotifyUserLogin(
-        #         name=name, role=role, scopes=scopes, type="login"
-        #     )
-        #     notify_telegram(notify_user)
 
     else:
         logger.info(
-            f"Token {token_type} created - "
-            f"Expire at {expire_local.strftime('%Y-%m-%d %H:%M:%S')}"
+            f"""
+            New token {token_type} created for {name}
+            Expire at {expire_local.strftime('%Y-%m-%d %H:%M:%S')}"""
         )
 
     return encoded_jwt
@@ -132,8 +118,7 @@ def find_refresh_token(db: Session, hashed_token: str) -> RefreshToken | None:
         logger.info(
             f"""
             Refresh token found: {refresh_token.token},
-            expires_at: {refresh_token.expires_at}
-            """
+            Expite at: {refresh_token.expires_at}"""
         )
     else:
         logger.warning("No refresh token found.")
