@@ -8,8 +8,9 @@ export function createPools(players: Player[], requestedNumPools: number): Pool[
     for (let i = 0; i < numPools; i++) {
         pools.push({ id: i + 1, name: `Poule ${String.fromCharCode(65 + i)}`, players: [], matches: [] });
     }
+    const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
     let idx = 0;
-    for (const player of players) {
+    for (const player of shuffledPlayers) {
         pools[idx % numPools].players.push(player);
         idx++;
     }
