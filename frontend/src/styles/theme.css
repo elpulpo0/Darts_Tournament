@@ -1,6 +1,6 @@
 [data-theme='geek'] {
   --color-bg: #000000;
-  --color-bg-lighter: #797979;
+  --color-bg-lighter: #c9c5c5;
   --color-light-shadow: #d6d6d6;
   --color-fg: #00ff00;
   --color-fg-darker: #003300;
@@ -16,7 +16,7 @@
 
 [data-theme='badarts'] {
   --color-bg: #faead8;              /* très clair, doux, apaisant */
-  --color-bg-lighter: #ffeeb6;      /* pour contraste propre */
+  --color-bg-lighter: #313131;      /* pour contraste propre */
   --color-light-shadow: #dce9e8;    /* ombre légère, subtile */
   --color-fg: #1e293b;              /* texte principal, sombre mais doux */
   --color-fg-darker: #eba952;       /* texte secondaire */
