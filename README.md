@@ -1,11 +1,11 @@
-### Template
+### Build in progress
 
 ## Installation
 
 **Clone this repository**
 
 ```bash
-git clone https://github.com/Microphyt/Template.git
+git clone https://github.com/elpulpo0/Darts_Tournament.git
 ```
 
 **Create and edit your environnement files**
