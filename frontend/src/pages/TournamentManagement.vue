@@ -90,7 +90,7 @@
 
             <div v-if="tournament.status === 'open'" class="participants-section">
                 <h4>Joueurs inscrits</h4>
-                <table v-if="registeredUsers?.length">
+                <table v-if="tournamentStore.registeredUsers?.length">
                     <thead>
                         <tr>
                             <th>Nom</th>
@@ -99,7 +99,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="user in registeredUsers" :key="user.id">
+                        <tr v-for="user in tournamentStore.registeredUsers" :key="user.id">
                             <td>{{ user.name }}</td>
                             <td>{{ user.team_name || 'Sans équipe' }}</td>
                             <td>
@@ -112,28 +112,30 @@
                 </table>
                 <p v-else>Aucun joueur inscrit pour le moment.</p>
 
-                <h4>Équipes inscrites</h4>
-                <table v-if="teams?.length">
-                    <thead>
-                        <tr>
-                            <th>Nom de l'équipe</th>
-                            <th>Membres</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="team in teams" :key="team.id">
-                            <td>{{ team.name }}</td>
-                            <td>{{team.users.map(u => u.name).join(' & ')}}</td>
-                            <td>
-                                <button title="Supprimer cette équipe"
-                                    style="color: red; background: none; border: none; font-size: 1.2em; cursor: pointer;"
-                                    @click="deleteTeam(team.id, tournament.id)">✖️</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p v-else>Aucune équipe inscrite pour le moment.</p>
+                <div v-if="tournament.mode === 'double'">
+                    <h4>Équipes inscrites</h4>
+                    <table v-if="teams?.length">
+                        <thead>
+                            <tr>
+                                <th>Nom de l'équipe</th>
+                                <th>Membres</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="team in teams" :key="team.id">
+                                <td>{{ team.name }}</td>
+                                <td>{{team.users.map(u => u.name).join(' & ')}}</td>
+                                <td>
+                                    <button title="Supprimer cette équipe"
+                                        style="color: red; background: none; border: none; font-size: 1.2em; cursor: pointer;"
+                                        @click="deleteTeam(team.id, tournament.id)">✖️</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p v-else>Aucune équipe inscrite pour le moment.</p>
+                </div>
 
                 <button @click="startRegisteringPlayer(tournament.id)">Inscrire un joueur</button>
                 <button v-if="tournament.mode === 'double'" @click="startCreatingTeam(tournament.id)">Créer une
@@ -165,7 +167,8 @@
                     </label>
                     <label>Joueurs de l’équipe :
                         <select multiple v-model="selectedTeamUsers" class="form-input">
-                            <option v-for="user in selectableTeamUsers" :value="user.id" :key="user.id">{{ user.name }}
+                            <option v-for="user in selectableTeamUsers" :value="user.id" :key="user.id">{{ user.name
+                            }}
                             </option>
                         </select>
                     </label>
@@ -227,7 +230,7 @@
                                         return participantType === 'team' && users?.length
                                             ? `${participantName} (${users.map(u => u.name).join(' & ')})`
                                             : participantName;
-                                    }).join(' vs ') }}
+                                    }).join(' vs ')}}
                                 </td>
                                 <td>{{ match.status }}</td>
                                 <td>
@@ -240,7 +243,8 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <button v-if="match.status === 'pending'" @click="updateMatch(match)">Mettre à jour
+                                    <button v-if="match.status === 'pending'" @click="updateMatch(match)">Mettre à
+                                        jour
                                         les scores</button>
                                 </td>
                             </tr>
@@ -271,7 +275,7 @@ import { ref, onMounted, computed } from 'vue';
 import backendApi from '../axios/backendApi';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../stores/useAuthStore';
-import { createPools, generateEliminationMatches, getMatchWinner, computePoolRanking } from '../functions/tournamentStructure';
+import { createPools, generateEliminationMatches, getMatchWinner } from '../functions/tournamentStructure';
 import { handleError } from '../functions/utils';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
@@ -288,7 +292,6 @@ const leaderboardsStore = useLeaderboardsStore();
 const tournamentStore = useTournamentStore();
 
 const tournament = ref<Tournament | null>(null);
-const registeredUsers = ref<User[]>([]);
 const teams = ref<Participant[]>([]);
 const matches = ref<Match[]>([]);
 const loading = ref(false);
@@ -350,12 +353,12 @@ const isCurrentRoundFinished = computed(() => {
 });
 
 const selectableUsers = computed(() => {
-    const alreadyRegisteredIds = new Set(registeredUsers.value.map(user => user.id));
+    const alreadyRegisteredIds = new Set(tournamentStore.registeredUsers.map(user => user.id));
     return allUsers.value.filter(user => !alreadyRegisteredIds.has(user.id));
 });
 
 const selectableTeamUsers = computed(() => {
-    return registeredUsers.value.filter(user => !user.team_id);
+    return tournamentStore.registeredUsers.filter(user => !user.team_id);
 });
 
 const openProjection = () => {
@@ -408,17 +411,6 @@ const fetchAllUsers = async () => {
         allUsers.value = data;
     } catch (err) {
         handleError(err, 'fetching all users');
-    }
-};
-
-const fetchRegisteredUsers = async () => {
-    try {
-        const { data } = await backendApi.get(`/tournaments/${tournamentId.value}/registered-users`, {
-            headers: { Authorization: `Bearer ${authStore.token}` },
-        });
-        registeredUsers.value = data;
-    } catch (err) {
-        handleError(err, 'fetching registered users');
     }
 };
 
@@ -513,94 +505,92 @@ const cancelLaunchingTournament = () => {
 const launchTournament = async () => {
     loading.value = true;
     try {
-        const { data: participants } = await backendApi.get(`/tournaments/${tournamentId.value}/participants`, {
-            headers: { Authorization: `Bearer ${authStore.token}` },
+        const { data: participants } = await backendApi.get(`/ tournaments / ${ tournamentId.value }/participants`, {
+headers: { Authorization: `Bearer ${authStore.token}` },
         });
-        if ((participants?.length ?? 0) < 2) throw new Error(launchTournamentMode.value === 'single' ? "Minimum 2 joueurs requis" : "Minimum 2 équipes requises");
+if ((participants?.length ?? 0) < 2) throw new Error(launchTournamentMode.value === 'single' ? "Minimum 2 joueurs requis" : "Minimum 2 équipes requises");
 
-        let tournamentType: 'pool' | 'elimination';
-        let numPools: number = 1;
+let tournamentType: 'pool' | 'elimination';
+let numPools: number = 1;
 
-        if (launchTypeMode.value === 'manual') {
-            tournamentType = launchTournamentType.value;
-            numPools = Math.max(1, Math.min(launchTargetCount.value, participants.length));
-        } else {
-            if (participants.length === 2) {
-                tournamentType = 'elimination';
-                numPools = 0;
-            } else if (participants.length <= 4) {
-                tournamentType = 'elimination';
-                numPools = 0;
-            } else if (participants.length <= 6) {
-                tournamentType = 'pool';
-                numPools = 2;
-            } else if (participants.length <= 8) {
-                tournamentType = 'pool';
-                numPools = 2;
-            } else {
-                tournamentType = 'pool';
-                numPools = Math.ceil(participants.length / 4);
-            }
-        }
-
-        if (tournamentType === 'elimination' && participants.length % 2 !== 0) {
-            throw new Error("Nombre impair de participants non supporté en mode élimination sans bye");
-        }
-
-        console.log('Mode de lancement:', launchTypeMode.value, 'Type de tournoi:', tournamentType, 'Mode:', launchTournamentMode.value, 'Nombre de poules:', numPools);
-
-        await backendApi.patch(`/tournaments/${tournamentId.value}`, {
-            type: tournamentType,
-            mode: launchTournamentMode.value,
-            status: 'running'
-        }, {
-            headers: { Authorization: `Bearer ${authStore.token}` },
-        });
-
-        if (tournamentType === 'pool') {
-            const pools = createPools(participants, numPools);
-            const poolIdMap: Record<number, number> = {};
-            for (const pool of pools) {
-                const { data: createdPool } = await backendApi.post(
-                    `/tournaments/${tournamentId.value}/pools/`,
-                    {
-                        name: pool.name || null,
-                        participant_ids: pool.participants.map((p: Participant) => p.id),
-                    },
-                    {
-                        headers: { Authorization: `Bearer ${authStore.token}` },
-                    }
-                );
-                poolIdMap[pool.id] = createdPool.id;
-                console.log("pool id virtuel", pool.id, "-> pool id SQL", createdPool.id);
-            }
-            for (const pool of pools) {
-                const poolSqlId = poolIdMap[pool.id];
-                if (!poolSqlId) {
-                    console.error("poolSqlId introuvable pour la pool virtuelle id=", pool.id, pool);
-                    continue;
-                }
-                for (const match of pool.matches) {
-                    console.log("Création du match de poule avec poolSqlId:", poolSqlId, match);
-                    await createAndPersistMatch(match, poolSqlId);
-                }
-            }
-        } else {
-            const generatedMatches = generateEliminationMatches(participants);
-            for (const m of generatedMatches) {
-                await createAndPersistMatch(m);
-            }
-        }
-
-        toast.success('Tournoi lancé !');
-        await fetchTournament(tournamentId.value);
-        launchingTournamentId.value = null;
-    } catch (err) {
-        console.error('Erreur de lancement:', err);
-        handleError(err, 'Problème lors du lancement');
-    } finally {
-        loading.value = false;
+if (launchTypeMode.value === 'manual') {
+    tournamentType = launchTournamentType.value;
+    numPools = Math.max(1, Math.min(launchTargetCount.value, participants.length));
+} else {
+    const N = participants.length;
+    if (N <= 4) {
+        tournamentType = 'elimination';
+        numPools = 0;
+    } else if (N <= 12) {
+        tournamentType = 'pool';
+        numPools = 2; // 2 pools (e.g., N=9: 5/4, N=10: 5/5) pour qualifier 8
+    } else if (N <= 24) {
+        tournamentType = 'pool';
+        numPools = Math.ceil(N / 5); // 3 ou 4 pools pour viser ~16 qualifiés
+    } else {
+        tournamentType = 'pool';
+        numPools = Math.ceil(N / 8); // Plus de pools pour viser 32 ou plus
     }
+}
+
+if (tournamentType === 'elimination' && participants.length % 2 !== 0) {
+    throw new Error("Nombre impair de participants non supporté en mode élimination sans ajustement");
+}
+
+console.log('Mode de lancement:', launchTypeMode.value, 'Type de tournoi:', tournamentType, 'Mode:', launchTournamentMode.value, 'Nombre de poules:', numPools);
+
+await backendApi.patch(`/tournaments/${tournamentId.value}`, {
+    type: tournamentType,
+    mode: launchTournamentMode.value,
+    status: 'running'
+}, {
+    headers: { Authorization: `Bearer ${authStore.token}` },
+});
+
+if (tournamentType === 'pool') {
+    const pools = createPools(participants, numPools);
+    const poolIdMap: Record<number, number> = {};
+    for (const pool of pools) {
+        const { data: createdPool } = await backendApi.post(
+            `/tournaments/${tournamentId.value}/pools`,
+            {
+                name: pool.name || null,
+                participant_ids: pool.participants.map((p: Participant) => p.id),
+            },
+            {
+                headers: { Authorization: `Bearer ${authStore.token}` },
+            }
+        );
+        poolIdMap[pool.id] = createdPool.id;
+        console.log("pool id virtuel", pool.id, "-> pool id SQL", createdPool.id);
+    }
+    for (const pool of pools) {
+        const poolSqlId = poolIdMap[pool.id];
+        if (!poolSqlId) {
+            console.error("poolSqlId introuvable pour la pool virtuelle id=", pool.id, pool);
+            continue;
+        }
+        for (const match of pool.matches) {
+            console.log("Création du match de poule avec poolSqlId:", poolSqlId, match);
+            await createAndPersistMatch(match, poolSqlId);
+        }
+    }
+} else {
+    const generatedMatches = generateEliminationMatches(participants);
+    for (const m of generatedMatches) {
+        await createAndPersistMatch(m);
+    }
+}
+
+toast.success('Tournoi lancé !');
+await fetchTournament(tournamentId.value);
+launchingTournamentId.value = null;
+    } catch (err) {
+    console.error('Erreur de lancement:', err);
+    handleError(err, 'Problème lors du lancement');
+} finally {
+    loading.value = false;
+}
 };
 
 async function generateFinalStage() {
@@ -612,50 +602,65 @@ async function generateFinalStage() {
             m => m.pool_id == null && m.round === nextRound
         );
         if (existingNextRoundMatches.length > 0) {
-            toast.error(`Le tour ${nextRound} existe déjà. Veuillez compléter ou supprimer les matchs existants.`);
+            toast.error(`Le tour ${ nextRound } existe déjà.Veuillez compléter ou supprimer les matchs existants.`);
             return;
         }
 
         if (currentRound.value === 0) {
+            const totalParticipants = new Set(matches.value.flatMap(m => m.participants.map(p => p?.participant_id))).size;
+            const targetQualifiers = totalParticipants <= 12 ? 8 : totalParticipants <= 24 ? 16 : 32;
+
             if (poolIds.value.length === 1) {
-                const poolMatches = matches.value.filter(m => m.pool_id != null);
-                qualified = computePoolRanking(poolMatches).slice(0, 4).map(entry => ({
-                    participant_id: entry.participant_id,
-                    name: entry.name,
-                    pool_id: poolIds.value[0]
-                }));
-            } else {
-                for (const poolId of poolIds.value) {
-                    const poolMatches = matches.value.filter(m => m.pool_id === poolId);
-                    const poolSize = new Set(poolMatches.flatMap(m => m.participants.map(p => p?.participant_id))).size;
-                    const numToQualify = poolSize >= 4 ? 3 : 2;
-                    const topParticipants = computePoolRanking(poolMatches).slice(0, numToQualify).map(entry => ({
+                const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolIds.value[0]);
+                if (poolLeaderboard) {
+                    qualified = poolLeaderboard.leaderboard.slice(0, Math.min(targetQualifiers, poolLeaderboard.leaderboard.length)).map(entry => ({
                         participant_id: entry.participant_id,
                         name: entry.name,
-                        pool_id: poolId
+                        pool_id: poolIds.value[0]
                     }));
-                    qualified = qualified.concat(topParticipants);
+                }
+            } else {
+                for (const poolId of poolIds.value) {
+                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolId);
+                    if (poolLeaderboard) {
+                        const poolSize = new Set(matches.value.filter(m => m.pool_id === poolId)
+                            .flatMap(m => m.participants.map(p => p?.participant_id))).size;
+                        const numToQualify = poolSize >= 4 ? 4 : 2; // Top 4 pour ≥4, top 2 pour <4
+                        const topParticipants = poolLeaderboard.leaderboard.slice(0, numToQualify).map(entry => ({
+                            participant_id: entry.participant_id,
+                            name: entry.name,
+                            pool_id: poolId
+                        }));
+                        qualified = qualified.concat(topParticipants);
+                    }
                 }
 
-                if (qualified.length > 8) {
+                if (qualified.length > targetQualifiers) {
                     qualified = qualified
                         .map(participant => {
-                            const poolMatches = matches.value.filter(m => m.pool_id === participant.pool_id);
-                            const stats = computePoolRanking(poolMatches).find(e => e.participant_id === participant.participant_id);
+                            const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === participant.pool_id);
+                            const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.participant_id);
                             return { ...participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
                         })
                         .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches)
-                        .slice(0, 8);
-                } else if (qualified.length < 8 && qualified.length % 2 !== 0) {
-                    qualified = qualified.slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
+                        .slice(0, targetQualifiers);
+                } else if (qualified.length < targetQualifiers) {
+                    qualified = qualified
+                        .map(participant => {
+                            const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === participant.pool_id);
+                            const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.participant_id);
+                            return { ...participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
+                        })
+                        .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches)
+                        .slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
                 }
             }
 
             const nextMatches: Match[] = [];
             qualified = qualified
                 .map(participant => {
-                    const poolMatches = matches.value.filter(m => m.pool_id === participant.pool_id);
-                    const stats = computePoolRanking(poolMatches).find(e => e.participant_id === participant.participant_id);
+                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === participant.pool_id);
+                    const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.participant_id);
                     return { ...participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
                 })
                 .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches);
@@ -700,21 +705,25 @@ async function generateFinalStage() {
                 toast.error('Pas assez de participants qualifiés pour le tour suivant');
                 return;
             }
-            if (qualified.length % 2 !== 0) {
-                qualified = qualified.slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
-            }
 
+            // Pas de bye : Assurer que le nombre est pair en ajustant au tour précédent
             const nextMatches: Match[] = [];
-            const shuffledQualified = [...qualified].sort(() => Math.random() - 0.5);
-            for (let i = 0; i < shuffledQualified.length; i += 2) {
-                if (i + 1 < shuffledQualified.length) {
+            qualified = qualified
+                .map(participant => {
+                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === participant.pool_id);
+                    const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.participant_id);
+                    return { ...participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
+                })
+                .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches);
+            for (let i = 0; i < qualified.length; i += 2) {
+                if (i + 1 < qualified.length) {
                     nextMatches.push({
                         id: 0,
                         tournament_id: tournamentId.value,
                         match_date: null,
                         participants: [
-                            { participant_id: shuffledQualified[i].participant_id, name: shuffledQualified[i].name, score: null },
-                            { participant_id: shuffledQualified[i + 1].participant_id, name: shuffledQualified[i + 1].name, score: null },
+                            { participant_id: qualified[i].participant_id, name: qualified[i].name, score: null },
+                            { participant_id: qualified[i + 1].participant_id, name: qualified[i + 1].name, score: null },
                         ],
                         status: 'pending',
                         round: nextRound,
@@ -736,7 +745,7 @@ async function generateFinalStage() {
             }
         }
 
-        toast.success(`Tour ${nextRound} généré !`);
+        toast.success(`Tour ${ nextRound } généré!`);
         await fetchMatches();
         await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
     } catch (err) {
@@ -825,7 +834,7 @@ const startCreatingTeam = (tournamentId: number) => {
     creatingTeamTournamentId.value = tournamentId;
     newTeamName.value = '';
     selectedTeamUsers.value = [];
-    fetchRegisteredUsers();
+    tournamentStore.fetchRegisteredUsers(tournamentId);
 };
 
 const cancelRegisteringPlayer = () => {
@@ -850,7 +859,7 @@ const registerExistingUserToTournament = async (userId: number | null, tournamen
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
         selectedUserId.value = null;
-        await fetchRegisteredUsers();
+        await tournamentStore.fetchRegisteredUsers(tournamentId);
         await fetchTeams();
         toast.success('Joueur existant ajouté !');
     } catch (err) {
@@ -873,7 +882,7 @@ const createTeam = async (tournamentId: number) => {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
         toast.success('Équipe créée.');
-        await fetchRegisteredUsers();
+        await tournamentStore.fetchRegisteredUsers(tournamentId);
         await fetchTeams();
         newTeamName.value = '';
         selectedTeamUsers.value = [];
@@ -889,7 +898,7 @@ const unregisterPlayer = async (userId: number, tournamentId: number) => {
             headers: { Authorization: `Bearer ${authStore.token}` }
         });
         toast.success('Joueur désinscrit avec succès.');
-        await fetchRegisteredUsers();
+        await tournamentStore.fetchRegisteredUsers(tournamentId);
         await fetchTeams();
     } catch (err) {
         handleError(err, 'unregistering player');
@@ -902,7 +911,7 @@ const deleteTeam = async (teamId: number, tournamentId: number) => {
             headers: { Authorization: `Bearer ${authStore.token}` }
         });
         toast.success('Équipe supprimée avec succès.');
-        await fetchRegisteredUsers();
+        await tournamentStore.fetchRegisteredUsers(tournamentId);
         await fetchTeams();
     } catch (err) {
         handleError(err, 'deleting team');

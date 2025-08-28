@@ -288,10 +288,7 @@ def get_pools_leaderboard(
                         )
                     )
                 ).label("wins"),
-                case(
-                    (Participant.type == "player", User.name),
-                    else_=Participant.name,
-                ).label("name"),
+                Participant.name.label("name"),
             )
             .join(Match, MatchPlayer.match_id == Match.id)
             .join(Participant, MatchPlayer.participant_id == Participant.id)
@@ -304,7 +301,7 @@ def get_pools_leaderboard(
                 ),
             )
             .filter(Match.pool_id == pool.id, Match.status == "completed")
-            .group_by(MatchPlayer.participant_id, "name")
+            .group_by(MatchPlayer.participant_id, Participant.name)
             .order_by(desc("wins"), desc("total_manches"))
         )
 

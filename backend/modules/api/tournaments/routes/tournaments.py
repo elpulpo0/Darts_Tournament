@@ -536,7 +536,7 @@ def unregister_user(
     db.delete(registration)
     db.commit()
 
-    
+
 @tournaments_router.get(
     "/{tournament_id}/participants",
     response_model=List[ParticipantResponse],
@@ -596,14 +596,8 @@ def reset_tournament(tournament_id: int, db: Session = Depends(get_users_db)):
 
     db.execute(delete(Pool).where(Pool.tournament_id == tournament_id))
 
-    participant_ids = [p.id for p in db.query(Participant).filter(Participant.tournament_id == tournament_id).all()]
-    if participant_ids:
-        db.execute(delete(TeamMember).where(TeamMember.participant_id.in_(participant_ids)))
-    db.execute(delete(Participant).where(Participant.tournament_id == tournament_id))
-
     tournament.status = "open"
     tournament.type = None
-    tournament.mode = None
     db.commit()
 
     return {"reset": True}

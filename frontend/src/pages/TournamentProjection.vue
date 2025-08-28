@@ -234,21 +234,19 @@ h3 {
 }
 
 .pool-tile {
-    background: var(--color-bg-lighter);
     padding: 1.1em 1.7em;
     border-radius: 14px;
-    box-shadow: 0 1px 5px var(--color-light-shadow);
+    box-shadow: 0 1px 5px var(--color-bg-lighter);
     min-width: 240px;
 }
 
 .pool-match {
     display: flex;
     flex-direction: column;
-    background: var(--color-bg-lighter);
     margin: 0.6em 0;
     border-radius: var(--radius);
     padding: 0.7em 1em;
-    box-shadow: 0 1px 2px var(--color-light-shadow);
+    box-shadow: 0 1px 2px var(--color-bg-lighter);
 }
 
 .scores {
