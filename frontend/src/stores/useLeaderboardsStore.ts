@@ -36,7 +36,7 @@ export const useLeaderboardsStore = defineStore('leaderboards', () => {
         tournamentLeaderboardLoading.value = true;
         tournamentLeaderboardError.value = '';
         try {
-            const { data } = await backendApi.get(`/tournaments/leaderboard/tournament/${tournamentId}`, {
+            const { data } = await backendApi.get(`/tournaments/${tournamentId}/leaderboard`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             tournamentLeaderboard.value = data.leaderboard;
@@ -52,7 +52,7 @@ export const useLeaderboardsStore = defineStore('leaderboards', () => {
         poolsLeaderboardLoading.value = true;
         poolsLeaderboardError.value = '';
         try {
-            const { data } = await backendApi.get(`/tournaments/${tournamentId}/pools/leaderboard`, {
+            const { data } = await backendApi.get(`/tournaments/${tournamentId}/pools-leaderboard`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             poolsLeaderboard.value = data;

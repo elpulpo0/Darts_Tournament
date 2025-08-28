@@ -28,6 +28,34 @@
             <p v-else-if="!leaderboardsStore.loading">Aucun match complété pour la saison {{
                 leaderboardsStore.currentSeason }}.</p>
         </div>
+
+        <!-- Ajout du leaderboard de tournoi si un tournamentId est fourni -->
+        <div v-if="tournamentId" class="module">
+            <h2>Classement du tournoi</h2>
+            <div v-if="leaderboardsStore.tournamentLeaderboardLoading">Chargement du classement du tournoi...</div>
+            <div v-if="leaderboardsStore.tournamentLeaderboardError" class="error">{{
+                leaderboardsStore.tournamentLeaderboardError }}</div>
+            <table v-if="leaderboardsStore.tournamentLeaderboard.length">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Nom</th>
+                        <th>Victoires</th>
+                        <th>Manches</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(entry, index) in leaderboardsStore.tournamentLeaderboard" :key="entry.participant_id">
+                        <td>{{ getRank(index) }}</td>
+                        <td>{{ entry.name }}</td>
+                        <td>{{ entry.wins }}</td>
+                        <td>{{ entry.total_manches }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p v-else-if="!leaderboardsStore.tournamentLeaderboardLoading">Aucun classement disponible pour ce tournoi.
+            </p>
+        </div>
     </div>
 </template>
 
@@ -35,9 +63,13 @@
 import { computed, onMounted } from 'vue';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useLeaderboardsStore } from '../stores/useLeaderboardsStore';
+import { useRoute } from 'vue-router';
 
 const authStore = useAuthStore();
 const leaderboardsStore = useLeaderboardsStore();
+const route = useRoute();
+
+const tournamentId = computed(() => route.params.tournamentId ? Number(route.params.tournamentId) : null);
 
 const currentUserName = computed(() => authStore.name || '');
 const currentYear = new Date().getFullYear();
@@ -63,6 +95,9 @@ onMounted(() => {
     if (authStore.token) {
         console.log('Fetching season leaderboard for year:', currentYear);
         leaderboardsStore.fetchSeasonLeaderboard(currentYear, authStore.token);
+        if (tournamentId.value) {
+            leaderboardsStore.fetchTournamentLeaderboard(tournamentId.value, authStore.token);
+        }
     }
 });
 </script>

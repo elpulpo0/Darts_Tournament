@@ -20,13 +20,13 @@ onMounted(() => {
 });
 
 const maxRounds = computed(() => {
-    const highestRound = Math.max(...finalMatches.value.map((m: Match) => m.round || 0), 0);
-    return highestRound + 1; // Only include rounds that exist in the data
+    const highestRound = Math.max(...finalMatches.value.map((m: MatchDetailSchema) => m.round || 0), 0);
+    return highestRound + 1;
 });
-const finalMatches = computed(() => tournamentStore.tournamentDetail?.final_matches || [] as Match[]);
+const finalMatches = computed(() => tournamentStore.tournamentDetail?.final_matches || [] as MatchDetailSchema[]);
 const matchesByRound = computed(() => {
-    const rounds: { [key: number]: Match[] } = {};
-    finalMatches.value.forEach((match: Match) => {
+    const rounds: { [key: number]: MatchDetailSchema[] } = {};
+    finalMatches.value.forEach((match: MatchDetailSchema) => {
         const round = match.round || 0;
         if (!rounds[round]) rounds[round] = [];
         rounds[round].push(match);
@@ -38,7 +38,7 @@ const matchesByRound = computed(() => {
 const totalEliminationRounds = computed(() => {
     const firstRoundMatches = matchesByRound.value[1]?.length || 0; // Matches in round 1
     if (firstRoundMatches === 0) return 1; // Default to 1 if no matches
-    const numPlayers = firstRoundMatches * 2; // 4 matches = 8 players
+    const numPlayers = firstRoundMatches * 2; // 4 matches = 8 participants
     return Math.ceil(Math.log2(numPlayers)); // e.g., log₂(8) = 3 rounds
 });
 
@@ -73,17 +73,17 @@ const getRoundName = computed(() => {
                 <div class="pool-cards">
                     <div v-for="pool in tournamentStore.tournamentDetail.pools" class="pool-tile" :key="pool.id">
                         <h4>{{ pool.name || pool.id }}</h4>
-                        <div class="pool-players">
-                            <span v-for="player in pool.players" class="player-in-pool" :key="player.id">{{ player.name
+                        <div class="pool-participants">
+                            <span v-for="participant in pool.participants" class="participant-in-pool" :key="participant.id">{{ participant.name
                             }}</span>
                         </div>
                         <div v-for="match in pool.matches" class="pool-match" :key="match.id">
-                            <div class="players">
-                                <span>{{match.players?.map((p: any) => p.name).join(' vs ')}}</span>
+                            <div class="participants">
+                                <span>{{match.participants?.map((p: any) => p.name).join(' vs ')}}</span>
                             </div>
                             <div class="scores">
                                 <span v-if="match.status === 'completed'">Scores :
-                                    {{match.players?.map((p: any) => typeof p.score === 'number' ? p.score :
+                                    {{match.participants?.map((p: any) => typeof p.score === 'number' ? p.score :
                                         'N/A').join(' - ')}}
                                 </span>
                                 <span v-else>En attente</span>
@@ -111,7 +111,7 @@ const getRoundName = computed(() => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="entry in poolLeaderboard.leaderboard" :key="entry.user_id">
+                                <tr v-for="entry in poolLeaderboard.leaderboard" :key="entry.participant_id">
                                     <td>{{ entry.name }}</td>
                                     <td>{{ entry.wins }}</td>
                                     <td>{{ entry.total_manches }}</td>
@@ -134,9 +134,9 @@ const getRoundName = computed(() => {
                     <tr v-if="matchesByRound[round] && matchesByRound[round].length">
                         <td v-for="match in matchesByRound[round]" :key="match.id">
                             <div class="match-cell">
-                                <div v-for="(player, index) in match.players" class="player-slot" :key="index">
-                                    <span>{{ player?.name || 'TBD' }}</span>
-                                    <span v-if="typeof player?.score === 'number'" class="score">({{ player.score
+                                <div v-for="(participant, index) in match.participants" class="participant-slot" :key="index">
+                                    <span>{{ participant?.name || 'TBD' }}</span>
+                                    <span v-if="typeof participant?.score === 'number'" class="score">({{ participant.score
                                     }})</span>
                                 </div>
                                 <div class="match-status">
@@ -197,7 +197,7 @@ h3 {
     gap: 5px;
 }
 
-.player-slot {
+.participant-slot {
     display: flex;
     justify-content: center;
     gap: 5px;
@@ -275,14 +275,14 @@ h3 {
     border-bottom: none;
 }
 
-.pool-players {
+.pool-participants {
     margin-bottom: 0.5em;
     display: flex;
     flex-wrap: wrap;
     gap: 0.5em;
 }
 
-.player-in-pool {
+.participant-in-pool {
     background: color-mix(in srgb, var(--color-main) 10%, transparent);
     border-radius: 4px;
     padding: 0.1em 0.6em;
