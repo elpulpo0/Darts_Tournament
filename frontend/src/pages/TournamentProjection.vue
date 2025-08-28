@@ -74,8 +74,9 @@ const getRoundName = computed(() => {
                     <div v-for="pool in tournamentStore.tournamentDetail.pools" class="pool-tile" :key="pool.id">
                         <h4>{{ pool.name || pool.id }}</h4>
                         <div class="pool-participants">
-                            <span v-for="participant in pool.participants" class="participant-in-pool" :key="participant.id">{{ participant.name
-                            }}</span>
+                            <span v-for="participant in pool.participants" class="participant-in-pool"
+                                :key="participant.id">{{ participant.name
+                                }}</span>
                         </div>
                         <div v-for="match in pool.matches" class="pool-match" :key="match.id">
                             <div class="participants">
@@ -134,10 +135,20 @@ const getRoundName = computed(() => {
                     <tr v-if="matchesByRound[round] && matchesByRound[round].length">
                         <td v-for="match in matchesByRound[round]" :key="match.id">
                             <div class="match-cell">
-                                <div v-for="(participant, index) in match.participants" class="participant-slot" :key="index">
-                                    <span>{{ participant?.name || 'TBD' }}</span>
-                                    <span v-if="typeof participant?.score === 'number'" class="score">({{ participant.score
-                                    }})</span>
+                                <div v-for="(participant, index) in match.participants" class="participant-slot"
+                                    :key="index">
+                                    <span>
+                                        {{participant?.name
+                                            ? (tournamentStore.getParticipantType(participant.id) === 'team' &&
+                                                tournamentStore.getParticipantUsers(participant.id)?.length
+                                                ? `${participant.name}
+                                        (${tournamentStore.getParticipantUsers(participant.id)!
+                                                    .map(u => u.name).join('& ')})`
+                                                : participant.name)
+                                            : 'TBD'}}
+                                    </span>
+                                    <span v-if="typeof participant?.score === 'number'" class="score">({{
+                                        participant.score }})</span>
                                 </div>
                                 <div class="match-status">
                                     <span v-if="match.status === 'completed'">Terminé</span>

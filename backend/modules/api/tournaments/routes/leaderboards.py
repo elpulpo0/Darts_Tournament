@@ -92,7 +92,6 @@ def get_season_leaderboard(
     season: int,
     db: Session = Depends(get_users_db),
 ):
-    # Trouver tous les tournois de la saison (année)
     tournament_ids = [
         t.id
         for t in db.query(Tournament).filter(
@@ -102,7 +101,6 @@ def get_season_leaderboard(
     if not tournament_ids:
         return SeasonLeaderboardResponse(season=str(season), leaderboard=[])
 
-    # Subquery pour les scores des adversaires
     other_score_subquery = (
         select(
             MatchPlayer.match_id,
@@ -112,11 +110,22 @@ def get_season_leaderboard(
         .subquery()
     )
 
-    # Query pour single mode tournaments
     single_query = (
         select(
             Participant.user_id.label("user_id"),
-            func.sum(MatchPlayer.score).label("total_points"),
+            (func.sum(MatchPlayer.score) + 
+             func.count(
+                 case(
+                     (
+                         and_(
+                             MatchPlayer.score > other_score_subquery.c.other_score,
+                             other_score_subquery.c.match_id == MatchPlayer.match_id,
+                             other_score_subquery.c.other_participant_id != MatchPlayer.participant_id,
+                         ),
+                         1,
+                     )
+                 )
+             )).label("total_points"),
             func.count(
                 case(
                     (
@@ -128,8 +137,10 @@ def get_season_leaderboard(
                         literal(1.0),
                     )
                 )
-            ).label("wins"),
-            func.sum(MatchPlayer.score).label("total_manches"),
+            ).label("single_wins"),
+            func.sum(MatchPlayer.score).label("single_manches"),
+            literal(0.0).label("double_wins"),
+            literal(0.0).label("double_manches"),
             User.name,
         )
         .join(Match, MatchPlayer.match_id == Match.id)
@@ -152,11 +163,11 @@ def get_season_leaderboard(
         .group_by(Participant.user_id, User.name)
     )
 
-    # Query pour double mode tournaments
-    double_query = (
+    team_score_subquery = (
         select(
-            TeamMember.user_id.label("user_id"),
-            func.sum(MatchPlayer.score / 2).label("total_points"),
+            MatchPlayer.match_id,
+            MatchPlayer.participant_id,
+            func.sum(MatchPlayer.score).label("team_score"),
             func.count(
                 case(
                     (
@@ -165,17 +176,12 @@ def get_season_leaderboard(
                             other_score_subquery.c.match_id == MatchPlayer.match_id,
                             other_score_subquery.c.other_participant_id != MatchPlayer.participant_id,
                         ),
-                        literal(0.5),
+                        1,
                     )
                 )
-            ).label("wins"),
-            func.sum(MatchPlayer.score / 2).label("total_manches"),
-            User.name,
+            ).label("team_wins")
         )
         .join(Match, MatchPlayer.match_id == Match.id)
-        .join(Participant, MatchPlayer.participant_id == Participant.id)
-        .join(TeamMember, Participant.id == TeamMember.participant_id)
-        .join(User, TeamMember.user_id == User.id)
         .join(Tournament, Match.tournament_id == Tournament.id)
         .outerjoin(
             other_score_subquery,
@@ -187,21 +193,42 @@ def get_season_leaderboard(
         .filter(
             Match.tournament_id.in_(tournament_ids),
             Tournament.mode == "double",
-            Participant.type == "team",
             Match.status == "completed",
         )
+        .group_by(MatchPlayer.match_id, MatchPlayer.participant_id)
+        .subquery()
+    )
+
+    double_query = (
+        select(
+            TeamMember.user_id.label("user_id"),
+            (func.sum(team_score_subquery.c.team_score / 2.0) + 
+             func.sum(team_score_subquery.c.team_wins * 0.5)).label("total_points"),
+            literal(0.0).label("single_wins"),
+            literal(0.0).label("single_manches"),
+            func.sum(team_score_subquery.c.team_wins).label("double_wins"),
+            func.sum(team_score_subquery.c.team_score).label("double_manches"),
+            User.name,
+        )
+        .join(Participant, Participant.id == team_score_subquery.c.participant_id)
+        .join(TeamMember, Participant.id == TeamMember.participant_id)
+        .join(User, TeamMember.user_id == User.id)
+        .filter(Participant.type == "team")
         .group_by(TeamMember.user_id, User.name)
     )
 
-    # Union des deux queries et agrégation finale
     union_query = union_all(single_query, double_query).alias("union_sub")
 
     final_query = (
         select(
             union_query.c.user_id,
             func.sum(union_query.c.total_points).label("total_points"),
-            func.sum(union_query.c.wins).label("wins"),
-            func.sum(union_query.c.total_manches).label("total_manches"),
+            func.sum(union_query.c.single_wins).label("single_wins"),
+            func.sum(union_query.c.double_wins).label("double_wins"),
+            func.sum(union_query.c.single_manches).label("single_manches"),
+            func.sum(union_query.c.double_manches).label("double_manches"),
+            func.sum(union_query.c.single_wins + union_query.c.double_wins).label("wins"),
+            func.sum(union_query.c.single_manches + union_query.c.double_manches).label("total_manches"),
             union_query.c.name,
         )
         .group_by(union_query.c.user_id, union_query.c.name)
@@ -213,15 +240,16 @@ def get_season_leaderboard(
         LeaderboardEntry(
             user_id=row.user_id,
             name=row.name,
-            total_points=row.total_points or 0,
-            wins=row.wins or 0,
-            total_manches=row.total_manches or 0,
+            total_points=float(row.total_points) or 0.0,
+            single_wins=float(row.single_wins) or 0.0,
+            double_wins=float(row.double_wins) or 0.0,
+            single_manches=float(row.single_manches) or 0.0,
+            double_manches=float(row.double_manches) or 0.0,
         )
         for row in results
     ]
 
     return SeasonLeaderboardResponse(season=str(season), leaderboard=leaderboard)
-
 
 @leaderboards_router.get("/{tournament_id}/pools-leaderboard", response_model=List[PoolLeaderboardResponse])
 def get_pools_leaderboard(

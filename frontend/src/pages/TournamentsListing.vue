@@ -51,9 +51,9 @@
                 <h4>Participants</h4>
                 <ul v-if="participants[selectedTournament.id]?.length">
                     <li v-for="participant in participants[selectedTournament.id]" :key="participant.id">
-                        {{ participant.name }} ({{ participant.type }})
-                        <span v-if="participant.type === 'team'"> - {{participant.users.map(u => u.name).join(' & ')
-                            }}</span>
+                        {{ participant.name }}
+                        <span v-if="participant.type === 'team'"> ({{participant.users.map(u => u.name).join(' & ')
+                            }})</span>
                     </li>
                 </ul>
                 <p v-else>Aucun participant.</p>

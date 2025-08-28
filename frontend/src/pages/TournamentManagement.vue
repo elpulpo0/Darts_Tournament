@@ -69,12 +69,6 @@
             <!-- Formulaire de lancement du tournoi -->
             <div v-if="launchingTournamentId === tournament.id" class="launch-form module">
                 <h4>Lancer {{ tournament.name }}</h4>
-                <label>Mode :
-                    <select v-model="launchTournamentMode" class="form-input">
-                        <option value="single">Single (Joueurs individuels)</option>
-                        <option value="double">Double (Équipes de 2)</option>
-                    </select>
-                </label>
                 <label>Nombre de cibles disponibles (optionnel) :
                     <input v-model.number="launchTargetCount" type="number" min="1" class="form-input" />
                 </label>
@@ -225,7 +219,16 @@
                         <tbody>
                             <tr v-for="match in matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round && m.participants.length === 2))"
                                 :key="match.id">
-                                <td>{{match.participants.map(p => p?.name).join(' vs ')}}</td>
+                                <td>
+                                    {{match.participants.map(p => {
+                                        const participantName = p?.name || 'N/A';
+                                        const participantType = tournamentStore.getParticipantType(p?.participant_id);
+                                        const users = tournamentStore.getParticipantUsers(p?.participant_id);
+                                        return participantType === 'team' && users?.length
+                                            ? `${participantName} (${users.map(u => u.name).join(' & ')})`
+                                            : participantName;
+                                    }).join(' vs ') }}
+                                </td>
                                 <td>{{ match.status }}</td>
                                 <td>
                                     <div v-if="match.status === 'completed'">
@@ -305,6 +308,8 @@ const allUsers = ref<User[]>([]);
 const selectedUserId = ref<number | null>(null);
 const selectedTeamUsers = ref<number[]>([]);
 
+
+
 const poolIds = computed(() => {
     const ids = matches.value.map(m => m.pool_id).filter(id => id != null);
     return [...new Set(ids)];
@@ -367,8 +372,10 @@ const fetchTournament = async (id: number) => {
         });
         tournament.value = data;
         resetEditForm(data);
-        await fetchRegisteredUsers();
-        await fetchTeams();
+        await Promise.all([
+            tournamentStore.fetchRegisteredUsers(id),
+            tournamentStore.fetchTeams(id),
+        ]);
         if (data.status === 'running' || data.status === 'closed') {
             await fetchMatches();
             await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
@@ -506,10 +513,7 @@ const cancelLaunchingTournament = () => {
 const launchTournament = async () => {
     loading.value = true;
     try {
-        const endpoint = launchTournamentMode.value === 'single'
-            ? `/tournaments/${tournamentId.value}/participants`
-            : `/tournaments/${tournamentId.value}/teams`;
-        const { data: participants } = await backendApi.get(endpoint, {
+        const { data: participants } = await backendApi.get(`/tournaments/${tournamentId.value}/participants`, {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
         if ((participants?.length ?? 0) < 2) throw new Error(launchTournamentMode.value === 'single' ? "Minimum 2 joueurs requis" : "Minimum 2 équipes requises");

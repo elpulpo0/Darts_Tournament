@@ -132,8 +132,13 @@ class LeaderboardEntry(BaseModel):
     user_id: int
     name: str
     total_points: float
-    wins: float
-    total_manches: float
+    single_wins: float
+    double_wins: float
+    single_manches: float
+    double_manches: float
+
+    class Config:
+        orm_mode = True
 
 
 class TournamentLeaderboardEntry(BaseModel):

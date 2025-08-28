@@ -46,8 +46,10 @@ type LeaderboardEntry = {
   user_id: number;
   name: string;
   total_points: number;
-  wins: number;
-  total_manches: number;
+  single_wins: number;
+  double_wins: number;
+  single_manches: number;
+  double_manches: number;
 };
 
 type TournamentLeaderboardEntry = {
