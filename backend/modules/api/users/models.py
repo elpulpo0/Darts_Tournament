@@ -19,22 +19,8 @@ class User(UsersBase):
         "RefreshToken", back_populates="users", cascade="all, delete-orphan"
     )
     tournaments = relationship("TournamentRegistration", back_populates="user")
-    matches = relationship(
-        "Match",
-        secondary="match_players",
-        back_populates="players",
-        overlaps="match_players",
-    )
-    match_players = relationship(
-        "MatchPlayer",
-        back_populates="user",
-        overlaps="matches",
-    )
-    pools = relationship(
-        "Pool",
-        secondary="pool_player_association",
-        back_populates="players",
-    )
+    participations = relationship("Participant", back_populates="user")
+    team_memberships = relationship("TeamMember", back_populates="user")
 
 
 class Role(UsersBase):

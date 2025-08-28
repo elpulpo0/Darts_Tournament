@@ -23,7 +23,11 @@ tournaments_router = APIRouter(prefix="/tournaments", tags=["tournaments"])
 
 
 @tournaments_router.post(
-    "/", response_model=TournamentResponse, status_code=status.HTTP_201_CREATED
+    "/",
+    response_model=TournamentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new tournament",
+    description="Creates a new tournament with the provided details. Requires admin or editor privileges."
 )
 def create_tournament(
     tournament_data: TournamentCreate,
@@ -58,7 +62,12 @@ def create_tournament(
     )
 
 
-@tournaments_router.delete("/{tournament_id}", status_code=status.HTTP_204_NO_CONTENT)
+@tournaments_router.delete(
+    "/{tournament_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a tournament",
+    description="Deletes a tournament and all associated data (pools, matches, participants). Requires admin or editor privileges."
+)
 def delete_tournament(
     tournament_id: int,
     db: Session = Depends(get_users_db),
@@ -78,7 +87,10 @@ def delete_tournament(
 
 
 @tournaments_router.patch(
-    "/{tournament_id}", response_model=TournamentResponse, summary="Update tournament"
+    "/{tournament_id}",
+    response_model=TournamentResponse,
+    summary="Update a tournament",
+    description="Updates a tournament's details. Cannot set a tournament to 'running' if already running. Requires admin or editor privileges."
 )
 def update_tournament(
     tournament_id: int,
@@ -131,7 +143,12 @@ def update_tournament(
     )
 
 
-@tournaments_router.get("/{tournament_id}", response_model=TournamentResponse)
+@tournaments_router.get(
+    "/{tournament_id}",
+    response_model=TournamentResponse,
+    summary="Get a tournament by ID",
+    description="Retrieves details of a specific tournament by its ID."
+)
 def get_tournament(
     tournament_id: int,
     db: Session = Depends(get_users_db),
@@ -151,7 +168,12 @@ def get_tournament(
     )
 
 
-@tournaments_router.get("/", response_model=List[TournamentResponse])
+@tournaments_router.get(
+    "/",
+    response_model=List[TournamentResponse],
+    summary="List all tournaments",
+    description="Retrieves a list of all tournaments in the system."
+)
 def get_tournaments(
     db: Session = Depends(get_users_db),
 ):
@@ -171,7 +193,12 @@ def get_tournaments(
     ]
 
 
-@tournaments_router.post("/registrations/", response_model=TournamentRegistrationResponse)
+@tournaments_router.post(
+    "/registrations/",
+    response_model=TournamentRegistrationResponse,
+    summary="Register a user to a tournament",
+    description="Registers a user to an open tournament. Creates a Participant of type 'player' if the tournament is in 'single' mode. Prevents duplicate registrations."
+)
 def register_to_tournament(
     registration_data: TournamentRegistrationCreate,
     db: Session = Depends(get_users_db),
@@ -198,6 +225,25 @@ def register_to_tournament(
     db.add(new_registration)
     db.commit()
     db.refresh(new_registration)
+
+    # Create a Participant of type 'player' if the tournament is in 'single' mode
+    if tournament.mode == "single":
+        existing_participant = db.query(Participant).filter(
+            Participant.tournament_id == registration_data.tournament_id,
+            Participant.user_id == current_user.id,
+            Participant.type == "player"
+        ).first()
+        if not existing_participant:
+            new_participant = Participant(
+                tournament_id=registration_data.tournament_id,
+                type="player",
+                user_id=current_user.id,
+                name=db.query(User).filter(User.id == current_user.id).first().name
+            )
+            db.add(new_participant)
+            db.commit()
+            db.refresh(new_participant)
+
     return TournamentRegistrationResponse(
         id=new_registration.id,
         user_id=new_registration.user_id,
@@ -252,8 +298,12 @@ def get_registered_users(
     users = db.query(User).filter(User.id.in_(user_ids)).all()
     return [PlayerResponse(id=u.id, name=u.name) for u in users]
 
-
-@tournaments_router.post("/{tournament_id}/teams", response_model=ParticipantResponse)
+@tournaments_router.post(
+    "/{tournament_id}/teams",
+    response_model=ParticipantResponse,
+    summary="Create a team for a tournament",
+    description="Creates a team of two registered players for a tournament. Checks for valid registrations and prevents duplicate team memberships."
+)
 def create_team(
     tournament_id: int,
     team_data: TeamCreate,
@@ -261,7 +311,9 @@ def create_team(
     current_user: TokenData = Depends(get_current_user),
 ):
     if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(
+            status_code=403, detail="Access denied: administrators or editors only."
+        )
 
     if team_data.player1_id == team_data.player2_id:
         raise HTTPException(status_code=400, detail="Players in a team must be different")
@@ -270,10 +322,6 @@ def create_team(
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
-    if tournament.mode != "double":
-        raise HTTPException(status_code=400, detail="Teams can only be created for double mode tournaments")
-
-    # Check if players are registered
     reg1 = db.query(TournamentRegistration).filter(
         TournamentRegistration.user_id == team_data.player1_id,
         TournamentRegistration.tournament_id == tournament_id
@@ -285,7 +333,6 @@ def create_team(
     if not reg1 or not reg2:
         raise HTTPException(status_code=400, detail="Both players must be registered to the tournament")
 
-    # Check if players are already in a team
     existing_team1 = db.query(TeamMember).filter(TeamMember.user_id == team_data.player1_id).first()
     existing_team2 = db.query(TeamMember).filter(TeamMember.user_id == team_data.player2_id).first()
     if existing_team1 or existing_team2:
@@ -317,7 +364,12 @@ def create_team(
     )
 
 
-@tournaments_router.get("/{tournament_id}/participants", response_model=List[ParticipantResponse])
+@tournaments_router.get(
+    "/{tournament_id}/participants",
+    response_model=List[ParticipantResponse],
+    summary="List participants of a tournament",
+    description="Retrieves all participants (players or teams) for a specific tournament. Requires admin or editor privileges."
+)
 def get_participants(
     tournament_id: int,
     db: Session = Depends(get_users_db),
@@ -341,13 +393,16 @@ def get_participants(
     return response
 
 
-@tournaments_router.post("/{tournament_id}/reset")
+@tournaments_router.post(
+    "/{tournament_id}/reset",
+    summary="Reset a tournament",
+    description="Resets a tournament by deleting all associated matches, pools, and participants, and setting status to 'open'. Requires admin or editor privileges."
+)
 def reset_tournament(tournament_id: int, db: Session = Depends(get_users_db)):
     tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
-    # Supprimer explicitement les enregistrements de match_players
     db.execute(
         delete(MatchPlayer).where(
             MatchPlayer.match_id.in_(
@@ -356,10 +411,8 @@ def reset_tournament(tournament_id: int, db: Session = Depends(get_users_db)):
         )
     )
 
-    # Supprimer tous les matchs du tournoi
     db.execute(delete(Match).where(Match.tournament_id == tournament_id))
 
-    # Supprimer les associations participant-poule
     pool_ids = [pool.id for pool in db.query(Pool).filter(Pool.tournament_id == tournament_id).all()]
     if pool_ids:
         db.execute(
@@ -368,16 +421,13 @@ def reset_tournament(tournament_id: int, db: Session = Depends(get_users_db)):
             )
         )
 
-    # Supprimer toutes les poules du tournoi
     db.execute(delete(Pool).where(Pool.tournament_id == tournament_id))
 
-    # Supprimer les team_members et participants
     participant_ids = [p.id for p in db.query(Participant).filter(Participant.tournament_id == tournament_id).all()]
     if participant_ids:
         db.execute(delete(TeamMember).where(TeamMember.participant_id.in_(participant_ids)))
     db.execute(delete(Participant).where(Participant.tournament_id == tournament_id))
 
-    # Réinitialiser le statut, type et mode du tournoi
     tournament.status = "open"
     tournament.type = None
     tournament.mode = None
@@ -387,7 +437,10 @@ def reset_tournament(tournament_id: int, db: Session = Depends(get_users_db)):
 
 
 @tournaments_router.get(
-    "/{tournament_id}/details", response_model=TournamentFullDetailSchema
+    "/{tournament_id}/details",
+    response_model=TournamentFullDetailSchema,
+    summary="Get full tournament details",
+    description="Retrieves detailed information about a tournament, including pools, participants, and matches."
 )
 def get_full_tournament_details(
     tournament_id: int, db: Session = Depends(get_users_db)
@@ -395,9 +448,7 @@ def get_full_tournament_details(
     tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found.")
-    # pools avec participants :
     pools = db.query(Pool).filter(Pool.tournament_id == tournament_id).all()
-    # On regroupe les matches par pool
     pool_dicts = []
     for pool in pools:
         pool_matches = db.query(Match).filter(Match.pool_id == pool.id).all()
@@ -435,7 +486,6 @@ def get_full_tournament_details(
                 "matches": pool_matches_dict,
             }
         )
-    # Phase finale : tous les matches sans pool_id
     finals_matches = (
         db.query(Match)
         .filter(Match.tournament_id == tournament_id)

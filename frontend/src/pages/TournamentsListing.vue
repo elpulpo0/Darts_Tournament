@@ -77,6 +77,10 @@
             <input v-model="newTournamentName" placeholder="Nom" class="form-input" />
             <input v-model="newTournamentDescription" placeholder="Description" class="form-input" />
             <input v-model="newTournamentStartDate" type="datetime-local" class="form-input" />
+            <select v-model="newTournamentMode" class="form-input">
+                <option value="single">Single (Joueurs individuels)</option>
+                <option value="double">Double (Équipes de 2)</option>
+            </select>
             <button @click="createTournament">Ajouter</button>
         </div>
     </div>
@@ -106,6 +110,7 @@ const showCreateTournament = ref(false);
 const newTournamentName = ref('');
 const newTournamentDescription = ref('');
 const newTournamentStartDate = ref('');
+const newTournamentMode = ref<'single' | 'double'>('single'); // Nouveau champ pour le mode
 const registrationStatus = ref<{ [key: number]: boolean }>({});
 const participants = ref<{ [key: number]: Participant[] }>({});
 const matches = ref<{ [key: number]: Match[] }>({});
@@ -114,17 +119,28 @@ const isEditor = computed(() => authStore.scopes.includes('editor') || authStore
 
 const toggleCreateTournamentForm = () => {
     showCreateTournament.value = !showCreateTournament.value;
+    if (!showCreateTournament.value) {
+        newTournamentName.value = '';
+        newTournamentDescription.value = '';
+        newTournamentStartDate.value = '';
+        newTournamentMode.value = 'single';
+    }
 };
 
 const formatDate = (date: string) => new Date(date).toLocaleString();
 
 const createTournament = async () => {
+    if (!newTournamentName.value || !newTournamentStartDate.value) {
+        toast.error('Le nom et la date de début sont requis.');
+        return;
+    }
     const tournamentData = {
         name: newTournamentName.value,
-        description: newTournamentDescription.value,
+        description: newTournamentDescription.value || null,
         start_date: new Date(newTournamentStartDate.value).toISOString(),
         is_active: true,
         status: 'open',
+        mode: newTournamentMode.value, // Ajout du mode
     };
     try {
         await backendApi.post('/tournaments/', tournamentData, {
