@@ -252,6 +252,67 @@ def register_to_tournament(
     )
 
 
+@tournaments_router.post(
+    "/register-player",
+    response_model=TournamentRegistrationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_new_player(
+    player_data: TournamentRegistrationCreate,
+    db: Session = Depends(get_users_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
+        raise HTTPException(
+            status_code=403, detail="Access denied: administrators or editors only."
+        )
+
+    # Check if tournament exists
+    tournament = (
+        db.query(Tournament).filter(Tournament.id == player_data.tournament_id).first()
+    )
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.status != "open":
+        raise HTTPException(
+            status_code=400, detail="Registrations are closed for this tournament"
+        )
+
+    # Register the user for the tournament
+    new_registration = TournamentRegistration(
+        user_id=player_data.user_id,
+        tournament_id=player_data.tournament_id,
+    )
+    db.add(new_registration)
+    db.commit()
+    db.refresh(new_registration)
+
+    # Create a Participant of type 'player' if the tournament is in 'single' mode
+    if tournament.mode == "single":
+        existing_participant = db.query(Participant).filter(
+            Participant.tournament_id == player_data.tournament_id,
+            Participant.user_id == player_data.user_id,
+            Participant.type == "player"
+        ).first()
+        if not existing_participant:
+            new_participant = Participant(
+                tournament_id=player_data.tournament_id,
+                type="player",
+                user_id=player_data.user_id,
+                name=db.query(User).filter(User.id == player_data.user_id,).first().name
+            )
+            db.add(new_participant)
+            db.commit()
+            db.refresh(new_participant)
+
+    return TournamentRegistrationResponse(
+        id=new_registration.id,
+        user_id=new_registration.user_id,
+        tournament_id=new_registration.tournament_id,
+        registration_date=new_registration.registration_date,
+    )
+
+
 @tournaments_router.delete("/registrations/{tournament_id}", status_code=status.HTTP_204_NO_CONTENT)
 def unregister_from_tournament(
     tournament_id: int,
@@ -282,7 +343,7 @@ def check_my_registration(
     return registration is not None
 
 
-@tournaments_router.get("/{tournament_id}/registered-users", response_model=List[PlayerResponse])
+@tournaments_router.get("/{tournament_id}/registered-users", response_model=List[dict])
 def get_registered_users(
     tournament_id: int,
     db: Session = Depends(get_users_db),
@@ -296,7 +357,22 @@ def get_registered_users(
     ).all()
     user_ids = [reg.user_id for reg in registrations]
     users = db.query(User).filter(User.id.in_(user_ids)).all()
-    return [PlayerResponse(id=u.id, name=u.name) for u in users]
+    
+    response = []
+    for user in users:
+        team_member = db.query(TeamMember).filter(TeamMember.user_id == user.id).first()
+        team = db.query(Participant).filter(
+            Participant.id == team_member.participant_id,
+            Participant.tournament_id == tournament_id,
+            Participant.type == "team"
+        ).first() if team_member else None
+        response.append({
+            "id": user.id,
+            "name": user.name,
+            "team_id": team.id if team else None,
+            "team_name": team.name if team else None
+        })
+    return response
 
 @tournaments_router.post(
     "/{tournament_id}/teams",
@@ -364,6 +440,103 @@ def create_team(
     )
 
 
+@tournaments_router.delete("/{tournament_id}/teams/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_team(
+    tournament_id: int,
+    team_id: int,
+    db: Session = Depends(get_users_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    team = db.query(Participant).filter(
+        Participant.id == team_id,
+        Participant.tournament_id == tournament_id,
+        Participant.type == "team"
+    ).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    # Delete team members
+    db.execute(delete(TeamMember).where(TeamMember.participant_id == team_id))
+    
+    # Delete team from matches
+    db.execute(
+        delete(MatchPlayer).where(
+            MatchPlayer.match_id.in_(
+                select(Match.id).where(Match.tournament_id == tournament_id)
+            ),
+            MatchPlayer.participant_id == team_id
+        )
+    )
+    
+    # Delete team from pools
+    db.execute(
+        delete(pool_participant_association).where(
+            pool_participant_association.c.participant_id == team_id
+        )
+    )
+    
+    # Delete the team
+    db.delete(team)
+    db.commit()
+
+@tournaments_router.delete("/registrations/user/{user_id}/{tournament_id}", status_code=status.HTTP_204_NO_CONTENT)
+def unregister_user(
+    user_id: int,
+    tournament_id: int,
+    db: Session = Depends(get_users_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    registration = db.query(TournamentRegistration).filter(
+        TournamentRegistration.user_id == user_id,
+        TournamentRegistration.tournament_id == tournament_id
+    ).first()
+    if not registration:
+        raise HTTPException(status_code=404, detail="Registration not found")
+
+    # Remove user from any team
+    team_member = db.query(TeamMember).filter(TeamMember.user_id == user_id).first()
+    if team_member:
+        team = db.query(Participant).filter(
+            Participant.id == team_member.participant_id,
+            Participant.tournament_id == tournament_id,
+            Participant.type == "team"
+        ).first()
+        if team:
+            db.execute(delete(TeamMember).where(TeamMember.participant_id == team.id))
+            db.execute(
+                delete(MatchPlayer).where(
+                    MatchPlayer.match_id.in_(
+                        select(Match.id).where(Match.tournament_id == tournament_id)
+                    ),
+                    MatchPlayer.participant_id == team.id
+                )
+            )
+            db.execute(
+                delete(pool_participant_association).where(
+                    pool_participant_association.c.participant_id == team.id
+                )
+            )
+            db.delete(team)
+
+    # Remove player participant if exists
+    participant = db.query(Participant).filter(
+        Participant.tournament_id == tournament_id,
+        Participant.user_id == user_id,
+        Participant.type == "player"
+    ).first()
+    if participant:
+        db.delete(participant)
+
+    db.delete(registration)
+    db.commit()
+
+    
 @tournaments_router.get(
     "/{tournament_id}/participants",
     response_model=List[ParticipantResponse],

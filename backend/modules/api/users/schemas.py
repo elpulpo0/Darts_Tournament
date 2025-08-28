@@ -3,11 +3,10 @@ from typing import List, Optional
 
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: Optional[EmailStr] = None
     name: str
     role: Optional[str] = None
-    password: str
-
+    password: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: int

@@ -1,4 +1,9 @@
-type User = { id: number; name: string };
+interface User {
+  id: number;
+  name: string;
+  team_id?: number | null;
+  team_name?: string | null;
+}
 
 type Participant = {
   id: number;

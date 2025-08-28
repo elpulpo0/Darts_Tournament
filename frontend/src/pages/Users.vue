@@ -155,12 +155,10 @@ const deleteUser = async (userId: number) => {
 
 const createUser = async () => {
   try {
-    const userData = {
-      name: newName.value,
-      email: newEmail.value,
-      password: newPassword.value,
-      role: newRole.value,
-    };
+    const userData: any = { name: newName.value };
+    if (newEmail.value) userData.email = newEmail.value;
+    if (newPassword.value) userData.password = newPassword.value;
+    if (newRole.value) userData.role = newRole.value;
 
     await backendApi.post(`/users/users/`, userData, {
       headers: {
@@ -173,6 +171,7 @@ const createUser = async () => {
     newEmail.value = '';
     newPassword.value = '';
     newRole.value = '';
+    showCreateUser.value = false;
 
     await fetchUsers();
     toast.success('User created successfully.');
@@ -199,7 +198,6 @@ watch(
   },
   { immediate: true }
 );
-
 </script>
 
 <template>
@@ -265,13 +263,13 @@ watch(
       <div class="input-group">
         <input v-model="newName" placeholder="Name" class="form-input" required />
         <select v-model="newRole" class="form-input">
-          <option disabled value="">Role</option>
+          <option value="">Select Role</option>
           <option value="admin">Admin</option>
           <option value="editor">Editor</option>
           <option value="player">Player</option>
         </select>
-        <input v-model="newEmail" type="email" placeholder="Email" class="form-input" required />
-        <input v-model="newPassword" type="password" placeholder="Password" class="form-input" required />
+        <input v-model="newEmail" type="email" placeholder="Email (optional)" class="form-input" />
+        <input v-model="newPassword" type="password" placeholder="Password (optional)" class="form-input" />
         <button class="add-btn" @click="createUser">Add</button>
       </div>
     </div>

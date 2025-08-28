@@ -129,12 +129,16 @@ def create_user(
     db: Session = Depends(get_users_db),
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
-    # Check if a user with the same email already exists
-    existing_user_email = get_user_by_email(user_data.email, db)
-    if existing_user_email:
-        raise HTTPException(
-            status_code=400, detail="A user with this email already exists."
-        )
+    # Check if the user is an admin
+    is_admin = current_user and current_user.get("scopes") and "admin" in current_user.get("scopes")
+
+    # Validate email if provided and not admin
+    if user_data.email and not is_admin:
+        existing_user_email = db.query(User).filter_by(email=user_data.email).first()
+        if existing_user_email:
+            raise HTTPException(
+                status_code=400, detail="A user with this email already exists."
+            )
 
     # Check if a user with the same name already exists
     existing_user_name = db.query(User).filter_by(name=user_data.name).first()
@@ -143,14 +147,15 @@ def create_user(
             status_code=400, detail="A user with this name already exists."
         )
 
+    # Validate password if provided and not admin
+    if not is_admin and not user_data.password:
+        raise HTTPException(
+            status_code=400, detail="Password is required for non-admin user creation."
+        )
+
     role_name = user_data.role if user_data.role else "player"
 
-    if (
-        current_user
-        and current_user.get("scopes")
-        and "admin" in current_user.get("scopes")
-        and user_data.role
-    ):
+    if is_admin and user_data.role:
         role_name = user_data.role
     else:
         role_name = "player"
@@ -165,7 +170,7 @@ def create_user(
     new_user = User(
         email=user_data.email,
         name=user_data.name,
-        hashed_password=hash_password(user_data.password),
+        hashed_password=hash_password(user_data.password) if user_data.password else None,
         role_id=role_obj.id,
         is_active=True,
     )
@@ -183,7 +188,7 @@ def create_user(
 
     notify_user = NotifyUserCreate(
         name=new_user.name,
-        email=user_data.email,
+        email=new_user.email,
         role=new_user.role.role,
         type="userCreate",
     )

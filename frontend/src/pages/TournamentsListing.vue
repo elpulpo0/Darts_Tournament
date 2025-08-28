@@ -281,7 +281,7 @@ const openProjection = () => {
     padding: 1rem;
     cursor: pointer;
     border-radius: var(--radius);
-    background-color: var(--color-bg-lighter);
+    background-color: var(--color-light-shadow);
     color: var(--color-fg);
     font-family: var(--font-main);
     transition: background-color 0.2s ease, border-color 0.2s ease;
@@ -290,7 +290,7 @@ const openProjection = () => {
 .tile.selected {
     background-color: var(--color-accent-bis);
     border-color: var(--color-fg-darker);
-    color: var(--color-bg-lighter);
+    color: var(--color-bg);
 }
 
 .tournament-details {
