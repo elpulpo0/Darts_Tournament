@@ -505,7 +505,7 @@ const cancelLaunchingTournament = () => {
 const launchTournament = async () => {
     loading.value = true;
     try {
-        const { data: participants } = await backendApi.get(`/ tournaments / ${ tournamentId.value }/participants`, {
+        const { data: participants } = await backendApi.get(`/tournaments/${tournamentId.value}/participants`, {
 headers: { Authorization: `Bearer ${authStore.token}` },
         });
 if ((participants?.length ?? 0) < 2) throw new Error(launchTournamentMode.value === 'single' ? "Minimum 2 joueurs requis" : "Minimum 2 équipes requises");
