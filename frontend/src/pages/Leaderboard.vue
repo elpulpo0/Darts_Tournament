@@ -4,14 +4,14 @@
         <div v-if="leaderboardsStore.error" class="error">{{ leaderboardsStore.error }}</div>
         <div class="module">
             <h2>Classement de la saison {{ leaderboardsStore.currentSeason }}</h2>
-            <p class="points-explanation">
+            <div class="points-explanation">
                 Les points sont calculés comme suit :
-            <ul>
-                <li><strong>Mode simple :</strong> 1 point par manche gagnée + 1 point par match gagné.</li>
-                <li><strong>Mode double :</strong> 0.5 point par manche gagnée (par joueur) + 0.5 point par match gagné
-                    (par joueur).</li>
-            </ul>
-            </p>
+                <ul>
+                    <li><strong>Mode simple :</strong> 1 point par manche gagnée + 1 point par match gagné.</li>
+                    <li><strong>Mode double :</strong> 0.5 point par manche gagnée (par joueur) + 0.5 point par match
+                        gagné (par joueur).</li>
+                </ul>
+            </div>
             <table v-if="leaderboardsStore.seasonLeaderboard.length">
                 <thead>
                     <tr>
