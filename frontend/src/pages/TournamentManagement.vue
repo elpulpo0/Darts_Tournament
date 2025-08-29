@@ -89,7 +89,7 @@
             </div>
 
             <div v-if="tournament.status === 'open'" class="participants-section">
-                <h4>Joueurs inscrits</h4>
+                <h4>Joueurs inscrits ({{ registeredUsersCount }})</h4>
                 <table v-if="tournamentStore.registeredUsers?.length">
                     <thead>
                         <tr>
@@ -113,7 +113,7 @@
                 <p v-else>Aucun joueur inscrit pour le moment.</p>
 
                 <div v-if="tournament.mode === 'double'">
-                    <h4>Équipes inscrites</h4>
+                    <h4>Équipes inscrites ({{ teamsCount }})</h4>
                     <table v-if="tournamentStore.teams?.length">
                         <thead>
                             <tr>
@@ -137,38 +137,45 @@
                     <p v-else>Aucune équipe inscrite pour le moment.</p>
                 </div>
 
-                <button @click="startRegisteringPlayer(tournament.id)">Inscrire un joueur</button>
-                <button v-if="tournament.mode === 'double'" @click="startCreatingTeam(tournament.id)">Créer une
-                    équipe</button>
+                <button @click="startRegisteringPlayer(tournament.id)">
+                    Inscrire un joueur
+                </button>
+                <button v-if="tournament.mode === 'double'" @click="startCreatingTeam(tournament.id)">
+                    Créer une équipe
+                </button>
 
                 <!-- Formulaire d'inscription d'un joueur -->
-                <div v-if="registeringTournamentId === tournament.id" class="register-form module">
+                <div v-if="registeringTournamentId === tournament.id" class="module">
                     <h4>Inscrire un joueur pour {{ tournament.name }}</h4>
                     <label>Choisir un joueur existant :
-                        <select v-model="selectedUserId" class="form-input">
+                        <select v-model="selectedUserId">
                             <option :value="null">-- Sélectionner --</option>
                             <option v-for="user in selectableUsers" :value="user.id" :key="user.id">
                                 {{ user.name }}
                             </option>
                         </select>
                     </label>
-                    <button :disabled="!selectedUserId"
-                        @click="registerExistingUserToTournament(selectedUserId, tournament.id)">
-                        Ajouter le joueur sélectionné
-                    </button>
-                    <button @click="cancelRegisteringPlayer">Fermer</button>
+                    <div>
+                        <button :disabled="!selectedUserId"
+                            @click="registerExistingUserToTournament(selectedUserId, tournament.id)">
+                            Ajouter le joueur sélectionné
+                        </button>
+                        <button @click="cancelRegisteringPlayer">
+                            Fermer
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Formulaire de création d'équipe -->
                 <div v-if="creatingTeamTournamentId === tournament.id" class="register-form module">
                     <h4>Créer une équipe pour {{ tournament.name }}</h4>
                     <label>Nom de l'équipe :
-                        <input v-model="newTeamName" class="form-input" required />
+                        <input v-model="newTeamName" required />
                     </label>
                     <label>Joueurs de l’équipe :
-                        <select multiple v-model="selectedTeamUsers" class="form-input">
-                            <option v-for="user in selectableTeamUsers" :value="user.id" :key="user.id">{{ user.name
-                                }}
+                        <select multiple v-model="selectedTeamUsers" :size="selectableTeamUsers.length">
+                            <option v-for="user in selectableTeamUsers" :value="user.id" :key="user.id">
+                                {{ user.name }}
                             </option>
                         </select>
                     </label>
@@ -180,8 +187,8 @@
             <!-- Classements par poule -->
             <h4>Classements par poule</h4>
             <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
-            <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
-                leaderboardsStore.poolsLeaderboardError }}</div>
+            <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{ leaderboardsStore.poolsLeaderboardError
+                }}</div>
             <div v-if="leaderboardsStore.poolsLeaderboard.length">
                 <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
                     <h5>{{ poolLeaderboard.pool_name }}</h5>
@@ -224,12 +231,12 @@
                                 :key="match.id">
                                 <td>
                                     {{match.participants.map(p => {
-                                        const participantName = p?.name || 'N/A';
-                                        const participantType = tournamentStore.getParticipantType(p?.participant_id);
-                                        const users = tournamentStore.getParticipantUsers(p?.participant_id);
-                                        return participantType === 'team' && users?.length
-                                            ? `${participantName} (${users.map(u => u.name).join(' & ')})`
-                                            : participantName;
+                                    const participantName = p?.name || 'N/A';
+                                    const participantType = tournamentStore.getParticipantType(p?.participant_id);
+                                    const users = tournamentStore.getParticipantUsers(p?.participant_id);
+                                    return participantType === 'team' && users?.length
+                                    ? `${participantName} (${users.map(u => u.name).join(' & ')})`
+                                    : participantName;
                                     }).join(' vs ')}}
                                 </td>
                                 <td>{{ match.status }}</td>
@@ -243,9 +250,9 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <button v-if="match.status === 'pending'" @click="updateMatch(match)">Mettre à
-                                        jour
-                                        les scores</button>
+                                    <button v-if="match.status === 'pending'" @click="updateMatch(match)">Mettre à jour
+                                        les
+                                        scores</button>
                                 </td>
                             </tr>
                         </tbody>
@@ -310,7 +317,8 @@ const allUsers = ref<User[]>([]);
 const selectedUserId = ref<number | null>(null);
 const selectedTeamUsers = ref<number[]>([]);
 
-
+const registeredUsersCount = computed(() => tournamentStore.registeredUsers?.length || 0);
+const teamsCount = computed(() => tournamentStore.teams?.length || 0);
 
 const poolIds = computed(() => {
     const ids = matches.value.map(m => m.pool_id).filter(id => id != null);
@@ -623,7 +631,6 @@ async function generateFinalStage() {
                 }
             }
 
-            // Moved adjustment outside
             qualified = qualified
                 .map(participant => {
                     const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === participant.pool_id);
@@ -637,7 +644,6 @@ async function generateFinalStage() {
             } else if (qualified.length < targetQualifiers) {
                 qualified = qualified.slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
             }
-            // No change if equal
 
             const nextMatches: Match[] = [];
             for (let i = 0; i < qualified.length / 2; i++) {
@@ -682,7 +688,6 @@ async function generateFinalStage() {
                 return;
             }
 
-            // Pas de bye : Assurer que le nombre est pair en ajustant au tour précédent
             const nextMatches: Match[] = [];
             qualified = qualified
                 .map(participant => {
