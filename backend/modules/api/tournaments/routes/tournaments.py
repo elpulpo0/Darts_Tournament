@@ -360,7 +360,16 @@ def get_registered_users(
     
     response = []
     for user in users:
-        team_member = db.query(TeamMember).filter(TeamMember.user_id == user.id).first()
+        team_member = (
+            db.query(TeamMember)
+            .join(Participant, TeamMember.participant_id == Participant.id)
+            .filter(
+                TeamMember.user_id == user.id,
+                Participant.tournament_id == tournament_id,
+                Participant.type == "team"
+            )
+            .first()
+        )
         team = db.query(Participant).filter(
             Participant.id == team_member.participant_id,
             Participant.tournament_id == tournament_id,
@@ -409,10 +418,20 @@ def create_team(
     if not reg1 or not reg2:
         raise HTTPException(status_code=400, detail="Both players must be registered to the tournament")
 
-    existing_team1 = db.query(TeamMember).filter(TeamMember.user_id == team_data.player1_id).first()
-    existing_team2 = db.query(TeamMember).filter(TeamMember.user_id == team_data.player2_id).first()
+    existing_team1 = (
+        db.query(TeamMember)
+        .join(Participant, TeamMember.participant_id == Participant.id)
+        .filter(TeamMember.user_id == team_data.player1_id, Participant.tournament_id == tournament_id)
+        .first()
+    )
+    existing_team2 = (
+        db.query(TeamMember)
+        .join(Participant, TeamMember.participant_id == Participant.id)
+        .filter(TeamMember.user_id == team_data.player2_id, Participant.tournament_id == tournament_id)
+        .first()
+    )
     if existing_team1 or existing_team2:
-        raise HTTPException(status_code=400, detail="One or both players are already in a team")
+        raise HTTPException(status_code=400, detail="One or both players are already in a team for this tournament")
 
     new_participant = Participant(
         tournament_id=tournament_id,

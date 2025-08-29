@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import backendApi from '../axios/backendApi';
+import { useAuthStore } from '../stores/useAuthStore';
+import { handleError } from '../functions/utils';
 
 export const useTournamentStore = defineStore('tournament', () => {
     const tournamentDetail = ref<TournamentFullDetailSchema | null>(null);
@@ -35,12 +37,14 @@ export const useTournamentStore = defineStore('tournament', () => {
 
     // Fetch teams
     const fetchTeams = async (tournamentId: number) => {
+        const authStore = useAuthStore();
         try {
-            const { data } = await backendApi.get(`/tournaments/${tournamentId}/participants`);
+            const { data } = await backendApi.get(`/tournaments/${tournamentId}/participants`, {
+                headers: { Authorization: `Bearer ${authStore.token}` },
+            });
             teams.value = data.filter((p: Participant) => p.type === 'team');
-        } catch (error) {
-            console.error('Error fetching teams:', error);
-            throw error;
+        } catch (err) {
+            handleError(err, 'fetching teams');
         }
     };
 
