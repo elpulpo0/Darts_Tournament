@@ -65,7 +65,8 @@ def create_roles_and_first_users():
             user = User(
                 email=user_cfg["email"],
                 name=user_cfg["name"],
-                hashed_password=hash_password(user_cfg["password"]),
+                # hashed_password=hash_password(user_cfg["password"]),
+                hashed_password=user_cfg["password"],
                 role_id=role_id,
                 is_active=True,
             )
