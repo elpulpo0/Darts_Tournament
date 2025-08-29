@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from datetime import datetime
 from typing import Optional, List
 
@@ -9,6 +9,7 @@ class TournamentCreate(BaseModel):
     start_date: datetime
     is_active: bool = True
     type: Optional[str] = None  # 'pool' ou 'elimination', nullable
+    mode: Optional[str] = None  # 'single' or 'double'
     status: str = "open"  # Statut unique ('open', 'running', 'closed'), default 'open'
 
 
@@ -18,6 +19,7 @@ class TournamentUpdate(BaseModel):
     start_date: Optional[datetime] = None
     is_active: Optional[bool] = None
     type: Optional[str] = None
+    mode: Optional[str] = None
     status: Optional[str] = None
 
 
@@ -28,6 +30,7 @@ class TournamentResponse(BaseModel):
     start_date: datetime
     is_active: bool
     type: Optional[str]
+    mode: Optional[str]
     status: str
     model_config = ConfigDict(from_attributes=True)
 
@@ -47,17 +50,53 @@ class TournamentRegistrationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ParticipantCreate(BaseModel):
+    type: str  # 'player' or 'team'
+    user_id: Optional[int] = None  # for 'player'
+    name: Optional[str] = None  # for 'team'
+    user_ids: Optional[List[int]] = None  # for 'team', list of 2 user_ids
+
+    @field_validator('user_ids')
+    @classmethod
+    def validate_team_users(cls, v, values):
+        if values.get('type') == 'team':
+            if not v or len(v) != 2:
+                raise ValueError('Team must have exactly 2 users')
+        return v
+
+
+class ParticipantResponse(BaseModel):
+    id: int
+    type: str
+    name: str
+    users: List["PlayerResponse"]
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TeamCreate(BaseModel):
+    name: str
+    player1_id: int
+    player2_id: int
+
+
 class MatchCreate(BaseModel):
     tournament_id: int
-    player_ids: List[int]  # Liste des IDs des joueurs participant au match
+    participant_ids: List[int]  # Liste des IDs des participants (players or teams)
     status: Optional[str] = "pending"
     pool_id: Optional[int] = None
     round: Optional[int] = 1
 
+    @field_validator('participant_ids')
+    @classmethod
+    def validate_participant_ids(cls, v):
+        if len(v) != 2:
+            raise ValueError('Match must have exactly 2 participants')
+        return v
+
 
 class MatchUpdate(BaseModel):
     status: Optional[str] = None
-    scores: Optional[List[dict]] = None  # Liste de {user_id: int, score: float}
+    scores: Optional[List[dict]] = None  # Liste de {participant_id: int, score: float}
 
 
 class PlayerResponse(BaseModel):
@@ -70,7 +109,7 @@ class MatchResponse(BaseModel):
     id: int
     tournament_id: int
     status: str
-    players: List[dict]  # Liste de {user_id: int, name: str, score: float}
+    participants: List[dict]  # Liste de {participant_id: int, name: str, score: float}
     pool_id: Optional[int] = None
     round: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
@@ -79,26 +118,31 @@ class MatchResponse(BaseModel):
 class PoolResponse(BaseModel):
     id: int
     name: Optional[str] = None
-    players: List[PlayerResponse]
+    participants: List[ParticipantResponse]
     matches: List[MatchResponse]
     model_config = ConfigDict(from_attributes=True)
 
 
 class PoolCreate(BaseModel):
     name: Optional[str] = None
-    player_ids: List[int]
+    participant_ids: List[int]
 
 
 class LeaderboardEntry(BaseModel):
     user_id: int
     name: str
     total_points: float
-    wins: int
-    total_manches: int
+    single_wins: float
+    double_wins: float
+    single_manches: float
+    double_manches: float
+
+    class Config:
+        orm_mode = True
 
 
 class TournamentLeaderboardEntry(BaseModel):
-    user_id: int
+    participant_id: int
     name: str
     wins: int
     total_manches: float
@@ -122,14 +166,13 @@ class PoolLeaderboardResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# Pour les projections détaillées
-class PlayerBasicSchema(BaseModel):
+class ParticipantBasicSchema(BaseModel):
     id: int
     name: str
     model_config = ConfigDict(from_attributes=True)
 
 
-class MatchPlayerSchema(BaseModel):
+class MatchParticipantSchema(BaseModel):
     id: int
     name: str
     score: Optional[int] = None
@@ -138,7 +181,7 @@ class MatchPlayerSchema(BaseModel):
 
 class MatchDetailSchema(BaseModel):
     id: int
-    players: List[MatchPlayerSchema]
+    participants: List[MatchParticipantSchema]
     status: str
     pool_id: Optional[int] = None
     round: Optional[int] = None
@@ -148,7 +191,7 @@ class MatchDetailSchema(BaseModel):
 class PoolDetailSchema(BaseModel):
     id: int
     name: Optional[str] = None
-    players: List[PlayerBasicSchema]
+    participants: List[ParticipantBasicSchema]
     matches: List[MatchDetailSchema]
     model_config = ConfigDict(from_attributes=True)
 
@@ -157,6 +200,7 @@ class TournamentFullDetailSchema(BaseModel):
     id: int
     name: str
     type: Optional[str]
+    mode: Optional[str]
     status: str
     pools: List[PoolDetailSchema]
     final_matches: List[MatchDetailSchema]

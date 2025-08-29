@@ -4,14 +4,24 @@
         <div v-if="leaderboardsStore.error" class="error">{{ leaderboardsStore.error }}</div>
         <div class="module">
             <h2>Classement de la saison {{ leaderboardsStore.currentSeason }}</h2>
+            <p class="points-explanation">
+                Les points sont calculés comme suit :
+            <ul>
+                <li><strong>Mode simple :</strong> 1 point par manche gagnée + 1 point par match gagné.</li>
+                <li><strong>Mode double :</strong> 0.5 point par manche gagnée (par joueur) + 0.5 point par match gagné
+                    (par joueur).</li>
+            </ul>
+            </p>
             <table v-if="leaderboardsStore.seasonLeaderboard.length">
                 <thead>
                     <tr>
                         <th></th>
                         <th>Nom</th>
                         <th>Points</th>
-                        <th>Victoires</th>
-                        <th>Manches</th>
+                        <th>Victoires (Simple)</th>
+                        <th>Victoires (Double)</th>
+                        <th>Manches (Simple)</th>
+                        <th>Manches (Double)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -20,8 +30,10 @@
                         <td>{{ getRank(index) }}</td>
                         <td>{{ entry.name }}</td>
                         <td>{{ entry.total_points }}</td>
-                        <td>{{ entry.wins }}</td>
-                        <td>{{ entry.total_manches }}</td>
+                        <td>{{ entry.single_wins }}</td>
+                        <td>{{ entry.double_wins }}</td>
+                        <td>{{ entry.single_manches }}</td>
+                        <td>{{ entry.double_manches }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -43,19 +55,14 @@ const currentUserName = computed(() => authStore.name || '');
 const currentYear = new Date().getFullYear();
 
 const getRank = (index: number) => {
-    if (index === 0) return 1; // First entry is always rank 1
+    if (index === 0) return 1;
     const prevEntry = leaderboardsStore.seasonLeaderboard[index - 1];
     const currentEntry = leaderboardsStore.seasonLeaderboard[index];
-    // Check for tie (same total_points, wins, and total_manches)
     if (
-        prevEntry.total_points === currentEntry.total_points &&
-        prevEntry.wins === currentEntry.wins &&
-        prevEntry.total_manches === currentEntry.total_manches
+        prevEntry.total_points === currentEntry.total_points
     ) {
-        // Same rank as previous entry
         return getRank(index - 1);
     }
-    // New rank is index + 1 (1-based)
     return index + 1;
 };
 
@@ -69,7 +76,7 @@ onMounted(() => {
 
 <style>
 .current-user {
-    color: rgb(255, 153, 0) !important;
+    color: rgb(233, 84, 9);
     font-weight: bold;
 }
 </style>

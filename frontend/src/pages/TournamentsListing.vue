@@ -20,6 +20,7 @@
                                         : ""
                         }}
                     </p>
+                    <p>Mode: {{ tournament.mode || 'Non défini' }}</p>
                     <p>Date : {{ formatDate(tournament.start_date) }}</p>
                 </div>
             </div>
@@ -46,6 +47,17 @@
                     <p>Les inscriptions sont closes pour ce tournoi.</p>
                 </div>
 
+                <!-- Affichage participants (players/teams) -->
+                <h4>Participants</h4>
+                <ul v-if="participants[selectedTournament.id]?.length">
+                    <li v-for="participant in participants[selectedTournament.id]" :key="participant.id">
+                        {{ participant.name }}
+                        <span v-if="participant.type === 'team'"> ({{participant.users.map(u => u.name).join(' & ')
+                            }})</span>
+                    </li>
+                </ul>
+                <p v-else>Aucun participant.</p>
+
                 <button v-if="selectedTournament && ['running', 'closed'].includes(selectedTournament.status)"
                     @click="openProjection">
                     Projeter l’arborescence
@@ -65,6 +77,10 @@
             <input v-model="newTournamentName" placeholder="Nom" class="form-input" />
             <input v-model="newTournamentDescription" placeholder="Description" class="form-input" />
             <input v-model="newTournamentStartDate" type="datetime-local" class="form-input" />
+            <select v-model="newTournamentMode" class="form-input">
+                <option value="single">Single (Joueurs individuels)</option>
+                <option value="double">Double (Équipes de 2)</option>
+            </select>
             <button @click="createTournament">Ajouter</button>
         </div>
     </div>
@@ -76,85 +92,82 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import backendApi from '../axios/backendApi';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../stores/useAuthStore';
-import { handleError, formatDate } from '../functions/utils';
 import { useRouter } from 'vue-router';
-import { useLeaderboardsStore } from '../stores/useLeaderboardsStore';
+import { handleError } from '../functions/utils';
 
-const router = useRouter();
 const authStore = useAuthStore();
-const leaderboardsStore = useLeaderboardsStore();
 const toast = useToast();
+const router = useRouter();
 
 const tournaments = ref<Tournament[]>([]);
-const matches = ref<{ [tournamentId: number]: Match[] }>({});
-const registrationStatus = ref<{ [tournamentId: number]: boolean }>({});
 const selectedTournament = ref<Tournament | null>(null);
 const loading = ref(false);
-const error = ref('');
+const showCreateTournament = ref(false);
 const newTournamentName = ref('');
 const newTournamentDescription = ref('');
 const newTournamentStartDate = ref('');
-const newTournamentIsActive = ref(true);
-const showCreateTournament = ref(false);
+const newTournamentMode = ref<'single' | 'double'>('single'); // Nouveau champ pour le mode
+const registrationStatus = ref<{ [key: number]: boolean }>({});
+const participants = ref<{ [key: number]: Participant[] }>({});
+const matches = ref<{ [key: number]: Match[] }>({});
 
-const isEditor = computed(() => authStore.scopes.includes('editor'));
+const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
 
-// Toggle create tournament form
 const toggleCreateTournamentForm = () => {
     showCreateTournament.value = !showCreateTournament.value;
-};
-
-// Create a new tournament
-const createTournament = async () => {
-    try {
-        const tournamentData = {
-            name: newTournamentName.value,
-            description: newTournamentDescription.value || null,
-            start_date: newTournamentStartDate.value,
-            is_active: newTournamentIsActive.value,
-            type: null,
-            status: 'open',
-        };
-        await backendApi.post('/tournaments/', tournamentData, {
-            headers: { Authorization: `Bearer ${authStore.token}` },
-        });
+    if (!showCreateTournament.value) {
         newTournamentName.value = '';
         newTournamentDescription.value = '';
         newTournamentStartDate.value = '';
-        newTournamentIsActive.value = true;
-        showCreateTournament.value = false;
+        newTournamentMode.value = 'single';
+    }
+};
+
+const formatDate = (date: string) => new Date(date).toLocaleString();
+
+const createTournament = async () => {
+    if (!newTournamentName.value || !newTournamentStartDate.value) {
+        toast.error('Le nom et la date de début sont requis.');
+        return;
+    }
+    const tournamentData = {
+        name: newTournamentName.value,
+        description: newTournamentDescription.value || null,
+        start_date: new Date(newTournamentStartDate.value).toISOString(),
+        is_active: true,
+        status: 'open',
+        mode: newTournamentMode.value, // Ajout du mode
+    };
+    try {
+        await backendApi.post('/tournaments/', tournamentData, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+        toast.success('Tournoi créé.');
         fetchTournaments();
-        toast.success('Tournoi créé avec succès. Les joueurs peuvent maintenant s’inscrire.');
+        toggleCreateTournamentForm();
     } catch (err) {
         handleError(err, 'création du tournoi');
     }
 };
 
-// Fetch tournaments and related data
 const fetchTournaments = async () => {
     loading.value = true;
-    error.value = '';
     try {
         const { data } = await backendApi.get('/tournaments/', {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
         tournaments.value = data;
-
-        const outerPromises = tournaments.value.map((tournament) => {
-            return Promise.all([
-                fetchMatches(tournament.id),
-                checkIfUserRegistered(tournament.id).then((isReg) => {
-                    registrationStatus.value[tournament.id] = isReg;
-                }),
-                leaderboardsStore.fetchTournamentLeaderboard(tournament.id, authStore.token)
-            ]);
-        });
-
-        await Promise.all(outerPromises);
+        for (const tournament of tournaments.value) {
+            if (tournament.status === 'open') {
+                registrationStatus.value[tournament.id] = await checkIfUserRegistered(tournament.id);
+            }
+            participants.value[tournament.id] = await fetchParticipants(tournament.id);
+            matches.value[tournament.id] = await fetchMatches(tournament.id);
+        }
     } catch (err) {
         handleError(err, 'récupération des tournois');
     } finally {
@@ -162,7 +175,18 @@ const fetchTournaments = async () => {
     }
 };
 
-// Register user to a tournament
+const fetchParticipants = async (tournamentId: number): Promise<Participant[]> => {
+    try {
+        const { data } = await backendApi.get(`/tournaments/${tournamentId}/participants`, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+        return data;
+    } catch (err) {
+        handleError(err, 'récupération des participants');
+        return [];
+    }
+};
+
 const registerToTournament = async (tournamentId: number) => {
     const playerData = {
         user_id: authStore.userId,
@@ -175,12 +199,12 @@ const registerToTournament = async (tournamentId: number) => {
         );
         toast.success('Inscription au tournoi réussie.');
         registrationStatus.value[tournamentId] = true;
+        participants.value[tournamentId] = await fetchParticipants(tournamentId);
     } catch (err) {
         handleError(err, 'inscription au tournoi');
     }
 };
 
-// Check if the user is already registered
 const checkIfUserRegistered = async (tournamentId: number): Promise<boolean> => {
     try {
         const { data } = await backendApi.get(`/tournaments/${tournamentId}/my-registration`, {
@@ -197,7 +221,6 @@ const checkIfUserRegistered = async (tournamentId: number): Promise<boolean> => 
     }
 };
 
-// Unregister user from a tournament
 const unregisterFromTournament = async (tournamentId: number) => {
     try {
         await backendApi.delete(
@@ -206,26 +229,28 @@ const unregisterFromTournament = async (tournamentId: number) => {
         );
         toast.success('Désinscription du tournoi réussie.');
         registrationStatus.value[tournamentId] = false;
+        participants.value[tournamentId] = await fetchParticipants(tournamentId);
     } catch (err) {
         handleError(err, 'désinscription du tournoi');
     }
 };
 
-// Fetch matches and leaderboard
-const fetchMatches = async (tournamentId: number) => {
+const fetchMatches = async (tournamentId: number): Promise<Match[]> => {
     try {
         const { data } = await backendApi.get(`/tournaments/matches/tournament/${tournamentId}`, {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
-        matches.value[tournamentId] = data;
+        return data;
     } catch (err) {
         handleError(err, 'récupération des matchs');
+        return [];
     }
 };
 
-// Select tournament
-const selectTournament = (tournament: Tournament) => {
+const selectTournament = async (tournament: Tournament) => {
     selectedTournament.value = tournament;
+    participants.value[tournament.id] = await fetchParticipants(tournament.id);
+    matches.value[tournament.id] = await fetchMatches(tournament.id);
 };
 
 watch(
@@ -256,7 +281,7 @@ const openProjection = () => {
     padding: 1rem;
     cursor: pointer;
     border-radius: var(--radius);
-    background-color: var(--color-bg-lighter);
+    background-color: var(--color-light-shadow);
     color: var(--color-fg);
     font-family: var(--font-main);
     transition: background-color 0.2s ease, border-color 0.2s ease;
@@ -265,7 +290,7 @@ const openProjection = () => {
 .tile.selected {
     background-color: var(--color-accent-bis);
     border-color: var(--color-fg-darker);
-    color: var(--color-bg-lighter);
+    color: var(--color-bg);
 }
 
 .tournament-details {

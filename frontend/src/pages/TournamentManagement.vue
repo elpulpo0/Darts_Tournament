@@ -1,9 +1,281 @@
+<template>
+    <div v-if="authStore.scopes.includes('admin')">
+        <div v-if="loading">Chargement...</div>
+        <div v-if="error" class="error">{{ error }}</div>
+
+        <div v-if="tournament" class="module">
+            <h2>Gérer le tournoi</h2>
+            <div class="tournament-details">
+                <h3>Détails</h3>
+                <p>Nom : {{ tournament.name }}</p>
+                <p>Type : {{ tournament.type || 'Non défini' }}</p>
+                <p>Mode : {{ tournament.mode || 'Non défini' }}</p>
+                <p>Description : {{ tournament.description || 'Aucune description' }}</p>
+                <p>Date de début : {{ new Date(tournament.start_date.split('T')[0]).toLocaleDateString() }}</p>
+                <p>Statut : {{ tournament.status }}</p>
+                <button @click="startEditing">Modifier le tournoi</button>
+            </div>
+
+            <!-- Formulaire de modification du tournoi -->
+            <div v-if="isEditing" class="tournament-edit-form">
+                <h3>Modifier le tournoi</h3>
+                <label>Nom :
+                    <input v-model="editForm.name" class="form-input" />
+                </label>
+                <label>Description :
+                    <textarea v-model="editForm.description" class="form-input" />
+                </label>
+                <label>Date de début :
+                    <input v-model="editForm.start_date" type="date" class="form-input" />
+                </label>
+                <label>Type :
+                    <select v-model="editForm.type" class="form-input">
+                        <option value="pool">Poule</option>
+                        <option value="elimination">Élimination</option>
+                    </select>
+                </label>
+                <label>Mode :
+                    <select v-model="editForm.mode" class="form-input">
+                        <option value="single">Single</option>
+                        <option value="double">Double</option>
+                    </select>
+                </label>
+                <label>Statut :
+                    <select v-model="editForm.status" class="form-input">
+                        <option value="open">Ouvert</option>
+                        <option value="running">En cours</option>
+                        <option value="closed">Terminé</option>
+                    </select>
+                </label>
+                <button @click="updateTournament">Mettre à jour le tournoi</button>
+                <button @click="cancelEditing">Annuler</button>
+            </div>
+
+            <button v-if="tournament && ['running', 'closed'].includes(tournament.status)" @click="openProjection">
+                Projeter l’arborescence
+            </button>
+
+            <div class="tournament-actions">
+                <button v-if="tournament.status === 'open'" @click="startLaunchingTournament(tournament.id)">
+                    Lancer
+                </button>
+                <button v-if="tournament.status === 'running'" @click="closeTournament(tournament.id)">
+                    Clôturer
+                </button>
+                <button @click="deleteTournament">Supprimer</button>
+                <button @click="resetTournament(tournament.id)">Réinitialiser</button>
+            </div>
+
+            <!-- Formulaire de lancement du tournoi -->
+            <div v-if="launchingTournamentId === tournament.id" class="launch-form module">
+                <h4>Lancer {{ tournament.name }}</h4>
+                <label>Nombre de cibles disponibles (optionnel) :
+                    <input v-model.number="launchTargetCount" type="number" min="1" class="form-input" />
+                </label>
+                <label>Mode de type :
+                    <select v-model="launchTypeMode" class="form-input">
+                        <option value="auto">Sélection automatique</option>
+                        <option value="manual">Sélection manuelle</option>
+                    </select>
+                </label>
+                <label v-if="launchTypeMode === 'manual'">Type de tournoi :
+                    <select v-model="launchTournamentType" class="form-input">
+                        <option value="pool">Poule</option>
+                        <option value="elimination">Élimination</option>
+                    </select>
+                </label>
+                <button @click="launchTournament()">Lancer</button>
+                <button @click="cancelLaunchingTournament">Annuler</button>
+            </div>
+
+            <div v-if="tournament.status === 'open'" class="participants-section">
+                <h4>Joueurs inscrits</h4>
+                <table v-if="tournamentStore.registeredUsers?.length">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Équipe</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="user in tournamentStore.registeredUsers" :key="user.id">
+                            <td>{{ user.name }}</td>
+                            <td>{{ user.team_name || 'Sans équipe' }}</td>
+                            <td>
+                                <button title="Désinscrire ce joueur"
+                                    style="color: red; background: none; border: none; font-size: 1.2em; cursor: pointer;"
+                                    @click="unregisterPlayer(user.id, tournament.id)">✖️</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p v-else>Aucun joueur inscrit pour le moment.</p>
+
+                <div v-if="tournament.mode === 'double'">
+                    <h4>Équipes inscrites</h4>
+                    <table v-if="tournamentStore.teams?.length">
+                        <thead>
+                            <tr>
+                                <th>Nom de l'équipe</th>
+                                <th>Membres</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="team in tournamentStore.teams" :key="team.id">
+                                <td>{{ team.name }}</td>
+                                <td>{{team.users.map(u => u.name).join(' & ')}}</td>
+                                <td>
+                                    <button title="Supprimer cette équipe"
+                                        style="color: red; background: none; border: none; font-size: 1.2em; cursor: pointer;"
+                                        @click="deleteTeam(team.id, tournament.id)">✖️</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p v-else>Aucune équipe inscrite pour le moment.</p>
+                </div>
+
+                <button @click="startRegisteringPlayer(tournament.id)">Inscrire un joueur</button>
+                <button v-if="tournament.mode === 'double'" @click="startCreatingTeam(tournament.id)">Créer une
+                    équipe</button>
+
+                <!-- Formulaire d'inscription d'un joueur -->
+                <div v-if="registeringTournamentId === tournament.id" class="register-form module">
+                    <h4>Inscrire un joueur pour {{ tournament.name }}</h4>
+                    <label>Choisir un joueur existant :
+                        <select v-model="selectedUserId" class="form-input">
+                            <option :value="null">-- Sélectionner --</option>
+                            <option v-for="user in selectableUsers" :value="user.id" :key="user.id">
+                                {{ user.name }}
+                            </option>
+                        </select>
+                    </label>
+                    <button :disabled="!selectedUserId"
+                        @click="registerExistingUserToTournament(selectedUserId, tournament.id)">
+                        Ajouter le joueur sélectionné
+                    </button>
+                    <button @click="cancelRegisteringPlayer">Fermer</button>
+                </div>
+
+                <!-- Formulaire de création d'équipe -->
+                <div v-if="creatingTeamTournamentId === tournament.id" class="register-form module">
+                    <h4>Créer une équipe pour {{ tournament.name }}</h4>
+                    <label>Nom de l'équipe :
+                        <input v-model="newTeamName" class="form-input" required />
+                    </label>
+                    <label>Joueurs de l’équipe :
+                        <select multiple v-model="selectedTeamUsers" class="form-input">
+                            <option v-for="user in selectableTeamUsers" :value="user.id" :key="user.id">{{ user.name
+                                }}
+                            </option>
+                        </select>
+                    </label>
+                    <button @click="createTeam(tournament.id)">Créer équipe</button>
+                    <button @click="cancelCreatingTeam">Fermer</button>
+                </div>
+            </div>
+
+            <!-- Classements par poule -->
+            <h4>Classements par poule</h4>
+            <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
+            <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
+                leaderboardsStore.poolsLeaderboardError }}</div>
+            <div v-if="leaderboardsStore.poolsLeaderboard.length">
+                <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
+                    <h5>{{ poolLeaderboard.pool_name }}</h5>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Victoires (Principal)</th>
+                                <th>Manches gagnées (Tiebreaker)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="entry in poolLeaderboard.leaderboard" :key="entry.participant_id">
+                                <td>{{ entry.name }}</td>
+                                <td>{{ entry.wins }}</td>
+                                <td>{{ entry.total_manches }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <p v-else>Aucun classement par poule disponible.</p>
+
+            <div v-if="tournament.status === 'running' || tournament.status === 'closed'" class="matches-section">
+                <h4>Matchs</h4>
+                <div v-for="round in Array.from({ length: currentRound + 1 }, (_, i) => i)" :key="round">
+                    <h5>{{ round === 0 ? 'Poules' : `Tour ${round}` }}</h5>
+                    <table
+                        v-if="matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round)).length">
+                        <thead>
+                            <tr>
+                                <th>Participants</th>
+                                <th>Statut</th>
+                                <th>Scores</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="match in matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round && m.participants.length === 2))"
+                                :key="match.id">
+                                <td>
+                                    {{match.participants.map(p => {
+                                        const participantName = p?.name || 'N/A';
+                                        const participantType = tournamentStore.getParticipantType(p?.participant_id);
+                                        const users = tournamentStore.getParticipantUsers(p?.participant_id);
+                                        return participantType === 'team' && users?.length
+                                            ? `${participantName} (${users.map(u => u.name).join(' & ')})`
+                                            : participantName;
+                                    }).join(' vs ')}}
+                                </td>
+                                <td>{{ match.status }}</td>
+                                <td>
+                                    <div v-if="match.status === 'completed'">
+                                        {{match.participants.map(p => p?.score ?? 'N/A').join(', ')}}
+                                    </div>
+                                    <div v-else>
+                                        <input v-for="(_, index) in match.participants"
+                                            v-model="tempScores[match.id][index]" type="number" :key="index" />
+                                    </div>
+                                </td>
+                                <td>
+                                    <button v-if="match.status === 'pending'" @click="updateMatch(match)">Mettre à
+                                        jour
+                                        les scores</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p v-else>Aucun match pour ce tour.</p>
+                </div>
+
+                <div v-if="isTournamentFinished && getTournamentWinner">
+                    <h4>Tournoi terminé !</h4>
+                    <p>Vainqueur : {{ getTournamentWinner.name }}</p>
+                </div>
+                <button v-else-if="isCurrentRoundFinished" @click="generateFinalStage">
+                    Générer le tour {{ currentRound === 0 ? 'des éliminatoires' : currentRound + 1 }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="!authStore.isAuthenticated" class="centered-block">
+        <h2>🔒 Connexion requise</h2>
+        <p>Veuillez vous connecter pour gérer les tournois.</p>
+    </div>
+</template>
+
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import backendApi from '../axios/backendApi';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../stores/useAuthStore';
-import { createPools, generateEliminationMatches, getMatchWinner, computePoolRanking } from '../functions/tournamentStructure';
+import { createPools, generateEliminationMatches, getMatchWinner } from '../functions/tournamentStructure';
 import { handleError } from '../functions/utils';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
@@ -20,22 +292,25 @@ const leaderboardsStore = useLeaderboardsStore();
 const tournamentStore = useTournamentStore();
 
 const tournament = ref<Tournament | null>(null);
-const players = ref<Player[]>([]);
 const matches = ref<Match[]>([]);
 const loading = ref(false);
 const error = ref('');
 const registeringTournamentId = ref<number | null>(null);
+const creatingTeamTournamentId = ref<number | null>(null);
 const editForm = ref<any>({});
-const newPlayerName = ref<string>('');
-const newPlayerEmail = ref<string>('');
+const newTeamName = ref<string>('');
 const tempScores = ref<{ [matchId: number]: number[] }>({});
 const launchingTournamentId = ref<number | null>(null);
 const launchTargetCount = ref<number>(4);
 const launchTypeMode = ref<'auto' | 'manual'>('auto');
 const launchTournamentType = ref<'pool' | 'elimination'>('pool');
+const launchTournamentMode = ref<'single' | 'double'>('single');
 const isEditing = ref(false);
-const allUsers = ref<Player[]>([]);
+const allUsers = ref<User[]>([]);
 const selectedUserId = ref<number | null>(null);
+const selectedTeamUsers = ref<number[]>([]);
+
+
 
 const poolIds = computed(() => {
     const ids = matches.value.map(m => m.pool_id).filter(id => id != null);
@@ -52,14 +327,13 @@ const isPoolFinished = computed(() =>
 );
 
 const isTournamentFinished = computed(() => {
-    if (currentRound.value === 0) return false; // Pas fini pendant les poules
+    if (currentRound.value === 0) return false;
     const currentRoundMatches = matches.value.filter(
         m => m.pool_id == null && m.round === currentRound.value
     );
-    // Le tournoi est fini si : un seul match dans le tour actuel, complété, avec un gagnant
     if (currentRoundMatches.length === 1 && currentRoundMatches[0].status === 'completed') {
         const winner = getMatchWinner(currentRoundMatches[0]);
-        return !!winner; // Vrai si un gagnant est trouvé
+        return !!winner;
     }
     return false;
 });
@@ -77,6 +351,15 @@ const isCurrentRoundFinished = computed(() => {
         .every(m => m.status === 'completed');
 });
 
+const selectableUsers = computed(() => {
+    const alreadyRegisteredIds = new Set(tournamentStore.registeredUsers.map(user => user.id));
+    return allUsers.value.filter(user => !alreadyRegisteredIds.has(user.id));
+});
+
+const selectableTeamUsers = computed(() => {
+    return tournamentStore.registeredUsers.filter(user => !user.team_id);
+});
+
 const openProjection = () => {
     if (!tournament.value) return;
     router.push(`/tournaments/${tournament.value.id}/projection`);
@@ -91,7 +374,10 @@ const fetchTournament = async (id: number) => {
         });
         tournament.value = data;
         resetEditForm(data);
-        await fetchPlayers();
+        await Promise.all([
+            tournamentStore.fetchRegisteredUsers(id),
+            tournamentStore.fetchTeams(id),
+        ]);
         if (data.status === 'running' || data.status === 'closed') {
             await fetchMatches();
             await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
@@ -111,6 +397,7 @@ const resetEditForm = (data: Tournament) => {
         description: data.description,
         start_date: data.start_date.split('T')[0],
         type: data.type,
+        mode: data.mode,
         status: data.status,
     };
 };
@@ -126,22 +413,6 @@ const fetchAllUsers = async () => {
     }
 };
 
-const selectableUsers = computed(() => {
-    const alreadyRegisteredIds = new Set(players.value.map(p => p.id));
-    return allUsers.value.filter(user => !alreadyRegisteredIds.has(user.id));
-});
-
-const fetchPlayers = async () => {
-    try {
-        const { data } = await backendApi.get(`/tournaments/${tournamentId.value}/players`, {
-            headers: { Authorization: `Bearer ${authStore.token}` },
-        });
-        players.value = data;
-    } catch (err) {
-        handleError(err, 'fetching players');
-    }
-};
-
 const fetchMatches = async () => {
     try {
         const { data } = await backendApi.get(`/tournaments/matches/tournament/${tournamentId.value}`, {
@@ -150,7 +421,7 @@ const fetchMatches = async () => {
         matches.value = data;
         for (const match of data) {
             if (match.status === 'pending') {
-                tempScores.value[match.id] = match.players.map(() => 0);
+                tempScores.value[match.id] = match.participants.map(() => 0);
             }
         }
     } catch (err) {
@@ -208,6 +479,7 @@ const startLaunchingTournament = (tournamentId: number) => {
     launchTargetCount.value = 4;
     launchTypeMode.value = 'auto';
     launchTournamentType.value = 'pool';
+    launchTournamentMode.value = tournament.value?.mode || 'single';
 };
 
 const cancelLaunchingTournament = () => {
@@ -215,63 +487,62 @@ const cancelLaunchingTournament = () => {
     launchTargetCount.value = 4;
     launchTypeMode.value = 'auto';
     launchTournamentType.value = 'pool';
+    launchTournamentMode.value = 'single';
 };
 
 const launchTournament = async () => {
     loading.value = true;
     try {
-        const { data: players } = await backendApi.get(`/tournaments/${tournamentId.value}/players`, {
+        const { data: participants } = await backendApi.get(`/tournaments/${tournamentId.value}/participants`, {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
-        if ((players?.length ?? 0) < 2) throw new Error("Minimum 2 joueurs requis");
+        if ((participants?.length ?? 0) < 4) throw new Error(launchTournamentMode.value === 'single' ? "Minimum 4 joueurs requis" : "Minimum 4 équipes requises");
 
         let tournamentType: 'pool' | 'elimination';
         let numPools: number = 1;
 
         if (launchTypeMode.value === 'manual') {
             tournamentType = launchTournamentType.value;
-            numPools = Math.max(1, Math.min(launchTargetCount.value, players.length));
+            numPools = Math.max(1, Math.min(launchTargetCount.value, participants.length));
+            if (tournamentType === 'elimination' && participants.length % 2 !== 0) {
+                throw new Error("Nombre impair de participants non supporté en mode élimination sans ajustement");
+            }
         } else {
-            if (players.length === 2) {
+            const N = participants.length;
+            if (N <= 4) {
                 tournamentType = 'elimination';
                 numPools = 0;
-            } else if (players.length <= 4) {
-                tournamentType = 'elimination';
-                numPools = 0;
-            } else if (players.length <= 6) {
+            } else if (N <= 12) {
                 tournamentType = 'pool';
-                numPools = 2;
-            } else if (players.length <= 8) {
+                numPools = N === 5 ? 1 : 2; // Single pool for 5 participants, otherwise 2 pools
+            } else if (N <= 24) {
                 tournamentType = 'pool';
-                numPools = 2;
+                numPools = Math.ceil(N / 5);
             } else {
                 tournamentType = 'pool';
-                numPools = Math.ceil(players.length / 4);
+                numPools = Math.ceil(N / 8);
             }
         }
 
-        if (tournamentType === 'elimination' && players.length % 2 !== 0) {
-            throw new Error("Nombre impair de joueurs non supporté en mode élimination sans bye");
-        }
+        console.log('Mode de lancement:', launchTypeMode.value, 'Type de tournoi:', tournamentType, 'Mode:', launchTournamentMode.value, 'Nombre de poules:', numPools);
 
-        console.log('Mode de lancement:', launchTypeMode.value, 'Type de tournoi:', tournamentType, 'Nombre de poules:', numPools);
-
-        await backendApi.patch(`/tournaments/${tournamentId.value}`, { type: tournamentType }, {
-            headers: { Authorization: `Bearer ${authStore.token}` },
-        });
-        await backendApi.patch(`/tournaments/${tournamentId.value}`, { status: 'running' }, {
+        await backendApi.patch(`/tournaments/${tournamentId.value}`, {
+            type: tournamentType,
+            mode: launchTournamentMode.value,
+            status: 'running'
+        }, {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
 
         if (tournamentType === 'pool') {
-            const pools = createPools(players, numPools);
+            const pools = createPools(participants, numPools);
             const poolIdMap: Record<number, number> = {};
             for (const pool of pools) {
                 const { data: createdPool } = await backendApi.post(
-                    `/tournaments/${tournamentId.value}/pools/`,
+                    `/tournaments/${tournamentId.value}/pools`,
                     {
                         name: pool.name || null,
-                        player_ids: pool.players.map((p: any) => p.id),
+                        participant_ids: pool.participants.map((p: Participant) => p.id),
                     },
                     {
                         headers: { Authorization: `Bearer ${authStore.token}` },
@@ -292,7 +563,7 @@ const launchTournament = async () => {
                 }
             }
         } else {
-            const generatedMatches = generateEliminationMatches(players);
+            const generatedMatches = generateEliminationMatches(participants);
             for (const m of generatedMatches) {
                 await createAndPersistMatch(m);
             }
@@ -311,78 +582,72 @@ const launchTournament = async () => {
 
 async function generateFinalStage() {
     try {
-        let qualified: { user_id: number, name: string, pool_id: number }[] = [];
+        let qualified: { participant_id: number, name: string, pool_id: number }[] = [];
         let nextRound = currentRound.value + 1;
 
-        // Vérifier les matchs existants pour le tour suivant
         const existingNextRoundMatches = matches.value.filter(
             m => m.pool_id == null && m.round === nextRound
         );
         if (existingNextRoundMatches.length > 0) {
-            toast.error(`Le tour ${nextRound} existe déjà. Veuillez compléter ou supprimer les matchs existants.`);
+            toast.error(`Le tour ${nextRound} existe déjà.Veuillez compléter ou supprimer les matchs existants.`);
             return;
         }
 
         if (currentRound.value === 0) {
-            // Phase post-poules : sélectionner les joueurs qualifiés
-            if (poolIds.value.length === 1) {
-                // Cas d'une seule poule : top 4
-                const poolMatches = matches.value.filter(m => m.pool_id != null);
-                qualified = computePoolRanking(poolMatches).slice(0, 4).map(entry => ({
-                    user_id: entry.user_id,
-                    name: entry.name,
-                    pool_id: poolIds.value[0]
-                }));
-            } else {
-                // Multi-poules : top 3 pour poules de 4+, top 2 pour poules de 3 ou moins
-                for (const poolId of poolIds.value) {
-                    const poolMatches = matches.value.filter(m => m.pool_id === poolId);
-                    const poolSize = new Set(poolMatches.flatMap(m => m.players.map(p => p?.user_id))).size;
-                    const numToQualify = poolSize >= 4 ? 3 : 2; // Top 3 pour 4+, top 2 sinon
-                    const topPlayers = computePoolRanking(poolMatches).slice(0, numToQualify).map(entry => ({
-                        user_id: entry.user_id,
-                        name: entry.name,
-                        pool_id: poolId
-                    }));
-                    qualified = qualified.concat(topPlayers);
-                }
+            const totalParticipants = new Set(matches.value.flatMap(m => m.participants.map(p => p?.participant_id))).size;
+            const targetQualifiers = totalParticipants <= 12 ? 8 : totalParticipants <= 24 ? 16 : 32;
 
-                // Pour 11 joueurs (3 pools: 4,4,3), on a 3+3+2=8 qualifiés
-                // Si plus ou moins de 8, ajuster pour éviter les byes
-                if (qualified.length > 8) {
-                    // Réduire au top 8 basé sur les victoires/points globaux
-                    qualified = qualified
-                        .map(player => {
-                            const poolMatches = matches.value.filter(m => m.pool_id === player.pool_id);
-                            const stats = computePoolRanking(poolMatches).find(e => e.user_id === player.user_id);
-                            return { ...player, wins: stats?.wins || 0, points: stats?.points || 0 };
-                        })
-                        .sort((a, b) => b.wins - a.wins || b.points - a.points)
-                        .slice(0, 8);
-                } else if (qualified.length < 8 && qualified.length % 2 !== 0) {
-                    // Réduire à la puissance de 2 inférieure pour éviter les byes
-                    qualified = qualified.slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
+            if (poolIds.value.length === 1) {
+                const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolIds.value[0]);
+                if (poolLeaderboard) {
+                    qualified = poolLeaderboard.leaderboard.slice(0, Math.min(targetQualifiers, poolLeaderboard.leaderboard.length)).map(entry => ({
+                        participant_id: entry.participant_id,
+                        name: entry.name,
+                        pool_id: poolIds.value[0]
+                    }));
+                }
+            } else {
+                for (const poolId of poolIds.value) {
+                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolId);
+                    if (poolLeaderboard) {
+                        const poolSize = new Set(matches.value.filter(m => m.pool_id === poolId)
+                            .flatMap(m => m.participants.map(p => p?.participant_id))).size;
+                        const numToQualify = poolSize >= 4 ? 4 : 2; // Top 4 pour ≥4, top 2 pour <4
+                        const topParticipants = poolLeaderboard.leaderboard.slice(0, numToQualify).map(entry => ({
+                            participant_id: entry.participant_id,
+                            name: entry.name,
+                            pool_id: poolId
+                        }));
+                        qualified = qualified.concat(topParticipants);
+                    }
                 }
             }
 
-            // Organiser les qualifiés avec seeding (top seed vs bas seed)
-            const nextMatches: Match[] = [];
+            // Moved adjustment outside
             qualified = qualified
-                .map(player => {
-                    const poolMatches = matches.value.filter(m => m.pool_id === player.pool_id);
-                    const stats = computePoolRanking(poolMatches).find(e => e.user_id === player.user_id);
-                    return { ...player, wins: stats?.wins || 0, points: stats?.points || 0 };
+                .map(participant => {
+                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === participant.pool_id);
+                    const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.participant_id);
+                    return { ...participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
                 })
-                .sort((a, b) => b.wins - a.wins || b.points - a.points);
-            // Pair top seed vs lower seed, e.g., 1 vs 8, 2 vs 7, 3 vs 6, 4 vs 5
+                .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches);
+
+            if (qualified.length > targetQualifiers) {
+                qualified = qualified.slice(0, targetQualifiers);
+            } else if (qualified.length < targetQualifiers) {
+                qualified = qualified.slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
+            }
+            // No change if equal
+
+            const nextMatches: Match[] = [];
             for (let i = 0; i < qualified.length / 2; i++) {
                 nextMatches.push({
                     id: 0,
                     tournament_id: tournamentId.value,
                     match_date: null,
-                    players: [
-                        { user_id: qualified[i].user_id, name: qualified[i].name, score: null },
-                        { user_id: qualified[qualified.length - 1 - i].user_id, name: qualified[qualified.length - 1 - i].name, score: null },
+                    participants: [
+                        { participant_id: qualified[i].participant_id, name: qualified[i].name, score: null },
+                        { participant_id: qualified[qualified.length - 1 - i].participant_id, name: qualified[qualified.length - 1 - i].name, score: null },
                     ],
                     status: 'pending',
                     round: nextRound,
@@ -402,43 +667,43 @@ async function generateFinalStage() {
                 await createAndPersistMatch(match);
             }
         } else {
-            // Rounds éliminatoires suivants : même logique que avant, mais sans byes
             const previousRoundMatches = matches.value.filter(
                 m => m.pool_id == null && m.round === currentRound.value
             );
             for (const match of previousRoundMatches) {
                 const winner = getMatchWinner(match);
                 if (winner) {
-                    qualified.push({ user_id: winner.user_id, name: winner.name, pool_id: 0 });
+                    qualified.push({ participant_id: winner.participant_id, name: winner.name, pool_id: 0 });
                 }
             }
 
             if (qualified.length < 2) {
-                toast.error('Pas assez de joueurs qualifiés pour le tour suivant');
+                toast.error('Pas assez de participants qualifiés pour le tour suivant');
                 return;
             }
-            if (qualified.length % 2 !== 0) {
-                // Réduire à la puissance de 2 inférieure pour éviter les byes
-                qualified = qualified.slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
-            }
 
+            // Pas de bye : Assurer que le nombre est pair en ajustant au tour précédent
             const nextMatches: Match[] = [];
-            const shuffledQualified = [...qualified].sort(() => Math.random() - 0.5);
-            for (let i = 0; i < shuffledQualified.length; i += 2) {
-                if (i + 1 < shuffledQualified.length) {
-                    nextMatches.push({
-                        id: 0,
-                        tournament_id: tournamentId.value,
-                        match_date: null,
-                        players: [
-                            { user_id: shuffledQualified[i].user_id, name: shuffledQualified[i].name, score: null },
-                            { user_id: shuffledQualified[i + 1].user_id, name: shuffledQualified[i + 1].name, score: null },
-                        ],
-                        status: 'pending',
-                        round: nextRound,
-                        pool_id: undefined,
-                    });
-                }
+            qualified = qualified
+                .map(participant => {
+                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === participant.pool_id);
+                    const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.participant_id);
+                    return { ...participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
+                })
+                .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches);
+            for (let i = 0; i < qualified.length / 2; i++) {
+                nextMatches.push({
+                    id: 0,
+                    tournament_id: tournamentId.value,
+                    match_date: null,
+                    participants: [
+                        { participant_id: qualified[i].participant_id, name: qualified[i].name, score: null },
+                        { participant_id: qualified[qualified.length - 1 - i].participant_id, name: qualified[qualified.length - 1 - i].name, score: null },
+                    ],
+                    status: 'pending',
+                    round: nextRound,
+                    pool_id: undefined,
+                });
             }
 
             if (nextMatches.length === 0) {
@@ -454,7 +719,7 @@ async function generateFinalStage() {
             }
         }
 
-        toast.success(`Tour ${nextRound} généré !`);
+        toast.success(`Tour ${nextRound} généré!`);
         await fetchMatches();
         await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
     } catch (err) {
@@ -463,29 +728,23 @@ async function generateFinalStage() {
     }
 }
 
-function extractPlayerId(p: any): number | null {
-    if (p && typeof p.user_id === 'number') return p.user_id;
-    if (p && typeof p.id === 'number') return p.id;
-    return null;
-}
-
 async function createAndPersistMatch(match: Match, poolId?: number) {
-    const playerIds = (match.players || [])
-        .map(extractPlayerId)
+    const participantIds = (match.participants || [])
+        .map((p): number | null => p?.participant_id || null)
         .filter((id): id is number => typeof id === 'number');
 
-    if (playerIds.length !== 2) {
-        console.warn("Match ignoré (il faut 2 joueurs):", match.players.map(p => p?.name).join(" vs "));
+    if (participantIds.length !== 2) {
+        console.warn("Match ignoré (il faut 2 participants):", match.participants.map(p => p?.name).join(" vs "));
         return;
     }
 
-    console.log("SAUVEGARDE MATCH : ", match.players.map(p => p?.name).join(" vs "));
+    console.log("SAUVEGARDE MATCH : ", match.participants.map(p => p?.name).join(" vs "));
 
     const payload: any = {
         tournament_id: tournamentId.value,
-        player_ids: playerIds,
+        participant_ids: participantIds,
         status: "pending",
-        round: match.round || 1, // Include round, default to 1 if not specified
+        round: match.round || 1,
     };
 
     if (poolId !== undefined && poolId !== null) {
@@ -499,8 +758,8 @@ async function createAndPersistMatch(match: Match, poolId?: number) {
 
 const updateMatch = async (match: Match) => {
     try {
-        const scoresPayload = match.players.map((player: any, index: number) => ({
-            user_id: player.user_id || player.id,
+        const scoresPayload = match.participants.map((participant: any, index: number) => ({
+            participant_id: participant.participant_id || participant.id,
             score: tempScores.value[match.id][index],
         }));
         await backendApi.patch(`/tournaments/matches/${match.id}`, {
@@ -512,10 +771,7 @@ const updateMatch = async (match: Match) => {
         toast.success('Match mis à jour');
         await fetchMatches();
         await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
-        const currentYear = new Date().getFullYear();
-        await leaderboardsStore.fetchSeasonLeaderboard(currentYear, authStore.token);
 
-        // Si le tournoi est fini, clore automatiquement et annoncer le gagnant
         if (isTournamentFinished.value && getTournamentWinner.value) {
             await backendApi.patch(`/tournaments/${tournamentId.value}`, {
                 status: 'closed'
@@ -541,62 +797,96 @@ const getTournamentWinner = computed(() => {
 
 const startRegisteringPlayer = (tournamentId: number) => {
     registeringTournamentId.value = tournamentId;
-    newPlayerName.value = '';
-    newPlayerEmail.value = '';
+    newTeamName.value = '';
+    selectedTeamUsers.value = [];
     fetchAllUsers();
+};
+
+const startCreatingTeam = (tournamentId: number) => {
+    creatingTeamTournamentId.value = tournamentId;
+    newTeamName.value = '';
+    selectedTeamUsers.value = [];
+    tournamentStore.fetchRegisteredUsers(tournamentId);
 };
 
 const cancelRegisteringPlayer = () => {
     registeringTournamentId.value = null;
-    newPlayerName.value = '';
-    newPlayerEmail.value = '';
+    newTeamName.value = '';
+    selectedTeamUsers.value = [];
+};
+
+const cancelCreatingTeam = () => {
+    creatingTeamTournamentId.value = null;
+    newTeamName.value = '';
+    selectedTeamUsers.value = [];
 };
 
 const registerExistingUserToTournament = async (userId: number | null, tournamentId: number) => {
     if (userId === null) return;
     try {
-        await backendApi.post('/tournaments/registrations/', {
+        await backendApi.post('/tournaments/register-player', {
             user_id: userId,
             tournament_id: tournamentId,
         }, {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
         selectedUserId.value = null;
-        await fetchPlayers();
+        await tournamentStore.fetchRegisteredUsers(tournamentId);
+        await tournamentStore.fetchTeams(tournamentId);
         toast.success('Joueur existant ajouté !');
     } catch (err) {
         handleError(err, 'registering existing user');
     }
 };
 
-const registerNewPlayer = async (tournamentId: number) => {
+const createTeam = async (tournamentId: number) => {
+    if (!newTeamName.value || selectedTeamUsers.value.length !== 2) {
+        toast.error('Veuillez sélectionner exactement 2 joueurs et un nom pour l’équipe.');
+        return;
+    }
     try {
-        const playerData = {
-            name: newPlayerName.value,
-            email: newPlayerEmail.value || null,
-            tournament_id: tournamentId,
+        const teamData = {
+            name: newTeamName.value,
+            player1_id: selectedTeamUsers.value[0],
+            player2_id: selectedTeamUsers.value[1],
         };
-        await backendApi.post('/tournaments/register-player', playerData, {
+        await backendApi.post(`/tournaments/${tournamentId}/teams`, teamData, {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
-        await fetchPlayers();
-        toast.success('Joueur inscrit avec succès.');
-        newPlayerName.value = '';
-        newPlayerEmail.value = '';
+        toast.success('Équipe créée.');
+        await tournamentStore.fetchRegisteredUsers(tournamentId);
+        await tournamentStore.fetchTeams(tournamentId);
+        newTeamName.value = '';
+        selectedTeamUsers.value = [];
+        creatingTeamTournamentId.value = null;
     } catch (err) {
-        handleError(err, 'registering player');
+        handleError(err, 'création de l’équipe');
     }
 };
 
-const unregisterPlayer = async (playerId: number, tournamentId: number) => {
+const unregisterPlayer = async (userId: number, tournamentId: number) => {
     try {
-        await backendApi.delete(`/tournaments/registrations/${playerId}/${tournamentId}`, {
+        await backendApi.delete(`/tournaments/registrations/user/${userId}/${tournamentId}`, {
             headers: { Authorization: `Bearer ${authStore.token}` }
         });
         toast.success('Joueur désinscrit avec succès.');
-        await fetchPlayers();
+        await tournamentStore.fetchRegisteredUsers(tournamentId);
+        await tournamentStore.fetchTeams(tournamentId);
     } catch (err) {
         handleError(err, 'unregistering player');
+    }
+};
+
+const deleteTeam = async (teamId: number, tournamentId: number) => {
+    try {
+        await backendApi.delete(`/tournaments/${tournamentId}/teams/${teamId}`, {
+            headers: { Authorization: `Bearer ${authStore.token}` }
+        });
+        toast.success('Équipe supprimée avec succès.');
+        await tournamentStore.fetchRegisteredUsers(tournamentId);
+        await tournamentStore.fetchTeams(tournamentId);
+    } catch (err) {
+        handleError(err, 'deleting team');
     }
 };
 
@@ -634,224 +924,5 @@ onMounted(() => {
     fetchTournament(tournamentId.value);
     tournamentStore.fetchTournamentDetail(tournamentId.value);
     leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
-    const currentYear = new Date().getFullYear();
-    leaderboardsStore.fetchSeasonLeaderboard(currentYear, authStore.token);
 });
 </script>
-
-<template>
-    <div v-if="authStore.scopes.includes('admin')">
-        <div v-if="loading">Chargement...</div>
-        <div v-if="error" class="error">{{ error }}</div>
-
-        <div v-if="tournament" class="module">
-            <h2>Gérer le tournoi</h2>
-            <div class="tournament-details">
-                <h3>Détails</h3>
-                <p>Nom : {{ tournament.name }}</p>
-                <p>Type : {{ tournament.type || 'Non défini' }}</p>
-                <p>Description : {{ tournament.description || 'Aucune description' }}</p>
-                <p>Date de début : {{ new Date(tournament.start_date.split('T')[0]).toLocaleDateString() }}</p>
-                <p>Statut : {{ tournament.status }}</p>
-                <button @click="startEditing">Modifier le tournoi</button>
-            </div>
-
-            <!-- Formulaire de modification du tournoi -->
-            <div v-if="isEditing" class="tournament-edit-form">
-                <h3>Modifier le tournoi</h3>
-                <label>Nom :
-                    <input v-model="editForm.name" class="form-input" />
-                </label>
-                <label>Description :
-                    <textarea v-model="editForm.description" class="form-input" />
-                </label>
-                <label>Date de début :
-                    <input v-model="editForm.start_date" type="date" class="form-input" />
-                </label>
-                <label>Type :
-                    <select v-model="editForm.type" class="form-input">
-                        <option value="pool">Poule</option>
-                        <option value="elimination">Élimination</option>
-                    </select>
-                </label>
-                <label>Statut :
-                    <select v-model="editForm.status" class="form-input">
-                        <option value="open">Ouvert</option>
-                        <option value="running">En cours</option>
-                        <option value="closed">Terminé</option>
-                    </select>
-                </label>
-                <button @click="updateTournament">Mettre à jour le tournoi</button>
-                <button @click="cancelEditing">Annuler</button>
-            </div>
-
-            <button v-if="tournament && ['running', 'closed'].includes(tournament.status)" @click="openProjection">
-                Projeter l’arborescence
-            </button>
-
-            <div class="tournament-actions">
-                <button v-if="tournament.status === 'open'" @click="startLaunchingTournament(tournament.id)">
-                    Lancer
-                </button>
-                <button v-if="tournament.status === 'running'" @click="closeTournament(tournament.id)">
-                    Clôturer
-                </button>
-                <button @click="deleteTournament">Supprimer</button>
-                <button @click="resetTournament(tournament.id)">Réinitialiser</button>
-            </div>
-
-            <!-- Formulaire de lancement du tournoi -->
-            <div v-if="launchingTournamentId === tournament.id" class="launch-form module">
-                <h4>Lancer {{ tournament.name }}</h4>
-                <label>Nombre de cibles disponibles (optionnel) :
-                    <input v-model.number="launchTargetCount" type="number" min="1" class="form-input" />
-                </label>
-                <label>Mode de type :
-                    <select v-model="launchTypeMode" class="form-input">
-                        <option value="auto">Sélection automatique</option>
-                        <option value="manual">Sélection manuelle</option>
-                    </select>
-                </label>
-                <label v-if="launchTypeMode === 'manual'">Type de tournoi :
-                    <select v-model="launchTournamentType" class="form-input">
-                        <option value="pool">Poule</option>
-                        <option value="elimination">Élimination</option>
-                    </select>
-                </label>
-                <button @click="launchTournament()">Lancer</button>
-                <button @click="cancelLaunchingTournament">Annuler</button>
-            </div>
-
-            <div v-if="tournament.status === 'open'" class="players-section">
-                <h4>Joueurs inscrits</h4>
-                <table v-if="players?.length">
-                    <thead>
-                        <tr>
-                            <th>Nom</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="player in players" :key="player.id">
-                            <td>{{ player.name }}</td>
-                            <td>
-                                <button title="Désinscrire ce joueur"
-                                    style="color: red; background: none; border: none; font-size: 1.2em; cursor: pointer;"
-                                    @click="unregisterPlayer(player.id, tournament.id)">✖️</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p v-else>Aucun joueur inscrit pour le moment.</p>
-                <button @click="startRegisteringPlayer(tournament.id)">Inscrire un joueur</button>
-                <!-- Formulaire d'inscription d'un joueur -->
-                <div v-if="registeringTournamentId === tournament.id" class="register-form module">
-                    <h4>Inscrire un joueur pour {{ tournament.name }}</h4>
-                    <label>Choisir un joueur existant :
-                        <select v-model="selectedUserId" class="form-input">
-                            <option :value="null">-- Sélectionner --</option>
-                            <option v-for="user in selectableUsers" :value="user.id" :key="user.id">
-                                {{ user.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <button :disabled="!selectedUserId"
-                        @click="registerExistingUserToTournament(selectedUserId, tournament.id)">
-                        Ajouter le joueur sélectionné
-                    </button>
-                    <hr />
-                    <label>Ou ajouter un nouveau joueur :</label>
-                    <label>Nom du joueur :
-                        <input v-model="newPlayerName" class="form-input" required />
-                    </label>
-                    <label>Email du joueur (optionnel) :
-                        <input v-model="newPlayerEmail" class="form-input" />
-                    </label>
-                    <button @click="registerNewPlayer(tournament.id)">Inscrire</button>
-                    <button @click="cancelRegisteringPlayer">Fermer</button>
-                </div>
-            </div>
-
-            <!-- Classements par poule -->
-            <h4>Classements par poule</h4>
-            <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
-            <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
-                leaderboardsStore.poolsLeaderboardError }}</div>
-            <div v-if="leaderboardsStore.poolsLeaderboard.length">
-                <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
-                    <h5>{{ poolLeaderboard.pool_name }}</h5>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nom</th>
-                                <th>Victoires (Principal)</th>
-                                <th>Manches gagnées (Tiebreaker)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="entry in poolLeaderboard.leaderboard" :key="entry.user_id">
-                                <td>{{ entry.name }}</td>
-                                <td>{{ entry.wins }}</td>
-                                <td>{{ entry.total_manches }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <p v-else>Aucun classement par poule disponible.</p>
-
-            <div v-if="tournament.status === 'running' || tournament.status === 'closed'" class="matches-section">
-                <h4>Matchs</h4>
-                <div v-for="round in Array.from({ length: currentRound + 1 }, (_, i) => i)" :key="round">
-                    <h5>{{ round === 0 ? 'Poules' : `Tour ${round}` }}</h5>
-                    <table
-                        v-if="matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round)).length">
-                        <thead>
-                            <tr>
-                                <th>Joueurs</th>
-                                <th>Statut</th>
-                                <th>Scores</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="match in matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round && m.players.length === 2))"
-                                :key="match.id">
-                                <td>{{(match.players || []).map((p: any) => p.name).join(' vs ')}}</td>
-                                <td>{{ match.status }}</td>
-                                <td>
-                                    <div v-if="match.status === 'completed'">
-                                        {{(match.players || []).map((p: any) => p.score ?? 'N/A').join(', ')}}
-                                    </div>
-                                    <div v-else>
-                                        <input v-for="(_, index) in (match.players || [])"
-                                            v-model="tempScores[match.id][index]" type="number" :key="index" />
-                                    </div>
-                                </td>
-                                <td>
-                                    <button v-if="match.status === 'pending'" @click="updateMatch(match)">Mettre à jour
-                                        les scores</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <p v-else>Aucun match pour ce tour.</p>
-                </div>
-
-                <!-- Bouton pour générer le tour suivant ou afficher le gagnant-->
-                <div v-if="isTournamentFinished && getTournamentWinner">
-                    <h4>Tournoi terminé !</h4>
-                    <p>Vainqueur : {{ getTournamentWinner.name }}</p>
-                </div>
-                <button v-else-if="isCurrentRoundFinished" @click="generateFinalStage">
-                    Générer le tour {{ currentRound === 0 ? 'des éliminatoires' : currentRound + 1 }}
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div v-if="!authStore.isAuthenticated" class="centered-block">
-        <h2>🔒 Connexion requise</h2>
-        <p>Veuillez vous connecter pour gérer les tournois.</p>
-    </div>
-</template>
