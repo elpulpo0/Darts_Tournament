@@ -326,6 +326,40 @@ def unregister_from_tournament(
     if not registration:
         raise HTTPException(status_code=404, detail="Registration not found")
 
+    # Remove user from any team
+    team_member = db.query(TeamMember).filter(TeamMember.user_id == current_user.id).first()
+    if team_member:
+        team = db.query(Participant).filter(
+            Participant.id == team_member.participant_id,
+            Participant.tournament_id == tournament_id,
+            Participant.type == "team"
+        ).first()
+        if team:
+            db.execute(delete(TeamMember).where(TeamMember.participant_id == team.id))
+            db.execute(
+                delete(MatchPlayer).where(
+                    MatchPlayer.match_id.in_(
+                        select(Match.id).where(Match.tournament_id == tournament_id)
+                    ),
+                    MatchPlayer.participant_id == team.id
+                )
+            )
+            db.execute(
+                delete(pool_participant_association).where(
+                    pool_participant_association.c.participant_id == team.id
+                )
+            )
+            db.delete(team)
+
+    # Remove player participant if exists
+    participant = db.query(Participant).filter(
+        Participant.tournament_id == tournament_id,
+        Participant.user_id == current_user.id,
+        Participant.type == "player"
+    ).first()
+    if participant:
+        db.delete(participant)
+
     db.delete(registration)
     db.commit()
 
