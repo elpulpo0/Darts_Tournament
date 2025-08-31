@@ -76,7 +76,7 @@ onMounted(() => {
 
 <style>
 .current-user {
-    color: rgb(233, 84, 9);
+    color: var(--color-error);
     font-weight: bold;
 }
 </style>

@@ -23,9 +23,9 @@
   --color-accent: #0e7490;          /* bleu-vert moderne, punchy */
   --color-error: #f87171;           /* rouge doux mais visible */
   --color-success: #34d399;         /* vert menthe, frais et positif */
-  --color-main: #0f0781;            /* turquoise moderne, identitaire */
+  --color-main: #232a6a;            /* turquoise moderne, identitaire */
   --color-link: #3b82f6;            /* bleu dynamique pour les liens */
-  --color-accent-bis: #160d94;      /* variante plus foncée du main */
+  --color-accent-bis: #232a6a;      /* variante plus foncée du main */
   --font-main: 'Inter', sans-serif;
   --radius: 8px;
 }

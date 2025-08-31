@@ -109,27 +109,29 @@
                 </table>
                 <p v-else>Aucun joueur inscrit pour le moment.</p>
 
-                <h4 v-if="tournament.mode === 'double'">Participants ({{ participantsCount }})</h4>
-                <table v-if="tournamentStore.participants?.length && tournament.mode === 'double'">
-                    <thead>
-                        <tr>
-                            <th>Nom</th>
-                            <th>Membres</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="participant in tournamentStore.participants" :key="participant.id">
-                            <td>{{ getParticipantDisplayName(participant) }}</td>
-                            <td>{{participant.users.map(u => u.name).join(' & ')}}</td>
-                            <td>
-                                <button title="Supprimer ce participant" class="delete-btn"
-                                    @click="deleteParticipant(participant.id, tournament.id)">✖️</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p v-else>Aucun participant pour le moment.</p>
+                <div v-if="tournament.mode === 'double'" class="participants-section">
+                    <h4>Participants ({{ participantsCount }})</h4>
+                    <table v-if="tournamentStore.participants?.length">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Membres</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="participant in tournamentStore.participants" :key="participant.id">
+                                <td>{{ getParticipantDisplayName(participant) }}</td>
+                                <td>{{participant.users.map(u => u.name).join(' & ')}}</td>
+                                <td>
+                                    <button title="Supprimer ce participant" class="delete-btn"
+                                        @click="deleteParticipant(participant.id, tournament.id)">✖️</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p v-else>Aucun participant pour le moment.</p>
+                </div>
 
                 <button @click="startRegisteringPlayer(tournament.id)">
                     Inscrire un joueur
@@ -179,7 +181,7 @@
             </div>
 
             <!-- Classements par poule -->
-            <h4>Classements par poule</h4>
+            <h4 v-if="leaderboardsStore.poolsLeaderboard.length">Classements par poule</h4>
             <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
             <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{ leaderboardsStore.poolsLeaderboardError
             }}</div>
@@ -205,7 +207,6 @@
                     </table>
                 </div>
             </div>
-            <p v-else>Aucun classement par poule disponible.</p>
 
             <div v-if="tournament.status === 'running' || tournament.status === 'closed'" class="matches-section">
                 <h4>Matchs</h4>
