@@ -103,9 +103,8 @@
                             <td>{{ user.name }}</td>
                             <td>{{ user.team_name || 'Sans équipe' }}</td>
                             <td>
-                                <button title="Désinscrire ce joueur"
-                                    style="color: red; background: none; border: none; font-size: 1.2em; cursor: pointer;"
-                                    @click="unregisterPlayer(user.id, tournament.id)">✖️</button>
+                                <button title="Désinscrire ce joueur" class="delete-btn"
+                                    @click=" unregisterPlayer(user.id, tournament.id)">✖️</button>
                             </td>
                         </tr>
                     </tbody>
@@ -127,8 +126,7 @@
                                 <td>{{ team.name }}</td>
                                 <td>{{team.users.map(u => u.name).join(' & ')}}</td>
                                 <td>
-                                    <button title="Supprimer cette équipe"
-                                        style="color: red; background: none; border: none; font-size: 1.2em; cursor: pointer;"
+                                    <button title="Supprimer cette équipe" class="delete-btn"
                                         @click="deleteTeam(team.id, tournament.id)">✖️</button>
                                 </td>
                             </tr>
@@ -173,7 +171,7 @@
                         <input v-model="newTeamName" required />
                     </label>
                     <label>Joueurs de l’équipe :
-                        <select multiple v-model="selectedTeamUsers" :size="selectableTeamUsers.length">
+                        <select v-model="selectedTeamUsers" multiple :size="selectableTeamUsers.length">
                             <option v-for="user in selectableTeamUsers" :value="user.id" :key="user.id">
                                 {{ user.name }}
                             </option>
@@ -188,7 +186,7 @@
             <h4>Classements par poule</h4>
             <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
             <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{ leaderboardsStore.poolsLeaderboardError
-                }}</div>
+            }}</div>
             <div v-if="leaderboardsStore.poolsLeaderboard.length">
                 <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
                     <h5>{{ poolLeaderboard.pool_name }}</h5>
@@ -231,12 +229,12 @@
                                 :key="match.id">
                                 <td>
                                     {{match.participants.map(p => {
-                                    const participantName = p?.name || 'N/A';
-                                    const participantType = tournamentStore.getParticipantType(p?.participant_id);
-                                    const users = tournamentStore.getParticipantUsers(p?.participant_id);
-                                    return participantType === 'team' && users?.length
-                                    ? `${participantName} (${users.map(u => u.name).join(' & ')})`
-                                    : participantName;
+                                        const participantName = p?.name || 'N/A';
+                                        const participantType = tournamentStore.getParticipantType(p?.participant_id);
+                                        const users = tournamentStore.getParticipantUsers(p?.participant_id);
+                                        return participantType === 'team' && users?.length
+                                            ? `${participantName} (${users.map(u => u.name).join(' & ')})`
+                                            : participantName;
                                     }).join(' vs ')}}
                                 </td>
                                 <td>{{ match.status }}</td>

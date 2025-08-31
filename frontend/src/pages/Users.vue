@@ -209,33 +209,34 @@ watch(
       <table>
         <thead>
           <tr>
-            <th class="recoltes small">Name</th>
-            <th class="recoltes small">Role</th>
-            <th class="recoltes small">Active</th>
-            <th class="recoltes small">Last Session</th>
-            <th class="recoltes small"></th>
+            <th class="recoltes small" data-label="Name">Name</th>
+            <th class="recoltes small" data-label="Role">Role</th>
+            <th class="recoltes small" data-label="Active">Active</th>
+            <th class="recoltes small" data-label="Last Session">Last Session</th>
+            <th class="recoltes small" data-label="Actions"></th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="user in users" :key="user.id">
-            <td>{{ user.name.charAt(0).toUpperCase() + user.name.slice(1) }}</td>
-            <td>{{ user.role }}</td>
-            <td>
+            <td data-label="Name">{{ user.name.charAt(0).toUpperCase() + user.name.slice(1) }}</td>
+            <td data-label="Role">{{ user.role }}</td>
+            <td data-label="Active">
               <span v-if="user.is_active">✔️</span>
               <span v-else>❌</span>
             </td>
-            <td>
-              <ul class="token-list">
+            <td data-label="Last Session">
+              <ul v-if="user.tokens && user.tokens.length" class="token-list">
                 <li v-for="token in user.tokens" :key="token.created_at">
                   <strong>{{ new Date(token.created_at).toLocaleDateString() }}</strong>
                 </li>
               </ul>
+              <span v-else>-</span> <!-- Fallback for empty tokens -->
             </td>
-            <td v-if="editingUserId !== user.id">
+            <td v-if="editingUserId !== user.id" data-label="Actions">
               <button class="delete-btn" @click="deleteUser(user.id)">&#10060;</button>
               <button class="edit-btn" @click="startEditing(user)">&#9998;</button>
             </td>
-            <td v-if="editingUserId == user.id">
+            <td v-if="editingUserId == user.id" data-label="Edit">
               <form class="form-section" @submit.prevent>
                 <input v-model="editName" placeholder="Name" class="form-input" />
                 <input v-model="editEmail" placeholder="Email" class="form-input" />
@@ -293,5 +294,84 @@ watch(
   list-style: none;
   padding: 0;
   margin: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+@media screen and (max-width: 600px) {
+  thead {
+    display: none;
+    /* Hide table headers on mobile */
+  }
+
+  tr {
+    display: block;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #ddd;
+  }
+
+  td {
+    display: block;
+    text-align: right;
+    position: relative;
+    padding-left: 50%;
+  }
+
+  td::before {
+    content: attr(data-label);
+    /* Use data-label as pseudo-header */
+    position: absolute;
+    left: 8px;
+    width: 45%;
+    font-weight: bold;
+    text-align: left;
+  }
+
+  td[data-label="Actions"] {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding-left: 8px;
+    /* Reset padding to avoid label overlap */
+  }
+
+  td[data-label="Actions"]::before {
+    display: none;
+    /* Remove pseudo-element for actions cell */
+  }
+
+  .delete-btn,
+  .edit-btn {
+    margin-left: 8px;
+    /* Space between buttons */
+  }
+
+  /* Adjust edit form for mobile */
+  td[data-label="Edit"] {
+    display: block;
+    padding-left: 50%;
+  }
+
+  .form-section,
+  .token-list {
+    display: block;
+    width: 100%;
+  }
+
+  .form-input,
+  button {
+    width: 100%;
+    margin-bottom: 8px;
+  }
 }
 </style>

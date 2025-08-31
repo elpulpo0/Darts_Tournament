@@ -73,6 +73,7 @@ td {
   background-color: inherit;
   color: var(--color-fg);
   border: none;
+  padding: 0;
 }
 
 button {
