@@ -10,24 +10,22 @@ const backendApi = axios.create({
 backendApi.interceptors.request.use(
   async (config) => {
     const authStore = useAuthStore();
-    // Attendre que le token soit disponible
-    if (!authStore.token || !authStore.isTokenValid(authStore.token)) {
-      // Tenter de rafraîchir le token si nécessaire
-      const refreshed = await authStore.refreshAccessToken();
-      if (!refreshed) {
-        console.warn('Aucun token valide disponible pour la requête:', config.url);
+    if (config.url !== '/auth/refresh' && config.url !== '/auth/login') {
+      if (!authStore.token || !authStore.isTokenValid(authStore.token)) {
+        const refreshed = await authStore.refreshAccessToken();
+        if (!refreshed) {
+          console.warn('Aucun token valide disponible pour la requête:', config.url);
+        }
       }
     }
     if (authStore.token) {
-      config.headers['Authorization'] = `Bearer ${authStore.token}`;
+      config.headers['Authorization'] = `Bearer ${authStore.token}`;  // Note: Pour refresh, headers manuels overrident
     } else {
       console.warn('Aucun token disponible pour la requête:', config.url);
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Intercepteur de réponse existant
