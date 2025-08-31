@@ -22,11 +22,11 @@
                     </p>
                     <p>Mode: {{ tournament.mode || 'Non défini' }}</p>
                     <p>Date : {{ formatDate(tournament.start_date) }}</p>
+                    <p>{{ tournament.description || 'Aucune description' }}</p>
                 </div>
             </div>
 
             <div v-if="selectedTournament" class="tournament-details">
-                <p>{{ selectedTournament.description || 'Aucune description' }}</p>
 
                 <button v-if="isEditor"
                     @click="router.push({ name: 'TournamentManagement', params: { tournamentId: selectedTournament.id } })">
