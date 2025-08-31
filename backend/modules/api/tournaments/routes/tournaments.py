@@ -2,22 +2,32 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select, delete
 from modules.database.dependencies import get_users_db
-from modules.api.tournaments.models import Tournament, TournamentRegistration, Participant, TeamMember, Match, MatchPlayer, Pool, pool_participant_association
+from modules.api.tournaments.models import (
+    Tournament,
+    TournamentRegistration,
+    Participant,
+    ParticipantMember,
+    Match,
+    MatchPlayer,
+    Pool,
+    pool_participant_association,
+)
 from modules.api.tournaments.schemas import (
     TournamentCreate,
     TournamentUpdate,
     TournamentResponse,
     TournamentRegistrationCreate,
     TournamentRegistrationResponse,
+    ParticipantCreate,
     ParticipantResponse,
-    TeamCreate,
     PlayerResponse,
-    TournamentFullDetailSchema
+    TournamentFullDetailSchema,
 )
 from modules.api.users.functions import get_current_user
 from modules.api.users.models import User
 from modules.api.users.schemas import TokenData
 from typing import List
+from datetime import datetime, UTC
 
 tournaments_router = APIRouter(prefix="/tournaments", tags=["tournaments"])
 
@@ -27,7 +37,7 @@ tournaments_router = APIRouter(prefix="/tournaments", tags=["tournaments"])
     response_model=TournamentResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new tournament",
-    description="Creates a new tournament with the provided details. Requires admin or editor privileges."
+    description="Creates a new tournament with the provided details. Requires admin or editor privileges.",
 )
 def create_tournament(
     tournament_data: TournamentCreate,
@@ -66,7 +76,7 @@ def create_tournament(
     "/{tournament_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a tournament",
-    description="Deletes a tournament and all associated data (pools, matches, participants). Requires admin or editor privileges."
+    description="Deletes a tournament and all associated data (pools, matches, participants). Requires admin or editor privileges.",
 )
 def delete_tournament(
     tournament_id: int,
@@ -90,7 +100,7 @@ def delete_tournament(
     "/{tournament_id}",
     response_model=TournamentResponse,
     summary="Update a tournament",
-    description="Updates a tournament's details. Cannot set a tournament to 'running' if already running. Requires admin or editor privileges."
+    description="Updates a tournament's details. Resets participants if mode changes. Requires admin or editor privileges.",
 )
 def update_tournament(
     tournament_id: int,
@@ -98,10 +108,9 @@ def update_tournament(
     db: Session = Depends(get_users_db),
     current_user: TokenData = Depends(get_current_user),
 ):
-    if "admin" not in current_user.scopes and "editor" not in current_user.scopes:
+    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
         raise HTTPException(
-            status_code=403,
-            detail="Access denied: administrators or editors only.",
+            status_code=403, detail="Access denied: administrators or editors only."
         )
 
     tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
@@ -111,26 +120,44 @@ def update_tournament(
     if tournament_data.status == "running" and tournament.status == "running":
         raise HTTPException(status_code=400, detail="Tournament already running")
 
-    if tournament_data.name is not None:
-        tournament.name = tournament_data.name
-    if tournament_data.description is not None:
-        tournament.description = tournament_data.description
-    if tournament_data.start_date is not None:
-        tournament.start_date = tournament_data.start_date
-    if tournament_data.is_active is not None:
-        tournament.is_active = tournament_data.is_active
-    if tournament_data.type is not None:
-        tournament.type = tournament_data.type
-    if tournament_data.mode is not None:
-        tournament.mode = tournament_data.mode
-    if tournament_data.status is not None:
-        if tournament_data.status not in ["open", "running", "closed"]:
-            raise HTTPException(status_code=400, detail="Invalid status value")
-        tournament.status = tournament_data.status
+    # Check if mode is changing
+    if tournament_data.mode and tournament_data.mode != tournament.mode:
+        # Reset participants
+        db.execute(
+            delete(ParticipantMember).where(
+                ParticipantMember.participant_id.in_(
+                    select(Participant.id).where(
+                        Participant.tournament_id == tournament_id
+                    )
+                )
+            )
+        )
+        db.execute(
+            delete(MatchPlayer).where(
+                MatchPlayer.match_id.in_(
+                    select(Match.id).where(Match.tournament_id == tournament_id)
+                )
+            )
+        )
+        db.execute(
+            delete(pool_participant_association).where(
+                pool_participant_association.c.participant_id.in_(
+                    select(Participant.id).where(
+                        Participant.tournament_id == tournament_id
+                    )
+                )
+            )
+        )
+        db.execute(
+            delete(Participant).where(Participant.tournament_id == tournament_id)
+        )
+
+    # Update tournament fields
+    for field, value in tournament_data.dict(exclude_unset=True).items():
+        setattr(tournament, field, value)
 
     db.commit()
     db.refresh(tournament)
-
     return TournamentResponse(
         id=tournament.id,
         name=tournament.name,
@@ -147,7 +174,7 @@ def update_tournament(
     "/{tournament_id}",
     response_model=TournamentResponse,
     summary="Get a tournament by ID",
-    description="Retrieves details of a specific tournament by its ID."
+    description="Retrieves details of a specific tournament by its ID.",
 )
 def get_tournament(
     tournament_id: int,
@@ -172,7 +199,7 @@ def get_tournament(
     "/",
     response_model=List[TournamentResponse],
     summary="List all tournaments",
-    description="Retrieves a list of all tournaments in the system."
+    description="Retrieves a list of all tournaments in the system.",
 )
 def get_tournaments(
     db: Session = Depends(get_users_db),
@@ -196,59 +223,115 @@ def get_tournaments(
 @tournaments_router.post(
     "/registrations/",
     response_model=TournamentRegistrationResponse,
-    summary="Register a user to a tournament",
-    description="Registers a user to an open tournament. Creates a Participant of type 'player' if the tournament is in 'single' mode. Prevents duplicate registrations."
+    summary="Register user(s) to a tournament",
+    description="Registers a single user or a team to a tournament. For single mode, creates a participant with user_id or current user. For double mode, only registers user_id unless user_ids and name are provided to create a team.",
 )
 def register_to_tournament(
     registration_data: TournamentRegistrationCreate,
     db: Session = Depends(get_users_db),
     current_user: TokenData = Depends(get_current_user),
 ):
-    tournament = db.query(Tournament).filter(Tournament.id == registration_data.tournament_id).first()
+    tournament = (
+        db.query(Tournament)
+        .filter(Tournament.id == registration_data.tournament_id)
+        .first()
+    )
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
-
     if tournament.status != "open":
-        raise HTTPException(status_code=400, detail="Registrations are closed for this tournament")
+        raise HTTPException(
+            status_code=400, detail="Tournament is not open for registration"
+        )
 
-    existing_registration = db.query(TournamentRegistration).filter(
-        TournamentRegistration.user_id == current_user.id,
-        TournamentRegistration.tournament_id == registration_data.tournament_id,
-    ).first()
-    if existing_registration:
-        raise HTTPException(status_code=400, detail="You are already registered for this tournament")
+    user_ids = []
+    participant_name = None
+    create_participant = False
 
-    new_registration = TournamentRegistration(
-        user_id=current_user.id,
-        tournament_id=registration_data.tournament_id,
-    )
-    db.add(new_registration)
-    db.commit()
-    db.refresh(new_registration)
-
-    # Create a Participant of type 'player' if the tournament is in 'single' mode
-    if tournament.mode == "single":
-        existing_participant = db.query(Participant).filter(
-            Participant.tournament_id == registration_data.tournament_id,
-            Participant.user_id == current_user.id,
-            Participant.type == "player"
-        ).first()
-        if not existing_participant:
-            new_participant = Participant(
-                tournament_id=registration_data.tournament_id,
-                type="player",
-                user_id=current_user.id,
-                name=db.query(User).filter(User.id == current_user.id).first().name
+    if registration_data.user_id:  # Single player registration
+        user_id = registration_data.user_id or current_user.id
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+        user_ids = [user_id]
+        participant_name = user.name
+        # Create participant only in single mode
+        create_participant = tournament.mode == "single"
+    elif registration_data.user_ids:  # Team creation (double mode only)
+        if tournament.mode != "double":
+            raise HTTPException(
+                status_code=400, detail="Team creation is only allowed in double mode"
             )
-            db.add(new_participant)
-            db.commit()
-            db.refresh(new_participant)
+        if len(registration_data.user_ids) != 2:
+            raise HTTPException(
+                status_code=400, detail="Exactly 2 user IDs required for team creation"
+            )
+        if not registration_data.name:
+            raise HTTPException(
+                status_code=400, detail="Team name required for team creation"
+            )
+        for user_id in registration_data.user_ids:
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+        user_ids = registration_data.user_ids
+        participant_name = registration_data.name
+        create_participant = True
+    else:
+        raise HTTPException(status_code=400, detail="Must provide user_id or user_ids")
+
+    # Check for existing registrations
+    for user_id in user_ids:
+        existing_registration = (
+            db.query(TournamentRegistration)
+            .filter(
+                TournamentRegistration.tournament_id == registration_data.tournament_id,
+                TournamentRegistration.user_id == user_id,
+            )
+            .first()
+        )
+        if existing_registration:
+            raise HTTPException(
+                status_code=400, detail=f"User {user_id} already registered"
+            )
+
+    # Create participant only if required
+    participant = None
+    if create_participant:
+        participant = Participant(
+            tournament_id=registration_data.tournament_id, name=participant_name
+        )
+        db.add(participant)
+        db.commit()
+        db.refresh(participant)
+
+    # Register users
+    for user_id in user_ids:
+        registration = TournamentRegistration(
+            user_id=user_id,
+            tournament_id=registration_data.tournament_id,
+            registration_date=datetime.now(UTC),
+        )
+        db.add(registration)
+        if participant:
+            member = ParticipantMember(participant_id=participant.id, user_id=user_id)
+            db.add(member)
+
+    db.commit()
+
+    first_registration = (
+        db.query(TournamentRegistration)
+        .filter(
+            TournamentRegistration.tournament_id == registration_data.tournament_id,
+            TournamentRegistration.user_id == user_ids[0],
+        )
+        .first()
+    )
 
     return TournamentRegistrationResponse(
-        id=new_registration.id,
-        user_id=new_registration.user_id,
-        tournament_id=new_registration.tournament_id,
-        registration_date=new_registration.registration_date,
+        id=first_registration.id,
+        user_id=user_ids[0],
+        tournament_id=registration_data.tournament_id,
+        registration_date=first_registration.registration_date,
     )
 
 
@@ -256,6 +339,8 @@ def register_to_tournament(
     "/register-player",
     response_model=TournamentRegistrationResponse,
     status_code=status.HTTP_201_CREATED,
+    summary="Register a player or team (admin only)",
+    description="Registers a single player or team to a tournament. For single mode, creates a participant. For double mode, only registers user(s) unless a team is created with user_ids and name. Requires admin or editor privileges.",
 )
 def register_new_player(
     player_data: TournamentRegistrationCreate,
@@ -267,7 +352,6 @@ def register_new_player(
             status_code=403, detail="Access denied: administrators or editors only."
         )
 
-    # Check if tournament exists
     tournament = (
         db.query(Tournament).filter(Tournament.id == player_data.tournament_id).first()
     )
@@ -278,154 +362,191 @@ def register_new_player(
             status_code=400, detail="Registrations are closed for this tournament"
         )
 
-    # Register the user for the tournament
-    new_registration = TournamentRegistration(
-        user_id=player_data.user_id,
-        tournament_id=player_data.tournament_id,
-    )
-    db.add(new_registration)
-    db.commit()
-    db.refresh(new_registration)
+    user_ids = []
+    participant_name = None
+    create_participant = False
 
-    # Create a Participant of type 'player' if the tournament is in 'single' mode
-    if tournament.mode == "single":
-        existing_participant = db.query(Participant).filter(
-            Participant.tournament_id == player_data.tournament_id,
-            Participant.user_id == player_data.user_id,
-            Participant.type == "player"
-        ).first()
-        if not existing_participant:
-            new_participant = Participant(
-                tournament_id=player_data.tournament_id,
-                type="player",
-                user_id=player_data.user_id,
-                name=db.query(User).filter(User.id == player_data.user_id,).first().name
+    if player_data.user_id:  # Single player registration
+        user_id = player_data.user_id
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+        user_ids = [user_id]
+        participant_name = user.name
+        # Create participant only in single mode
+        create_participant = tournament.mode == "single"
+    elif player_data.user_ids:  # Team creation (double mode only)
+        if tournament.mode != "double":
+            raise HTTPException(
+                status_code=400, detail="Team creation is only allowed in double mode"
             )
-            db.add(new_participant)
-            db.commit()
-            db.refresh(new_participant)
+        if len(player_data.user_ids) != 2:
+            raise HTTPException(
+                status_code=400, detail="Exactly 2 user IDs required for team creation"
+            )
+        if not player_data.name:
+            raise HTTPException(
+                status_code=400, detail="Team name required for team creation"
+            )
+        for user_id in player_data.user_ids:
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+        user_ids = player_data.user_ids
+        participant_name = player_data.name
+        create_participant = True
+    else:
+        raise HTTPException(status_code=400, detail="Must provide user_id or user_ids")
+
+    # Check for existing registrations
+    for user_id in user_ids:
+        existing_registration = (
+            db.query(TournamentRegistration)
+            .filter(
+                TournamentRegistration.tournament_id == player_data.tournament_id,
+                TournamentRegistration.user_id == user_id,
+            )
+            .first()
+        )
+        if existing_registration:
+            raise HTTPException(
+                status_code=400, detail=f"User {user_id} already registered"
+            )
+
+    # Create participant only if required
+    participant = None
+    if create_participant:
+        participant = Participant(
+            tournament_id=player_data.tournament_id, name=participant_name
+        )
+        db.add(participant)
+        db.commit()
+        db.refresh(participant)
+
+    # Register users
+    for user_id in user_ids:
+        registration = TournamentRegistration(
+            user_id=user_id,
+            tournament_id=player_data.tournament_id,
+            registration_date=datetime.now(UTC),
+        )
+        db.add(registration)
+        if participant:
+            member = ParticipantMember(participant_id=participant.id, user_id=user_id)
+            db.add(member)
+
+    db.commit()
+
+    first_registration = (
+        db.query(TournamentRegistration)
+        .filter(
+            TournamentRegistration.tournament_id == player_data.tournament_id,
+            TournamentRegistration.user_id == user_ids[0],
+        )
+        .first()
+    )
 
     return TournamentRegistrationResponse(
-        id=new_registration.id,
-        user_id=new_registration.user_id,
-        tournament_id=new_registration.tournament_id,
-        registration_date=new_registration.registration_date,
+        id=first_registration.id,
+        user_id=user_ids[0],
+        tournament_id=player_data.tournament_id,
+        registration_date=first_registration.registration_date,
     )
 
 
-@tournaments_router.delete("/registrations/{tournament_id}", status_code=status.HTTP_204_NO_CONTENT)
+@tournaments_router.delete(
+    "/registrations/{tournament_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Unregister current user from a tournament",
+    description="Removes the current user's registration and associated participant data from a tournament.",
+)
 def unregister_from_tournament(
     tournament_id: int,
     db: Session = Depends(get_users_db),
     current_user: TokenData = Depends(get_current_user),
 ):
-    registration = db.query(TournamentRegistration).filter(
-        TournamentRegistration.user_id == current_user.id,
-        TournamentRegistration.tournament_id == tournament_id,
-    ).first()
+    registration = (
+        db.query(TournamentRegistration)
+        .filter(
+            TournamentRegistration.user_id == current_user.id,
+            TournamentRegistration.tournament_id == tournament_id,
+        )
+        .first()
+    )
     if not registration:
         raise HTTPException(status_code=404, detail="Registration not found")
 
-    # Remove user from any team
-    team_member = db.query(TeamMember).filter(TeamMember.user_id == current_user.id).first()
-    if team_member:
-        team = db.query(Participant).filter(
-            Participant.id == team_member.participant_id,
+    participant_members = (
+        db.query(ParticipantMember)
+        .join(Participant, ParticipantMember.participant_id == Participant.id)
+        .filter(
+            ParticipantMember.user_id == current_user.id,
             Participant.tournament_id == tournament_id,
-            Participant.type == "team"
-        ).first()
-        if team:
-            db.execute(delete(TeamMember).where(TeamMember.participant_id == team.id))
+        )
+        .all()
+    )
+
+    for member in participant_members:
+        participant = (
+            db.query(Participant)
+            .filter(Participant.id == member.participant_id)
+            .first()
+        )
+        if participant:
+            db.execute(
+                delete(ParticipantMember).where(
+                    ParticipantMember.participant_id == participant.id
+                )
+            )
             db.execute(
                 delete(MatchPlayer).where(
                     MatchPlayer.match_id.in_(
                         select(Match.id).where(Match.tournament_id == tournament_id)
                     ),
-                    MatchPlayer.participant_id == team.id
+                    MatchPlayer.participant_id == participant.id,
                 )
             )
             db.execute(
                 delete(pool_participant_association).where(
-                    pool_participant_association.c.participant_id == team.id
+                    pool_participant_association.c.participant_id == participant.id
                 )
             )
-            db.delete(team)
-
-    # Remove player participant if exists
-    participant = db.query(Participant).filter(
-        Participant.tournament_id == tournament_id,
-        Participant.user_id == current_user.id,
-        Participant.type == "player"
-    ).first()
-    if participant:
-        db.delete(participant)
+            db.delete(participant)
 
     db.delete(registration)
     db.commit()
 
 
-@tournaments_router.get("/{tournament_id}/my-registration", response_model=bool)
+@tournaments_router.get(
+    "/{tournament_id}/my-registration",
+    response_model=bool,
+    summary="Check if current user is registered",
+    description="Returns true if the current user is registered for the tournament, false otherwise.",
+)
 def check_my_registration(
     tournament_id: int,
     db: Session = Depends(get_users_db),
     current_user: TokenData = Depends(get_current_user),
 ):
-    registration = db.query(TournamentRegistration).filter(
-        TournamentRegistration.user_id == current_user.id,
-        TournamentRegistration.tournament_id == tournament_id,
-    ).first()
+    registration = (
+        db.query(TournamentRegistration)
+        .filter(
+            TournamentRegistration.user_id == current_user.id,
+            TournamentRegistration.tournament_id == tournament_id,
+        )
+        .first()
+    )
     return registration is not None
 
 
-@tournaments_router.get("/{tournament_id}/registered-users", response_model=List[dict])
+@tournaments_router.get(
+    "/{tournament_id}/registered-users",
+    response_model=List[dict],
+    summary="List registered users",
+    description="Retrieves all users registered for a tournament with their participant details, if any. Requires admin or editor privileges.",
+)
 def get_registered_users(
     tournament_id: int,
-    db: Session = Depends(get_users_db),
-    current_user: TokenData = Depends(get_current_user),
-):
-    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    registrations = db.query(TournamentRegistration).filter(
-        TournamentRegistration.tournament_id == tournament_id
-    ).all()
-    user_ids = [reg.user_id for reg in registrations]
-    users = db.query(User).filter(User.id.in_(user_ids)).all()
-    
-    response = []
-    for user in users:
-        team_member = (
-            db.query(TeamMember)
-            .join(Participant, TeamMember.participant_id == Participant.id)
-            .filter(
-                TeamMember.user_id == user.id,
-                Participant.tournament_id == tournament_id,
-                Participant.type == "team"
-            )
-            .first()
-        )
-        team = db.query(Participant).filter(
-            Participant.id == team_member.participant_id,
-            Participant.tournament_id == tournament_id,
-            Participant.type == "team"
-        ).first() if team_member else None
-        response.append({
-            "id": user.id,
-            "name": user.name,
-            "team_id": team.id if team else None,
-            "team_name": team.name if team else None
-        })
-    return response
-
-@tournaments_router.post(
-    "/{tournament_id}/teams",
-    response_model=ParticipantResponse,
-    summary="Create a team for a tournament",
-    description="Creates a team of two registered players for a tournament. Checks for valid registrations and prevents duplicate team memberships."
-)
-def create_team(
-    tournament_id: int,
-    team_data: TeamCreate,
     db: Session = Depends(get_users_db),
     current_user: TokenData = Depends(get_current_user),
 ):
@@ -434,108 +555,52 @@ def create_team(
             status_code=403, detail="Access denied: administrators or editors only."
         )
 
-    if team_data.player1_id == team_data.player2_id:
-        raise HTTPException(status_code=400, detail="Players in a team must be different")
-
-    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
-    if not tournament:
-        raise HTTPException(status_code=404, detail="Tournament not found")
-
-    reg1 = db.query(TournamentRegistration).filter(
-        TournamentRegistration.user_id == team_data.player1_id,
-        TournamentRegistration.tournament_id == tournament_id
-    ).first()
-    reg2 = db.query(TournamentRegistration).filter(
-        TournamentRegistration.user_id == team_data.player2_id,
-        TournamentRegistration.tournament_id == tournament_id
-    ).first()
-    if not reg1 or not reg2:
-        raise HTTPException(status_code=400, detail="Both players must be registered to the tournament")
-
-    existing_team1 = (
-        db.query(TeamMember)
-        .join(Participant, TeamMember.participant_id == Participant.id)
-        .filter(TeamMember.user_id == team_data.player1_id, Participant.tournament_id == tournament_id)
-        .first()
+    registrations = (
+        db.query(TournamentRegistration)
+        .filter(TournamentRegistration.tournament_id == tournament_id)
+        .all()
     )
-    existing_team2 = (
-        db.query(TeamMember)
-        .join(Participant, TeamMember.participant_id == Participant.id)
-        .filter(TeamMember.user_id == team_data.player2_id, Participant.tournament_id == tournament_id)
-        .first()
-    )
-    if existing_team1 or existing_team2:
-        raise HTTPException(status_code=400, detail="One or both players are already in a team for this tournament")
+    user_ids = [reg.user_id for reg in registrations]
+    users = db.query(User).filter(User.id.in_(user_ids)).all()
 
-    new_participant = Participant(
-        tournament_id=tournament_id,
-        type="team",
-        name=team_data.name,
-    )
-    db.add(new_participant)
-    db.commit()
-    db.refresh(new_participant)
-
-    team_member1 = TeamMember(participant_id=new_participant.id, user_id=team_data.player1_id)
-    team_member2 = TeamMember(participant_id=new_participant.id, user_id=team_data.player2_id)
-    db.add(team_member1)
-    db.add(team_member2)
-    db.commit()
-
-    users = db.query(User).filter(User.id.in_([team_data.player1_id, team_data.player2_id])).all()
-    user_responses = [PlayerResponse(id=u.id, name=u.name) for u in users]
-
-    return ParticipantResponse(
-        id=new_participant.id,
-        type="team",
-        name=new_participant.name,
-        users=user_responses,
-    )
-
-
-@tournaments_router.delete("/{tournament_id}/teams/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_team(
-    tournament_id: int,
-    team_id: int,
-    db: Session = Depends(get_users_db),
-    current_user: TokenData = Depends(get_current_user),
-):
-    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    team = db.query(Participant).filter(
-        Participant.id == team_id,
-        Participant.tournament_id == tournament_id,
-        Participant.type == "team"
-    ).first()
-    if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
-
-    # Delete team members
-    db.execute(delete(TeamMember).where(TeamMember.participant_id == team_id))
-    
-    # Delete team from matches
-    db.execute(
-        delete(MatchPlayer).where(
-            MatchPlayer.match_id.in_(
-                select(Match.id).where(Match.tournament_id == tournament_id)
-            ),
-            MatchPlayer.participant_id == team_id
+    response = []
+    for user in users:
+        participant_member = (
+            db.query(ParticipantMember)
+            .join(Participant, ParticipantMember.participant_id == Participant.id)
+            .filter(
+                ParticipantMember.user_id == user.id,
+                Participant.tournament_id == tournament_id,
+            )
+            .first()
         )
-    )
-    
-    # Delete team from pools
-    db.execute(
-        delete(pool_participant_association).where(
-            pool_participant_association.c.participant_id == team_id
+        participant = (
+            db.query(Participant)
+            .filter(
+                Participant.id == participant_member.participant_id,
+                Participant.tournament_id == tournament_id,
+            )
+            .first()
+            if participant_member
+            else None
         )
-    )
-    
-    # Delete the team
-    db.delete(team)
-    db.commit()
+        response.append(
+            {
+                "id": user.id,
+                "name": user.name,
+                "participant_id": participant.id if participant else None,
+                "participant_name": participant.name if participant else None,
+            }
+        )
+    return response
 
-@tournaments_router.delete("/registrations/user/{user_id}/{tournament_id}", status_code=status.HTTP_204_NO_CONTENT)
+
+@tournaments_router.delete(
+    "/registrations/user/{user_id}/{tournament_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Unregister a specific user (admin only)",
+    description="Removes a specific user's registration and associated participant data from a tournament. Requires admin or editor privileges.",
+)
 def unregister_user(
     user_id: int,
     tournament_id: int,
@@ -543,50 +608,238 @@ def unregister_user(
     current_user: TokenData = Depends(get_current_user),
 ):
     if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(
+            status_code=403, detail="Access denied: administrators or editors only."
+        )
 
-    registration = db.query(TournamentRegistration).filter(
-        TournamentRegistration.user_id == user_id,
-        TournamentRegistration.tournament_id == tournament_id
-    ).first()
+    registration = (
+        db.query(TournamentRegistration)
+        .filter(
+            TournamentRegistration.user_id == user_id,
+            TournamentRegistration.tournament_id == tournament_id,
+        )
+        .first()
+    )
     if not registration:
         raise HTTPException(status_code=404, detail="Registration not found")
 
-    # Remove user from any team
-    team_member = db.query(TeamMember).filter(TeamMember.user_id == user_id).first()
-    if team_member:
-        team = db.query(Participant).filter(
-            Participant.id == team_member.participant_id,
+    participant_members = (
+        db.query(ParticipantMember)
+        .join(Participant, ParticipantMember.participant_id == Participant.id)
+        .filter(
+            ParticipantMember.user_id == user_id,
             Participant.tournament_id == tournament_id,
-            Participant.type == "team"
-        ).first()
-        if team:
-            db.execute(delete(TeamMember).where(TeamMember.participant_id == team.id))
+        )
+        .all()
+    )
+
+    for member in participant_members:
+        participant = (
+            db.query(Participant)
+            .filter(Participant.id == member.participant_id)
+            .first()
+        )
+        if participant:
+            db.execute(
+                delete(ParticipantMember).where(
+                    ParticipantMember.participant_id == participant.id
+                )
+            )
             db.execute(
                 delete(MatchPlayer).where(
                     MatchPlayer.match_id.in_(
                         select(Match.id).where(Match.tournament_id == tournament_id)
                     ),
-                    MatchPlayer.participant_id == team.id
+                    MatchPlayer.participant_id == participant.id,
                 )
             )
             db.execute(
                 delete(pool_participant_association).where(
-                    pool_participant_association.c.participant_id == team.id
+                    pool_participant_association.c.participant_id == participant.id
                 )
             )
-            db.delete(team)
-
-    # Remove player participant if exists
-    participant = db.query(Participant).filter(
-        Participant.tournament_id == tournament_id,
-        Participant.user_id == user_id,
-        Participant.type == "player"
-    ).first()
-    if participant:
-        db.delete(participant)
+            db.delete(participant)
 
     db.delete(registration)
+    db.commit()
+
+
+@tournaments_router.post(
+    "/{tournament_id}/participants",
+    response_model=ParticipantResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a team participant",
+    description="Creates a team participant for a tournament in double mode with two registered users and a team name. Requires admin or editor privileges.",
+)
+def create_participant(
+    tournament_id: int,
+    participant_data: ParticipantCreate,
+    db: Session = Depends(get_users_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
+        raise HTTPException(
+            status_code=403, detail="Access denied: administrators or editors only."
+        )
+
+    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.status != "open":
+        raise HTTPException(
+            status_code=400, detail="Tournament is not open for registration"
+        )
+    if tournament.mode != "double":
+        raise HTTPException(
+            status_code=400, detail="Team creation is only allowed in double mode"
+        )
+
+    if len(participant_data.user_ids) != 2:
+        raise HTTPException(
+            status_code=400, detail="Exactly 2 user IDs required for team creation"
+        )
+    if not participant_data.name:
+        raise HTTPException(status_code=400, detail="Team name is required")
+
+    # Verify users exist and are registered
+    for user_id in participant_data.user_ids:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+
+        registration = (
+            db.query(TournamentRegistration)
+            .filter(
+                TournamentRegistration.user_id == user_id,
+                TournamentRegistration.tournament_id == tournament_id,
+            )
+            .first()
+        )
+        if not registration:
+            raise HTTPException(
+                status_code=400,
+                detail=f"User {user_id} is not registered for this tournament",
+            )
+
+        # Check if user is already in a team
+        existing_member = (
+            db.query(ParticipantMember)
+            .join(Participant, ParticipantMember.participant_id == Participant.id)
+            .filter(
+                ParticipantMember.user_id == user_id,
+                Participant.tournament_id == tournament_id,
+            )
+            .first()
+        )
+        if existing_member:
+            raise HTTPException(
+                status_code=400, detail=f"User {user_id} is already in a team"
+            )
+
+    # Create participant
+    participant = Participant(tournament_id=tournament_id, name=participant_data.name)
+    db.add(participant)
+    db.commit()
+    db.refresh(participant)
+
+    # Add team members
+    for user_id in participant_data.user_ids:
+        member = ParticipantMember(participant_id=participant.id, user_id=user_id)
+        db.add(member)
+
+    db.commit()
+
+    # Prepare response
+    users = [
+        PlayerResponse(id=m.user.id, name=m.user.name)
+        for m in db.query(ParticipantMember)
+        .filter(ParticipantMember.participant_id == participant.id)
+        .all()
+    ]
+    return ParticipantResponse(id=participant.id, name=participant.name, users=users)
+
+
+@tournaments_router.delete(
+    "/{tournament_id}/participants/{participant_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a team participant",
+    description="Deletes a team participant with exactly two users from a tournament in double mode, keeping the users' registrations intact. Requires admin or editor privileges.",
+)
+def delete_participant(
+    tournament_id: int,
+    participant_id: int,
+    db: Session = Depends(get_users_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
+        raise HTTPException(
+            status_code=403, detail="Access denied: administrators or editors only."
+        )
+
+    # Verify tournament exists and is open
+    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.status != "open":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete participants from a tournament that is not open",
+        )
+    if tournament.mode != "double":
+        raise HTTPException(
+            status_code=400,
+            detail="Participant deletion is only allowed in double mode",
+        )
+
+    # Verify participant exists
+    participant = (
+        db.query(Participant)
+        .filter(
+            Participant.id == participant_id, Participant.tournament_id == tournament_id
+        )
+        .first()
+    )
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    # Verify participant has exactly two users
+    member_count = (
+        db.query(ParticipantMember)
+        .filter(ParticipantMember.participant_id == participant_id)
+        .count()
+    )
+    if member_count != 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Participant must have exactly two users to be deleted",
+        )
+
+    # Delete associated MatchPlayer entries
+    db.execute(
+        delete(MatchPlayer).where(
+            MatchPlayer.match_id.in_(
+                select(Match.id).where(Match.tournament_id == tournament_id)
+            ),
+            MatchPlayer.participant_id == participant_id,
+        )
+    )
+
+    # Delete associated pool_participant_association entries
+    db.execute(
+        delete(pool_participant_association).where(
+            pool_participant_association.c.participant_id == participant_id
+        )
+    )
+
+    # Delete ParticipantMember entries
+    db.execute(
+        delete(ParticipantMember).where(
+            ParticipantMember.participant_id == participant_id
+        )
+    )
+
+    # Delete the Participant
+    db.delete(participant)
     db.commit()
 
 
@@ -594,7 +847,7 @@ def unregister_user(
     "/{tournament_id}/participants",
     response_model=List[ParticipantResponse],
     summary="List participants of a tournament",
-    description="Retrieves all participants (players or teams) for a specific tournament. Requires admin or editor privileges."
+    description="Retrieves all participants (players or teams) for a specific tournament. Requires admin or editor privileges.",
 )
 def get_participants(
     tournament_id: int,
@@ -602,27 +855,25 @@ def get_participants(
     current_user: TokenData = Depends(get_current_user),
 ):
     if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(
+            status_code=403, detail="Access denied: administrators or editors only."
+        )
 
-    participants = db.query(Participant).filter(Participant.tournament_id == tournament_id).all()
+    participants = (
+        db.query(Participant).filter(Participant.tournament_id == tournament_id).all()
+    )
     response = []
     for p in participants:
-        if p.type == "player":
-            if not p.user:
-                continue
-            name = p.user.name
-            users = [PlayerResponse(id=p.user.id, name=p.user.name)]
-        else:
-            name = p.name
-            users = [PlayerResponse(id=m.user.id, name=m.user.name) for m in p.team_members]
-        response.append(ParticipantResponse(id=p.id, type=p.type, name=name, users=users))
+        users = [PlayerResponse(id=m.user.id, name=m.user.name) for m in p.members]
+        name = p.name or (users[0].name if users else "")  # Fallback si name vide
+        response.append(ParticipantResponse(id=p.id, name=name, users=users))
     return response
 
 
 @tournaments_router.post(
     "/{tournament_id}/reset",
     summary="Reset a tournament",
-    description="Resets a tournament by deleting all associated matches, pools, and participants, and setting status to 'open'. Requires admin or editor privileges."
+    description="Resets a tournament by deleting all associated matches, pools, and participants, and setting status to 'open'. Requires admin or editor privileges.",
 )
 def reset_tournament(tournament_id: int, db: Session = Depends(get_users_db)):
     tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
@@ -639,7 +890,10 @@ def reset_tournament(tournament_id: int, db: Session = Depends(get_users_db)):
 
     db.execute(delete(Match).where(Match.tournament_id == tournament_id))
 
-    pool_ids = [pool.id for pool in db.query(Pool).filter(Pool.tournament_id == tournament_id).all()]
+    pool_ids = [
+        pool.id
+        for pool in db.query(Pool).filter(Pool.tournament_id == tournament_id).all()
+    ]
     if pool_ids:
         db.execute(
             delete(pool_participant_association).where(
@@ -660,7 +914,7 @@ def reset_tournament(tournament_id: int, db: Session = Depends(get_users_db)):
     "/{tournament_id}/details",
     response_model=TournamentFullDetailSchema,
     summary="Get full tournament details",
-    description="Retrieves detailed information about a tournament, including pools, participants, and matches."
+    description="Retrieves detailed information about a tournament, including pools, participants, and matches.",
 )
 def get_full_tournament_details(
     tournament_id: int, db: Session = Depends(get_users_db)
@@ -674,14 +928,14 @@ def get_full_tournament_details(
         pool_matches = db.query(Match).filter(Match.pool_id == pool.id).all()
         pool_participants = []
         for p in pool.participants:
-            name = p.user.name if p.type == 'player' else p.name
+            name = p.name
             pool_participants.append({"id": p.id, "name": name})
         pool_matches_dict = []
         for m in pool_matches:
             match_participants = []
             for mp in m.match_participations:
                 p = mp.participant
-                name = p.user.name if p.type == 'player' else p.name
+                name = p.name
                 match_participants.append(
                     {
                         "id": p.id,
@@ -717,7 +971,7 @@ def get_full_tournament_details(
         match_participants = []
         for mp in m.match_participations:
             p = mp.participant
-            name = p.user.name if p.type == 'player' else p.name
+            name = p.name
             match_participants.append(
                 {
                     "id": p.id,

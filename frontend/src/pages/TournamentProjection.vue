@@ -75,17 +75,25 @@ const getRoundName = computed(() => {
                         <h4>{{ pool.name || pool.id }}</h4>
                         <div class="pool-participants">
                             <span v-for="participant in pool.participants" class="participant-in-pool"
-                                :key="participant.id">{{ participant.name
-                                }}</span>
+                                :key="participant.participant_id">
+                                {{ participant.name }}
+                                <span v-if="participant.users && participant.users.length > 1">
+                                    ({{participant.users.map(u => u.name).join(' & ')}})
+                                </span>
+                            </span>
                         </div>
                         <div v-for="match in pool.matches" class="pool-match" :key="match.id">
                             <div class="participants">
-                                <span>{{match.participants?.map((p: any) => p.name).join(' vs ')}}</span>
+                                <span>{{match.participants?.map((p: MatchParticipantSchema) =>
+                                    p.name + (p.users && p.users.length > 1 ?
+                                        ' (' + p.users.map(u => u.name).join(' & ') + ')' : '')
+                                ).join(' vs ')}}</span>
                             </div>
                             <div class="scores">
                                 <span v-if="match.status === 'completed'">Scores :
-                                    {{match.participants?.map((p: any) => typeof p.score === 'number' ? p.score :
-                                        'N/A').join(' - ')}}
+                                    {{match.participants?.map((p: MatchParticipantSchema) => typeof p.score === 'number'
+                                        ? p.score :
+                                    'N/A').join(' - ')}}
                                 </span>
                                 <span v-else>En attente</span>
                             </div>
@@ -94,38 +102,35 @@ const getRoundName = computed(() => {
                 </div>
             </div>
 
-            <!-- Classements par poule -->
-            <div class="leaderboard-section">
-                <h4>Classements par poule</h4>
-                <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
-                <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
-                    leaderboardsStore.poolsLeaderboardError }}</div>
-                <div v-if="leaderboardsStore.poolsLeaderboard.length">
-                    <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
-                        <h5>{{ poolLeaderboard.pool_name }}</h5>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Nom</th>
-                                    <th>Victoires (Principal)</th>
-                                    <th>Manches gagnées (Tiebreaker)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="entry in poolLeaderboard.leaderboard" :key="entry.participant_id">
-                                    <td>{{ entry.name }}</td>
-                                    <td>{{ entry.wins }}</td>
-                                    <td>{{ entry.total_manches }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+            <!-- Leaderboards par poule -->
+            <div v-if="leaderboardsStore.poolsLeaderboard.length" class="leaderboard-section">
+                <h3>Classements des poules</h3>
+                <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
+                    <h4>{{ poolLeaderboard.pool_name }}</h4>
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rang</th>
+                                <th>Nom</th>
+                                <th>Victoires</th>
+                                <th>Manches</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(entry, index) in poolLeaderboard.leaderboard" :key="entry.participant_id">
+                                <td>{{ index + 1 }}</td>
+                                <td>{{ entry.name }}</td>
+                                <td>{{ entry.wins }}</td>
+                                <td>{{ entry.total_manches }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <p v-else>Aucun classement par poule disponible.</p>
             </div>
 
-            <!-- Bracket Table -->
-            <div v-if="finalMatches.length" class="bracket-tree">
+            <!-- Phases finales -->
+            <div v-if="tournamentStore.tournamentDetail?.final_matches && tournamentStore.tournamentDetail.final_matches.length"
+                class="finals-block">
                 <h3>Phases finales</h3>
                 <table class="bracket-table">
                     <tr v-for="round in maxRounds" :key="round">
@@ -135,17 +140,13 @@ const getRoundName = computed(() => {
                     <tr v-if="matchesByRound[round] && matchesByRound[round].length">
                         <td v-for="match in matchesByRound[round]" :key="match.id">
                             <div class="match-cell">
-                                <div v-for="(participant, index) in match.participants" class="participant-slot"
-                                    :key="index">
+                                <div v-for="(participant) in match.participants" class="participant-slot"
+                                    :key="participant.participant_id">
                                     <span>
-                                        {{participant?.name
-                                            ? (tournamentStore.getParticipantType(participant.id) === 'team' &&
-                                                tournamentStore.getParticipantUsers(participant.id)?.length
-                                                ? `${participant.name}
-                                        (${tournamentStore.getParticipantUsers(participant.id)!
-                                                    .map(u => u.name).join('& ')})`
-                                                : participant.name)
-                                            : 'TBD'}}
+                                        {{ participant.name }}
+                                        <span v-if="participant.users && participant.users.length > 1">
+                                            ({{participant.users.map(u => u.name).join(' & ')}})
+                                        </span>
                                     </span>
                                     <span v-if="typeof participant?.score === 'number'" class="score">({{
                                         participant.score }})</span>

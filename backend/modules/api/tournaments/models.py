@@ -7,7 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     Float,
     Table,
-    Index
+    Index,
 )
 from sqlalchemy.orm import relationship
 from modules.database.session import UsersBase
@@ -21,18 +21,20 @@ pool_participant_association = Table(
     Column("participant_id", Integer, ForeignKey("participants.id"), primary_key=True),
 )
 
+
 class Participant(UsersBase):
     __tablename__ = "participants"
 
     id = Column(Integer, primary_key=True, index=True)
     tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=False)
-    type = Column(String, nullable=False, index=True)  # 'player' or 'team'
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # for 'player'
-    name = Column(String, nullable=True)  # for 'team'
+    name = Column(
+        String, nullable=True
+    )  # Nom du participant (généré pour singles, custom pour doubles)
 
     tournament = relationship("Tournament", back_populates="participants")
-    user = relationship("User", back_populates="participations")
-    team_members = relationship("TeamMember", back_populates="participant", cascade="all, delete-orphan")
+    members = relationship(
+        "ParticipantMember", back_populates="participant", cascade="all, delete-orphan"
+    )  # Renommé de team_members
     pools = relationship(
         "Pool", secondary=pool_participant_association, back_populates="participants"
     )
@@ -48,14 +50,16 @@ class Participant(UsersBase):
         overlaps="matches",
     )
 
-class TeamMember(UsersBase):
-    __tablename__ = "team_members"
+
+class ParticipantMember(UsersBase):
+    __tablename__ = "participant_members"
 
     participant_id = Column(Integer, ForeignKey("participants.id"), primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
 
-    participant = relationship("Participant", back_populates="team_members")
-    user = relationship("User", back_populates="team_memberships")
+    participant = relationship("Participant", back_populates="members")
+    user = relationship("User", back_populates="participant_memberships")
+
 
 class Tournament(UsersBase):
     __tablename__ = "tournaments"
@@ -84,9 +88,8 @@ class Tournament(UsersBase):
         "Participant", back_populates="tournament", cascade="all, delete-orphan"
     )
 
-    __table_args__ = (
-        Index('ix_tournament_mode_status', 'mode', 'status'),
-    )
+    __table_args__ = (Index("ix_tournament_mode_status", "mode", "status"),)
+
 
 class TournamentRegistration(UsersBase):
     __tablename__ = "tournament_registrations"
@@ -98,6 +101,7 @@ class TournamentRegistration(UsersBase):
 
     user = relationship("User", back_populates="tournaments")
     tournament = relationship("Tournament", back_populates="registrations")
+
 
 class Pool(UsersBase):
     __tablename__ = "pools"
@@ -111,13 +115,16 @@ class Pool(UsersBase):
     )
     matches = relationship("Match", back_populates="pool")
 
+
 class Match(UsersBase):
     __tablename__ = "matches"
 
     id = Column(Integer, primary_key=True, index=True)
     tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=False)
     pool_id = Column(Integer, ForeignKey("pools.id"), nullable=True)
-    status = Column(String, default="pending", index=True)  # pending, completed, cancelled
+    status = Column(
+        String, default="pending", index=True
+    )  # pending, completed, cancelled
     round = Column(Integer, default=1)
 
     tournament = relationship("Tournament", back_populates="matches")
@@ -135,9 +142,8 @@ class Match(UsersBase):
         overlaps="participants",
     )
 
-    __table_args__ = (
-        Index('ix_match_status', 'status'),
-    )
+    __table_args__ = (Index("ix_match_status", "status"),)
+
 
 class MatchPlayer(UsersBase):
     __tablename__ = "match_players"

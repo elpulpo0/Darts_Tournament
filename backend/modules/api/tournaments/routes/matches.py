@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import select
 from modules.database.dependencies import get_users_db
 from modules.api.tournaments.models import Match, MatchPlayer, Participant, Tournament
 from modules.api.tournaments.schemas import MatchCreate, MatchUpdate, MatchResponse
@@ -14,7 +13,9 @@ def create_match(
     match_data: MatchCreate,
     db: Session = Depends(get_users_db),
 ):
-    tournament = db.query(Tournament).filter(Tournament.id == match_data.tournament_id).first()
+    tournament = (
+        db.query(Tournament).filter(Tournament.id == match_data.tournament_id).first()
+    )
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
@@ -31,13 +32,23 @@ def create_match(
     # Associer les participants au match via MatchPlayer
     participants_list = []
     for participant_id in match_data.participant_ids:
-        participant = db.query(Participant).filter(Participant.id == participant_id).first()
+        participant = (
+            db.query(Participant).filter(Participant.id == participant_id).first()
+        )
         if not participant:
-            raise HTTPException(status_code=404, detail=f"Participant {participant_id} not found")
-        match_player = MatchPlayer(match_id=new_match.id, participant_id=participant_id, score=None)
+            raise HTTPException(
+                status_code=404, detail=f"Participant {participant_id} not found"
+            )
+        match_player = MatchPlayer(
+            match_id=new_match.id, participant_id=participant_id, score=None
+        )
         db.add(match_player)
-        name = participant.user.name if participant.type == 'player' else participant.name
-        participants_list.append({"participant_id": participant_id, "name": name, "score": None})
+        name = participant.name or (
+            participant.members[0].user.name if participant.members else "Unknown"
+        )
+        participants_list.append(
+            {"participant_id": participant_id, "name": name, "score": None}
+        )
 
     db.commit()
 
@@ -51,7 +62,9 @@ def create_match(
     )
 
 
-@matches_router.get("/matches/tournament/{tournament_id}", response_model=List[MatchResponse])
+@matches_router.get(
+    "/matches/tournament/{tournament_id}", response_model=List[MatchResponse]
+)
 def get_tournament_matches(
     tournament_id: int,
     db: Session = Depends(get_users_db),
@@ -62,8 +75,10 @@ def get_tournament_matches(
         participants_list = []
         for mp in match.match_participations:
             p = mp.participant
-            name = p.user.name if p.type == 'player' else p.name
-            participants_list.append({"participant_id": p.id, "name": name, "score": mp.score})
+            name = p.name or (p.members[0].user.name if p.members else "Unknown")
+            participants_list.append(
+                {"participant_id": p.id, "name": name, "score": mp.score}
+            )
         response.append(
             MatchResponse(
                 id=match.id,
@@ -95,17 +110,25 @@ def update_match(
         for score_entry in match_data.scores:
             participant_id = score_entry.get("participant_id")
             score = score_entry.get("score")
-            match_player = db.query(MatchPlayer).filter(
-                MatchPlayer.match_id == match_id, MatchPlayer.participant_id == participant_id
-            ).first()
+            match_player = (
+                db.query(MatchPlayer)
+                .filter(
+                    MatchPlayer.match_id == match_id,
+                    MatchPlayer.participant_id == participant_id,
+                )
+                .first()
+            )
             if not match_player:
                 raise HTTPException(
-                    status_code=404, detail=f"Participant {participant_id} not found in match"
+                    status_code=404,
+                    detail=f"Participant {participant_id} not found in match",
                 )
             match_player.score = score
             p = match_player.participant
-            name = p.user.name if p.type == 'player' else p.name
-            participants_list.append({"participant_id": participant_id, "name": name, "score": score})
+            name = p.name or (p.members[0].user.name if p.members else "Unknown")
+            participants_list.append(
+                {"participant_id": participant_id, "name": name, "score": score}
+            )
 
     db.commit()
     db.refresh(match)
@@ -113,8 +136,10 @@ def update_match(
     if not participants_list:
         for mp in match.match_participations:
             p = mp.participant
-            name = p.user.name if p.type == 'player' else p.name
-            participants_list.append({"participant_id": p.id, "name": name, "score": mp.score})
+            name = p.user.name if p.type == "player" else p.name
+            participants_list.append(
+                {"participant_id": p.id, "name": name, "score": mp.score}
+            )
 
     return MatchResponse(
         id=match.id,

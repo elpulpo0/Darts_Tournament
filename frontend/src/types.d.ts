@@ -1,24 +1,19 @@
 interface User {
   id: number;
   name: string;
-  team_id?: number | null;
-  team_name?: string | null;
 }
 
 type Participant = {
   id: number;
-  type: 'player' | 'team';
   name: string;
   users: User[];
 };
-
-type MatchParticipant = { participant_id: number; name: string; score: number | null };
 
 type Match = {
   id: number;
   tournament_id: number;
   match_date: string | null;
-  participants: (MatchParticipant | null)[];
+  participants: (MatchParticipantSchema | null)[];
   status: 'pending' | 'completed' | 'cancelled';
   round?: number;
   pool_id?: number;
@@ -77,13 +72,8 @@ type TournamentFullDetailSchema = {
 type PoolDetailSchema = {
   id: number;
   name: string | null;
-  participants: ParticipantBasicSchema[];
+  participants: MatchParticipantSchema[];
   matches: MatchDetailSchema[];
-};
-
-type ParticipantBasicSchema = {
-  id: number;
-  name: string;
 };
 
 type MatchDetailSchema = {
@@ -95,7 +85,8 @@ type MatchDetailSchema = {
 };
 
 type MatchParticipantSchema = {
-  id: number;
+  participant_id: number;
   name: string;
+  users: User[];
   score: number | null;
 };

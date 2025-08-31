@@ -83,19 +83,22 @@ export function generateEliminationMatches(participants: Participant[]): Match[]
 /**
  * Convertit un participant en MatchParticipant
  */
-export function participantToMatchParticipant(participant: Participant): MatchParticipant | null {
+export function participantToMatchParticipant(participant: Participant): MatchParticipantSchema | null {
     if (!participant) return null;
+    const userNames = participant.users.map(u => u.name).join(' & ');
+    const displayName = participant.name ? `${participant.name} (${userNames})` : userNames;
     return {
-        participant_id: participant.id,
-        name: participant.type === 'team' ? `${participant.name} (${participant.users.map(u => u.name).join(' & ')})` : participant.name,
-        score: null
+        participant_id: participant.id, // Using id as per Participant type
+        name: displayName,
+        score: null,
+        users: participant.users
     };
 }
 
 /**
  * Trouve le gagnant d'un match à 2 participants
  */
-export function getMatchWinner(match: Match): MatchParticipant | null {
+export function getMatchWinner(match: Match): MatchParticipantSchema | null {
     if (!match.participants || match.participants.length !== 2) return null;
     const [p1, p2] = match.participants;
     if (!p1 || !p2) return null; // Plus de gestion de bye
@@ -117,8 +120,18 @@ export function generateFinalFromSemiWinners(semi1: Match, semi2: Match): Match[
             tournament_id: 0,
             match_date: null,
             participants: [
-                { participant_id: w1.participant_id, name: w1.name, score: null },
-                { participant_id: w2.participant_id, name: w2.name, score: null }
+                {
+                    participant_id: w1.participant_id,
+                    name: w1.name,
+                    score: null,
+                    users: w1.users
+                },
+                {
+                    participant_id: w2.participant_id,
+                    name: w2.name,
+                    score: null,
+                    users: w2.users
+                }
             ],
             status: 'pending',
             round: 3,

@@ -3,7 +3,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from modules.database.dependencies import get_users_db
 from modules.api.tournaments.models import Pool, Participant, Tournament
-from modules.api.tournaments.schemas import PoolResponse, PoolCreate, MatchResponse, PlayerResponse, ParticipantResponse
+from modules.api.tournaments.schemas import (
+    PoolResponse,
+    PoolCreate,
+    MatchResponse,
+    PlayerResponse,
+    ParticipantResponse,
+)
 from typing import List
 
 pools_router = APIRouter(prefix="/tournaments", tags=["pools"])
@@ -26,9 +32,13 @@ def create_pool(
 
     # Associer les participants à la poule
     for participant_id in pool_data.participant_ids:
-        participant = db.query(Participant).filter(Participant.id == participant_id).first()
+        participant = (
+            db.query(Participant).filter(Participant.id == participant_id).first()
+        )
         if not participant:
-            raise HTTPException(status_code=404, detail=f"Participant {participant_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Participant {participant_id} not found"
+            )
         new_pool.participants.append(participant)
 
     try:
@@ -42,7 +52,10 @@ def create_pool(
 
     return PoolResponse(
         id=new_pool.id,
-        participants=[ParticipantResponse(id=p.id, type=p.type, name=p.name or p.user.name, users=[]) for p in new_pool.participants],  # Simplified, adjust as needed
+        participants=[
+            ParticipantResponse(id=p.id, name=p.name or p.user.name, users=[])
+            for p in new_pool.participants
+        ],
         matches=[],
     )
 
@@ -62,20 +75,18 @@ def get_tournament_pools(tournament_id: int, db: Session = Depends(get_users_db)
     for pool in pools:
         participants = []
         for p in pool.participants:
-            if p.type == 'player':
-                name = p.user.name if p.user else ''
-                users = [PlayerResponse(id=p.user.id, name=name)] if p.user else []
-            else:
-                name = p.name
-                users = [PlayerResponse(id=m.user.id, name=m.user.name) for m in p.team_members]
-            participants.append(ParticipantResponse(id=p.id, type=p.type, name=name, users=users))
+            name = p.name or (p.members[0].user.name if p.members else "")
+            users = [PlayerResponse(id=m.user.id, name=m.user.name) for m in p.members]
+            participants.append(ParticipantResponse(id=p.id, name=name, users=users))
         matches = []
         for m in pool.matches:
             match_participants = []
             for mp in m.match_participations:
                 p = mp.participant
-                name = p.user.name if p.type == 'player' else p.name
-                match_participants.append({"participant_id": p.id, "name": name, "score": mp.score})
+                name = p.name or p.members[0].user.name
+                match_participants.append(
+                    {"participant_id": p.id, "name": name, "score": mp.score}
+                )
             matches.append(
                 MatchResponse(
                     id=m.id,
@@ -86,5 +97,7 @@ def get_tournament_pools(tournament_id: int, db: Session = Depends(get_users_db)
                     round=m.round,
                 )
             )
-        response.append(PoolResponse(id=pool.id, participants=participants, matches=matches))
+        response.append(
+            PoolResponse(id=pool.id, participants=participants, matches=matches)
+        )
     return response

@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import backendApi from '../axios/backendApi';
-import { useAuthStore } from '../stores/useAuthStore';
+import { useAuthStore } from './useAuthStore';
 import { handleError } from '../functions/utils';
 
 export const useTournamentStore = defineStore('tournament', () => {
     const tournamentDetail = ref<TournamentFullDetailSchema | null>(null);
     const registeredUsers = ref<User[]>([]);
-    const teams = ref<Participant[]>([]);
+    const participants = ref<Participant[]>([]);
     const loading = ref(false);
 
     // Fetch tournament details
@@ -18,7 +18,7 @@ export const useTournamentStore = defineStore('tournament', () => {
             tournamentDetail.value = data;
         } catch (error) {
             console.error('Error fetching tournament details:', error);
-            throw error; // Handle errors as needed in your app
+            throw error;
         } finally {
             loading.value = false;
         }
@@ -35,29 +35,18 @@ export const useTournamentStore = defineStore('tournament', () => {
         }
     };
 
-    // Fetch teams
-    const fetchTeams = async (tournamentId: number) => {
+    // Fetch participants
+    const fetchParticipants = async (tournamentId: number) => {
         const authStore = useAuthStore();
         try {
             const { data } = await backendApi.get(`/tournaments/${tournamentId}/participants`, {
                 headers: { Authorization: `Bearer ${authStore.token}` },
             });
-            teams.value = data.filter((p: Participant) => p.type === 'team');
+            participants.value = data;
         } catch (err) {
-            handleError(err, 'fetching teams');
+            handleError(err, 'fetching participants');
         }
     };
-
-    // Combine registered users and teams into a single participants array
-    const participants = computed<Participant[]>(() => {
-        const playerParticipants: Participant[] = registeredUsers.value.map(user => ({
-            id: user.id,
-            type: 'player' as const,
-            name: user.name,
-            users: [user],
-        }));
-        return [...playerParticipants, ...teams.value];
-    });
 
     // Create a map of participants for efficient lookup
     const participantMap = computed(() => {
@@ -65,12 +54,6 @@ export const useTournamentStore = defineStore('tournament', () => {
         participants.value.forEach(p => map.set(p.id, p));
         return map;
     });
-
-    // Get participant type by ID
-    const getParticipantType = (participantId: number | undefined): string => {
-        if (!participantId) return 'N/A';
-        return participantMap.value.get(participantId)?.type || 'N/A';
-    };
 
     // Get participant users by ID
     const getParticipantUsers = (participantId: number | undefined): User[] | undefined => {
@@ -81,14 +64,12 @@ export const useTournamentStore = defineStore('tournament', () => {
     return {
         tournamentDetail,
         registeredUsers,
-        teams,
+        participants,
         loading,
         fetchTournamentDetail,
         fetchRegisteredUsers,
-        fetchTeams,
-        participants,
+        fetchParticipants,
         participantMap,
-        getParticipantType,
         getParticipantUsers,
     };
 });

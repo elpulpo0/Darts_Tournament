@@ -51,32 +51,15 @@ class TournamentRegistrationResponse(BaseModel):
 
 
 class ParticipantCreate(BaseModel):
-    type: str  # 'player' or 'team'
-    user_id: Optional[int] = None  # for 'player'
-    name: Optional[str] = None  # for 'team'
-    user_ids: Optional[List[int]] = None  # for 'team', list of 2 user_ids
-
-    @field_validator('user_ids')
-    @classmethod
-    def validate_team_users(cls, v, values):
-        if values.get('type') == 'team':
-            if not v or len(v) != 2:
-                raise ValueError('Team must have exactly 2 users')
-        return v
+    name: Optional[str] = None  # Optionnel pour single (généré), requis pour double
+    user_ids: List[int]  # 1 pour single, 2 pour double
 
 
 class ParticipantResponse(BaseModel):
     id: int
-    type: str
     name: str
-    users: List["PlayerResponse"]
+    users: List["PlayerResponse"]  # Toujours une liste (1 ou 2)
     model_config = ConfigDict(from_attributes=True)
-
-
-class TeamCreate(BaseModel):
-    name: str
-    player1_id: int
-    player2_id: int
 
 
 class MatchCreate(BaseModel):
@@ -86,11 +69,11 @@ class MatchCreate(BaseModel):
     pool_id: Optional[int] = None
     round: Optional[int] = 1
 
-    @field_validator('participant_ids')
+    @field_validator("participant_ids")
     @classmethod
     def validate_participant_ids(cls, v):
         if len(v) != 2:
-            raise ValueError('Match must have exactly 2 participants')
+            raise ValueError("Match must have exactly 2 participants")
         return v
 
 

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, ForeignKey, Integer, String, Boolean
-from modules.api.auth.models import RefreshToken  # noqa: F401 (Don't remove that line)
+from modules.api.auth.models import RefreshToken  # noqa: F401
 from sqlalchemy.orm import relationship
 from modules.database.session import UsersBase
 
@@ -19,8 +19,7 @@ class User(UsersBase):
         "RefreshToken", back_populates="users", cascade="all, delete-orphan"
     )
     tournaments = relationship("TournamentRegistration", back_populates="user")
-    participations = relationship("Participant", back_populates="user")
-    team_memberships = relationship("TeamMember", back_populates="user")
+    participant_memberships = relationship("ParticipantMember", back_populates="user")
 
 
 class Role(UsersBase):

@@ -47,17 +47,6 @@
                     <p>Les inscriptions sont closes pour ce tournoi.</p>
                 </div>
 
-                <!-- Affichage participants (players/teams) -->
-                <h4>Participants</h4>
-                <ul v-if="participants[selectedTournament.id]?.length">
-                    <li v-for="participant in participants[selectedTournament.id]" :key="participant.id">
-                        {{ participant.name }}
-                        <span v-if="participant.type === 'team'"> ({{participant.users.map(u => u.name).join(' & ')
-                            }})</span>
-                    </li>
-                </ul>
-                <p v-else>Aucun participant.</p>
-
                 <button v-if="selectedTournament && ['running', 'closed'].includes(selectedTournament.status)"
                     @click="openProjection">
                     Projeter l’arborescence
