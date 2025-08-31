@@ -233,15 +233,20 @@
                                     <div v-if="match.status === 'completed'">
                                         {{match.participants.map(p => p?.score ?? 'N/A').join(', ')}}
                                     </div>
-                                    <div v-else>
+                                    <div v-else class="score-inputs">
                                         <input v-for="(_, index) in match.participants"
                                             v-model="tempScores[match.id][index]" type="number" :key="index" />
                                     </div>
                                 </td>
                                 <td>
-                                    <button v-if="match.status === 'pending'" @click="updateMatch(match)">Mettre à jour
-                                        les
-                                        scores</button>
+                                    <button v-if="match.status === 'pending'" class="valid-btn"
+                                        title="Valider les scores" @click="updateMatch(match)">
+                                        ✔️
+                                    </button>
+                                    <button v-if="match.status === 'completed'" class="edit-btn"
+                                        title="Réinitialiser les scores" @click="cancelMatchScores(match.id)">
+                                        ✖️
+                                    </button>
                                 </td>
                             </tr>
                         </tbody>
@@ -252,7 +257,6 @@
                 <div v-if="isTournamentFinished && getTournamentWinner">
                     <h4>Tournoi terminé !</h4>
                     <p>Vainqueur : {{ getParticipantDisplayName(getTournamentWinner) }}</p>
-
                 </div>
                 <button v-else-if="isCurrentRoundFinished" @click="generateFinalStage">
                     Générer le tour {{ currentRound === 0 ? 'des éliminatoires' : currentRound + 1 }}
@@ -278,6 +282,7 @@ import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useLeaderboardsStore } from '../stores/useLeaderboardsStore';
 import { useTournamentStore } from '../stores/useTournamentStore';
+import { getParticipantDisplayName } from '../functions/management';
 
 const route = useRoute();
 const router = useRouter();
@@ -358,28 +363,6 @@ const selectableParticipantUsers = computed(() => {
         !tournamentStore.participants.some(p => p.users.some(u => u.id === user.id))
     );
 });
-
-const getParticipantDisplayName = (participant: MatchParticipantSchema | Participant | null): string => {
-    if (!participant) return 'N/A';
-
-    let fullParticipant: MatchParticipantSchema | Participant = participant;
-    // Check for participant_id (MatchParticipantSchema) or id (Participant)
-    const participantId = 'participant_id' in participant ? participant.participant_id : participant.id;
-    if ((!participant.users || participant.users.length === 0) && participantId) {
-        const storedParticipant = tournamentStore.participants.find(p => p.id === participantId);
-        if (storedParticipant) {
-            fullParticipant = storedParticipant;
-        }
-    }
-
-    const baseName = fullParticipant.name || (fullParticipant.users?.length === 1 ? fullParticipant.users[0]?.name || 'N/A' : 'N/A');
-    if (fullParticipant.users?.length === 2) {
-        const userNames = fullParticipant.users.map(u => u.name || 'Unknown').join(' & ');
-        return `${baseName} (${userNames})`;
-    }
-
-    return baseName;
-};
 
 const openProjection = () => {
     if (!tournament.value) return;
@@ -609,7 +592,7 @@ async function generateFinalStage() {
             m => m.pool_id == null && m.round === nextRound
         );
         if (existingNextRoundMatches.length > 0) {
-            toast.error(`Le tour ${nextRound} existe déjà.Veuillez compléter ou supprimer les matchs existants.`);
+            toast.error(`Le tour ${nextRound} existe déjà. Veuillez compléter ou supprimer les matchs existants.`);
             return;
         }
 
@@ -775,10 +758,12 @@ async function createAndPersistMatch(match: Match, poolId?: number) {
 
 const updateMatch = async (match: Match) => {
     try {
-        const scoresPayload = match.participants.map((participant: any, index: number) => ({
-            participant_id: participant.participant_id || participant.id,
-            score: tempScores.value[match.id][index],
-        }));
+        const scoresPayload = match.participants
+            .filter(p => p?.participant_id !== undefined)
+            .map((participant: any, index: number) => ({
+                participant_id: participant.participant_id || participant.id,
+                score: tempScores.value[match.id][index],
+            }));
         await backendApi.patch(`/tournaments/matches/${match.id}`, {
             status: 'completed',
             scores: scoresPayload,
@@ -800,6 +785,29 @@ const updateMatch = async (match: Match) => {
         }
     } catch (err) {
         handleError(err, 'updating match');
+    }
+};
+
+const cancelMatchScores = async (matchId: number) => {
+    try {
+        await backendApi.post(`/tournaments/matches/${matchId}/cancel`, {}, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+        toast.success('Scores du match réinitialisés');
+        await fetchMatches();
+        await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
+
+        // If the tournament was closed due to this match, revert the tournament status
+        if (tournament.value?.status === 'closed' && isTournamentFinished.value) {
+            await backendApi.patch(`/tournaments/${tournamentId.value}`, {
+                status: 'running'
+            }, {
+                headers: { Authorization: `Bearer ${authStore.token}` },
+            });
+            await fetchTournament(tournamentId.value);
+        }
+    } catch (err) {
+        handleError(err, 'canceling match scores');
     }
 };
 

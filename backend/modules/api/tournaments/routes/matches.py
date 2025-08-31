@@ -136,10 +136,43 @@ def update_match(
     if not participants_list:
         for mp in match.match_participations:
             p = mp.participant
-            name = p.user.name if p.type == "player" else p.name
+            name = p.name or (p.members[0].user.name if p.members else "Unknown")
             participants_list.append(
                 {"participant_id": p.id, "name": name, "score": mp.score}
             )
+
+    return MatchResponse(
+        id=match.id,
+        tournament_id=match.tournament_id,
+        status=match.status,
+        participants=participants_list,
+        pool_id=match.pool_id,
+        round=match.round,
+    )
+
+
+@matches_router.post("/matches/{match_id}/cancel", response_model=MatchResponse)
+def cancel_match_scores(
+    match_id: int,
+    db: Session = Depends(get_users_db),
+):
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    # Reset match status to 'pending'
+    match.status = "pending"
+
+    # Reset scores to null for all participants
+    participants_list = []
+    for match_player in match.match_participations:
+        match_player.score = None
+        p = match_player.participant
+        name = p.name or (p.members[0].user.name if p.members else "Unknown")
+        participants_list.append({"participant_id": p.id, "name": name, "score": None})
+
+    db.commit()
+    db.refresh(match)
 
     return MatchResponse(
         id=match.id,

@@ -5,6 +5,7 @@ import { useAuthStore } from './useAuthStore';
 import { handleError } from '../functions/utils';
 
 export const useTournamentStore = defineStore('tournament', () => {
+    const tournament = ref<Tournament | null>(null);
     const tournamentDetail = ref<TournamentFullDetailSchema | null>(null);
     const registeredUsers = ref<User[]>([]);
     const participants = ref<Participant[]>([]);
@@ -62,6 +63,7 @@ export const useTournamentStore = defineStore('tournament', () => {
     };
 
     return {
+        tournament,
         tournamentDetail,
         registeredUsers,
         participants,
