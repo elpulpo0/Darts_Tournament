@@ -93,7 +93,7 @@ const getRoundName = computed(() => {
                                 <span v-if="match.status === 'completed'">Scores :
                                     {{match.participants?.map((p: MatchParticipantSchema) => typeof p.score === 'number'
                                         ? p.score :
-                                    'N/A').join(' - ')}}
+                                        'N/A').join(' - ')}}
                                 </span>
                                 <span v-else>En attente</span>
                             </div>
@@ -262,7 +262,7 @@ h3 {
 .leaderboard-table {
     width: 280px;
     max-width: 95vw;
-    background: var(--color-bg-lighter);
+    background: var(--color-bg);
     border-radius: var(--radius);
     box-shadow: 0 1px 5px var(--color-light-shadow);
     border-collapse: collapse;
