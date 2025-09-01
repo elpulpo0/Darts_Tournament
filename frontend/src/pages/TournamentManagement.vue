@@ -212,10 +212,10 @@
 
                 <div v-if="tournament.status === 'running' || tournament.status === 'closed'" class="matches-section">
                     <h4>Matchs</h4>
-                    <div v-for="round in Array.from({ length: currentRound + 1 }, (_, i) => i)" :key="round">
-                        <h5>{{ round === 0 ? 'Poules' : `Tour ${round}` }}</h5>
-                        <table
-                            v-if="matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round)).length">
+                    <!-- Section Barrage -->
+                    <div v-if="hasBarrage">
+                        <h5>Barrage</h5>
+                        <table>
                             <thead>
                                 <tr>
                                     <th>Participants</th>
@@ -225,10 +225,9 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="match in matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round && m.participants.length === 2))"
+                                <tr v-for="match in matches.filter(m => m.round === 0 && m.pool_id == null && m.participants.length === 2)"
                                     :key="match.id">
-                                    <td>
-                                        {{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
+                                    <td>{{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
                                     </td>
                                     <td>{{ match.status }}</td>
                                     <td>
@@ -242,26 +241,104 @@
                                     </td>
                                     <td>
                                         <button v-if="match.status === 'pending'" class="valid-btn"
-                                            title="Valider les scores" @click="updateMatch(match)">
-                                            ✔️
-                                        </button>
+                                            title="Valider les scores" @click="updateMatch(match)">✔️</button>
                                         <button v-if="match.status === 'completed'" class="edit-btn"
-                                            title="Réinitialiser les scores" @click="cancelMatchScores(match.id)">
-                                            ✖️
-                                        </button>
+                                            title="Réinitialiser les scores"
+                                            @click="cancelMatchScores(match.id)">✖️</button>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
-                        <p v-else>Aucun match pour ce tour.</p>
+                    </div>
+                    <!-- Section Poules -->
+                    <div v-if="poolIds.length">
+                        <h5>Poules</h5>
+                        <table v-if="matches.filter(m => m.pool_id != null).length">
+                            <thead>
+                                <tr>
+                                    <th>Participants</th>
+                                    <th>Statut</th>
+                                    <th>Scores</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="match in matches.filter(m => m.pool_id != null && m.participants.length === 2)"
+                                    :key="match.id">
+                                    <td>{{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
+                                    </td>
+                                    <td>{{ match.status }}</td>
+                                    <td>
+                                        <div v-if="match.status === 'completed'">
+                                            {{match.participants.map(p => p?.score ?? 'N/A').join(', ')}}
+                                        </div>
+                                        <div v-else class="score-inputs">
+                                            <input v-for="(_, index) in match.participants"
+                                                v-model="tempScores[match.id][index]" type="number" :key="index" />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button v-if="match.status === 'pending'" class="valid-btn"
+                                            title="Valider les scores" @click="updateMatch(match)">✔️</button>
+                                        <button v-if="match.status === 'completed'" class="edit-btn"
+                                            title="Réinitialiser les scores"
+                                            @click="cancelMatchScores(match.id)">✖️</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p v-else>Aucun match pour les poules.</p>
+                    </div>
+                    <!-- Section Tours d'élimination -->
+                    <div v-if="currentRound > 0">
+                        <div v-for="round in Array.from({ length: currentRound }, (_, i) => i + 1)" :key="round">
+                            <h5>Tour {{ round }}</h5>
+                            <table
+                                v-if="matches.filter(m => m.pool_id == null && m.round === round && m.participants.length === 2).length">
+                                <thead>
+                                    <tr>
+                                        <th>Participants</th>
+                                        <th>Statut</th>
+                                        <th>Scores</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="match in matches.filter(m => m.pool_id == null && m.round === round && m.participants.length === 2)"
+                                        :key="match.id">
+                                        <td>{{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
+                                        </td>
+                                        <td>{{ match.status }}</td>
+                                        <td>
+                                            <div v-if="match.status === 'completed'">
+                                                {{match.participants.map(p => p?.score ?? 'N/A').join(', ')}}
+                                            </div>
+                                            <div v-else class="score-inputs">
+                                                <input v-for="(_, index) in match.participants"
+                                                    v-model="tempScores[match.id][index]" type="number" :key="index" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button v-if="match.status === 'pending'" class="valid-btn"
+                                                title="Valider les scores" @click="updateMatch(match)">✔️</button>
+                                            <button v-if="match.status === 'completed'" class="edit-btn"
+                                                title="Réinitialiser les scores"
+                                                @click="cancelMatchScores(match.id)">✖️</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p v-else>Aucun match pour ce tour.</p>
+                        </div>
                     </div>
 
                     <div v-if="isTournamentFinished && getTournamentWinner">
                         <h4>Tournoi terminé !</h4>
                         <p>Vainqueur : {{ getParticipantDisplayName(getTournamentWinner) }}</p>
                     </div>
-                    <button v-else-if="isCurrentRoundFinished" @click="generateFinalStage">
-                        Générer le tour {{ currentRound === 0 ? 'des éliminatoires' : currentRound + 1 }}
+                    <button v-else-if="showGenerateButton" @click="generateFinalStage">
+                        Générer {{ currentRound === 0 && hasBarrage ? (tournament?.type === 'pool' ?
+                            'les poules' : 'la phase suivante') : `le tour ${currentRound + 1}` }}
                     </button>
                 </div>
             </div>
@@ -283,7 +360,7 @@ import { ref, onMounted, computed } from 'vue';
 import backendApi from '../axios/backendApi';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../stores/useAuthStore';
-import { createPools, generateEliminationMatches, getMatchWinner } from '../functions/tournamentStructure';
+import { createPools, generateEliminationMatches, getMatchWinner, participantToMatchParticipant } from '../functions/tournamentStructure';
 import { handleError } from '../functions/utils';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
@@ -321,9 +398,26 @@ const selectedTeamUsers = ref<number[]>([]);
 const registeredUsersCount = computed(() => tournamentStore.registeredUsers?.length || 0);
 const participantsCount = computed(() => tournamentStore.participants?.length || 0);
 
+const hasBarrage = computed(() => {
+    const result = matches.value.some(m => m.round === 0 && m.pool_id == null);
+    console.log('hasBarrage:', result, 'Matches with round 0 and pool_id null:', matches.value.filter(m => m.round === 0 && m.pool_id == null));
+    return result;
+});
+
 const poolIds = computed(() => {
     const ids = matches.value.map(m => m.pool_id).filter(id => id != null);
     return [...new Set(ids)];
+});
+
+const showGenerateButton = computed(() => {
+    if (!isCurrentRoundFinished.value) return false; // Ne pas afficher si le round actuel n'est pas terminé
+    if (isTournamentFinished.value) return false; // Ne pas afficher si le tournoi est terminé
+    if (currentRound.value === 0 && hasBarrage.value) {
+        // Afficher pendant le barrage si aucune poule ou match d'élimination n'existe
+        return poolIds.value.length === 0 && matches.value.filter(m => m.pool_id == null && (m.round ?? 0) > 0).length === 0;
+    }
+    // Afficher pour les tours suivants si aucun match n'existe pour le tour suivant
+    return matches.value.filter(m => m.pool_id == null && (m.round ?? 0) === currentRound.value + 1).length === 0;
 });
 
 const isPoolFinished = computed(() =>
@@ -348,16 +442,28 @@ const isTournamentFinished = computed(() => {
 });
 
 const currentRound = computed(() => {
-    const finalMatches = matches.value.filter(m => m.pool_id == null);
-    if (finalMatches.length === 0) return 0;
+    const finalMatches = matches.value.filter(m => m.pool_id == null && m.round !== 0);
+    console.log('Final matches for currentRound:', finalMatches.map(m => ({ id: m.id, round: m.round, pool_id: m.pool_id })));
+    if (finalMatches.length === 0) return 0; // Retourne 0 si seuls des matchs de barrage ou aucun match
     return Math.max(...finalMatches.map(m => m.round || 0));
 });
 
 const isCurrentRoundFinished = computed(() => {
-    if (currentRound.value === 0) return isPoolFinished.value;
-    return matches.value
-        .filter(m => m.pool_id == null && m.round === currentRound.value)
-        .every(m => m.status === 'completed');
+    if (currentRound.value === 0) {
+        if (hasBarrage.value) {
+            // Cas barrage
+            return matches.value
+                .filter(m => m.round === 0 && m.pool_id == null)
+                .every(m => m.status === 'completed');
+        } else {
+            // Cas poules
+            return isPoolFinished.value;
+        }
+    } else {
+        return matches.value
+            .filter(m => m.pool_id == null && m.round === currentRound.value)
+            .every(m => m.status === 'completed');
+    }
 });
 
 const selectableUsers = computed(() => {
@@ -509,34 +615,37 @@ const launchTournament = async () => {
         });
         if ((participants?.length ?? 0) < 4) throw new Error("Minimum 4 participants requis");
 
+        const N = participants.length;
+        let useBarrage = N > 32;
+        const effectiveN = useBarrage ? 32 : N;  // Utilisé pour calculer le type/numPools de la phase principale
+
         let tournamentType: 'pool' | 'elimination';
         let numPools: number = 1;
-
         if (launchTypeMode.value === 'manual') {
             tournamentType = launchTournamentType.value;
-            numPools = Math.max(1, Math.min(launchTargetCount.value, participants.length));
-            if (tournamentType === 'elimination' && participants.length % 2 !== 0) {
+            numPools = Math.max(1, Math.min(launchTargetCount.value, effectiveN));
+            if (tournamentType === 'elimination' && effectiveN % 2 !== 0) {
                 throw new Error("Nombre impair de participants non supporté en mode élimination sans ajustement");
             }
         } else {
-            const N = participants.length;
-            if (N <= 4) {
+            if (effectiveN <= 4) {
                 tournamentType = 'elimination';
                 numPools = 0;
-            } else if (N <= 12) {
+            } else if (effectiveN <= 12) {
                 tournamentType = 'pool';
-                numPools = N === 5 ? 1 : 2; // Single pool for 5 participants, otherwise 2 pools
-            } else if (N <= 24) {
+                numPools = effectiveN === 5 ? 1 : 2;
+            } else if (effectiveN <= 24) {
                 tournamentType = 'pool';
-                numPools = Math.ceil(N / 5);
+                numPools = Math.ceil(effectiveN / 5);
             } else {
                 tournamentType = 'pool';
-                numPools = Math.ceil(N / 8);
+                numPools = Math.ceil(effectiveN / 8);
             }
         }
 
         console.log('Mode de lancement:', launchTypeMode.value, 'Type de tournoi:', tournamentType, 'Nombre de poules:', numPools);
 
+        // Mettre à jour le tournoi avec le type principal
         await backendApi.patch(`/tournaments/${tournamentId.value}`, {
             type: tournamentType,
             status: 'running'
@@ -544,38 +653,49 @@ const launchTournament = async () => {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
 
-        if (tournamentType === 'pool') {
-            const pools = createPools(participants, numPools);
-            const poolIdMap: Record<number, number> = {};
-            for (const pool of pools) {
-                const { data: createdPool } = await backendApi.post(
-                    `/tournaments/${tournamentId.value}/pools`,
-                    {
-                        name: pool.name || null,
-                        participant_ids: pool.participants.map((p: Participant) => p.id),
-                    },
-                    {
-                        headers: { Authorization: `Bearer ${authStore.token}` },
-                    }
-                );
-                poolIdMap[pool.id] = createdPool.id;
-                console.log("pool id virtuel", pool.id, "-> pool id SQL", createdPool.id);
+        if (useBarrage) {
+            // Générer barrage pour éliminer N - 32
+            const excess = N - 32;
+            const numBarragePlayers = 2 * excess;
+            const shuffledParticipants = [...participants].sort(() => Math.random() - 0.5);
+            const barrageParticipants = shuffledParticipants.slice(-numBarragePlayers);
+            const barrageMatches = generateEliminationMatches(barrageParticipants);
+            barrageMatches.forEach(match => {
+                match.round = 0;  // Marquer comme barrage
+            });
+            for (const match of barrageMatches) {
+                await createAndPersistMatch(match);
             }
-            for (const pool of pools) {
-                const poolSqlId = poolIdMap[pool.id];
-                if (!poolSqlId) {
-                    console.error("poolSqlId introuvable pour la pool virtuelle id=", pool.id, pool);
-                    continue;
-                }
-                for (const match of pool.matches) {
-                    console.log("Création du match de poule avec poolSqlId:", poolSqlId, match);
-                    await createAndPersistMatch(match, poolSqlId);
-                }
-            }
+            console.log(`Barrage généré : ${excess} matchs pour réduire à 32.`);
         } else {
-            const generatedMatches = generateEliminationMatches(participants);
-            for (const m of generatedMatches) {
-                await createAndPersistMatch(m);
+            // Phase principale immédiate (comme avant)
+            if (tournamentType === 'pool') {
+                const pools = createPools(participants, numPools);
+                const poolIdMap: Record<number, number> = {};
+                for (const pool of pools) {
+                    const { data: createdPool } = await backendApi.post(
+                        `/tournaments/${tournamentId.value}/pools`,
+                        {
+                            name: pool.name || null,
+                            participant_ids: pool.participants.map((p: Participant) => p.id),
+                        },
+                        {
+                            headers: { Authorization: `Bearer ${authStore.token}` },
+                        }
+                    );
+                    poolIdMap[pool.id] = createdPool.id;
+                }
+                for (const pool of pools) {
+                    const poolSqlId = poolIdMap[pool.id];
+                    for (const match of pool.matches) {
+                        await createAndPersistMatch(match, poolSqlId);
+                    }
+                }
+            } else {
+                const generatedMatches = generateEliminationMatches(participants);
+                for (const m of generatedMatches) {
+                    await createAndPersistMatch(m);
+                }
             }
         }
 
@@ -592,7 +712,7 @@ const launchTournament = async () => {
 
 async function generateFinalStage() {
     try {
-        let qualified: { participant_id: number, name: string, pool_id: number }[] = [];
+        let qualified: Participant[] = [];
         let nextRound = currentRound.value + 1;
 
         const existingNextRoundMatches = matches.value.filter(
@@ -603,43 +723,108 @@ async function generateFinalStage() {
             return;
         }
 
-        if (currentRound.value === 0) {
+        const isBarrage = currentRound.value === 0 && poolIds.value.length === 0;
+        if (isBarrage) {
+            // Transition depuis barrage
+            const barrageMatches = matches.value.filter(m => m.round === 0 && m.pool_id == null);
+            const barragePlayerIds = new Set(barrageMatches.flatMap(m => m.participants.map(p => p?.participant_id)));
+            const participants = tournamentStore.participants; // Assume chargés
+            const byes = participants.filter(p => !barragePlayerIds.has(p.id));
+            const winners = barrageMatches
+                .map(match => getMatchWinner(match))
+                .filter((w): w is MatchParticipantSchema => w != null)
+                .map(w => {
+                    const participant = tournamentStore.participants.find(p => p.id === w.participant_id);
+                    if (!participant) throw new Error(`Participant ${w.participant_id} not found`);
+                    return participant;
+                });
+
+            qualified = [...byes, ...winners];
+            if (qualified.length !== 32) {
+                throw new Error(`Nombre de qualifiés inattendu après barrage : ${qualified.length}`);
+            }
+
+            // Générer phase principale avec qualified
+            const mainType = tournament.value?.type ?? 'pool'; // Fallback si type non défini
+            const effectiveN = 32;
+            let numPools = Math.ceil(effectiveN / 8); // Par défaut pour 32 participants
+
+            if (mainType === 'pool') {
+                const pools = createPools(qualified, numPools);
+                const poolIdMap: Record<number, number> = {};
+                for (const pool of pools) {
+                    const { data: createdPool } = await backendApi.post(
+                        `/tournaments/${tournamentId.value}/pools`,
+                        {
+                            name: pool.name || null,
+                            participant_ids: pool.participants.map(p => p.id),
+                        },
+                        { headers: { Authorization: `Bearer ${authStore.token}` } }
+                    );
+                    poolIdMap[pool.id] = createdPool.id;
+                }
+                for (const pool of pools) {
+                    const poolSqlId = poolIdMap[pool.id];
+                    for (const match of pool.matches) {
+                        await createAndPersistMatch(match, poolSqlId);
+                    }
+                }
+            } else {
+                const nextMatches = generateEliminationMatches(qualified);
+                nextMatches.forEach(m => { m.round = 1; });
+                for (const match of nextMatches) {
+                    await createAndPersistMatch(match);
+                }
+            }
+        } else if (currentRound.value === 0) {
+            // Cas poules
             const totalParticipants = new Set(matches.value.flatMap(m => m.participants.map(p => p?.participant_id))).size;
             const targetQualifiers = totalParticipants <= 12 ? 8 : totalParticipants <= 24 ? 16 : 32;
 
             if (poolIds.value.length === 1) {
                 const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolIds.value[0]);
                 if (poolLeaderboard) {
-                    qualified = poolLeaderboard.leaderboard.slice(0, Math.min(targetQualifiers, poolLeaderboard.leaderboard.length)).map(entry => ({
-                        participant_id: entry.participant_id,
-                        name: entry.name,
-                        pool_id: poolIds.value[0]
-                    }));
+                    qualified = poolLeaderboard.leaderboard
+                        .slice(0, Math.min(targetQualifiers, poolLeaderboard.leaderboard.length))
+                        .map(entry => {
+                            const participant = tournamentStore.participants.find(p => p.id === entry.participant_id);
+                            if (!participant) throw new Error(`Participant ${entry.participant_id} not found`);
+                            return participant;
+                        });
                 }
             } else {
                 for (const poolId of poolIds.value) {
                     const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolId);
                     if (poolLeaderboard) {
-                        const poolSize = new Set(matches.value.filter(m => m.pool_id === poolId)
-                            .flatMap(m => m.participants.map(p => p?.participant_id))).size;
-                        const numToQualify = poolSize >= 4 ? 4 : 2; // Top 4 pour ≥4, top 2 pour <4
-                        const topParticipants = poolLeaderboard.leaderboard.slice(0, numToQualify).map(entry => ({
-                            participant_id: entry.participant_id,
-                            name: entry.name,
-                            pool_id: poolId
-                        }));
+                        const poolSize = new Set(
+                            matches.value
+                                .filter(m => m.pool_id === poolId)
+                                .flatMap(m => m.participants.map(p => p?.participant_id))
+                        ).size;
+                        const numToQualify = poolSize >= 4 ? 4 : 2;
+                        const topParticipants = poolLeaderboard.leaderboard
+                            .slice(0, numToQualify)
+                            .map(entry => {
+                                const participant = tournamentStore.participants.find(p => p.id === entry.participant_id);
+                                if (!participant) throw new Error(`Participant ${entry.participant_id} not found`);
+                                return participant;
+                            });
                         qualified = qualified.concat(topParticipants);
                     }
                 }
             }
 
+            // Trier les qualifiés selon les critères
             qualified = qualified
                 .map(participant => {
-                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === participant.pool_id);
-                    const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.participant_id);
-                    return { ...participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
+                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p =>
+                        matches.value.some(m => m.pool_id === p.pool_id && m.participants.some(p => p?.participant_id === participant.id))
+                    );
+                    const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.id);
+                    return { participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
                 })
-                .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches);
+                .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches)
+                .map(item => item.participant);
 
             if (qualified.length > targetQualifiers) {
                 qualified = qualified.slice(0, targetQualifiers);
@@ -654,9 +839,9 @@ async function generateFinalStage() {
                     tournament_id: tournamentId.value,
                     match_date: null,
                     participants: [
-                        { participant_id: qualified[i].participant_id, name: qualified[i].name, score: null, users: [] },
-                        { participant_id: qualified[qualified.length - 1 - i].participant_id, name: qualified[qualified.length - 1 - i].name, score: null, users: [] },
-                    ],
+                        participantToMatchParticipant(qualified[i]),
+                        participantToMatchParticipant(qualified[qualified.length - 1 - i]),
+                    ].filter((p): p is MatchParticipantSchema => p != null),
                     status: 'pending',
                     round: nextRound,
                     pool_id: undefined,
@@ -675,13 +860,17 @@ async function generateFinalStage() {
                 await createAndPersistMatch(match);
             }
         } else {
+            // Cas élimination
             const previousRoundMatches = matches.value.filter(
                 m => m.pool_id == null && m.round === currentRound.value
             );
             for (const match of previousRoundMatches) {
                 const winner = getMatchWinner(match);
                 if (winner) {
-                    qualified.push({ participant_id: winner.participant_id, name: winner.name, pool_id: 0 });
+                    const participant = tournamentStore.participants.find(p => p.id === winner.participant_id);
+                    if (participant) {
+                        qualified.push(participant);
+                    }
                 }
             }
 
@@ -693,20 +882,24 @@ async function generateFinalStage() {
             const nextMatches: Match[] = [];
             qualified = qualified
                 .map(participant => {
-                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === participant.pool_id);
-                    const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.participant_id);
-                    return { ...participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
+                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p =>
+                        matches.value.some(m => m.pool_id === p.pool_id && m.participants.some(p => p?.participant_id === participant.id))
+                    );
+                    const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.id);
+                    return { participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
                 })
-                .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches);
+                .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches)
+                .map(item => item.participant);
+
             for (let i = 0; i < qualified.length / 2; i++) {
                 nextMatches.push({
                     id: 0,
                     tournament_id: tournamentId.value,
                     match_date: null,
                     participants: [
-                        { participant_id: qualified[i].participant_id, name: qualified[i].name, score: null, users: [] },
-                        { participant_id: qualified[qualified.length - 1 - i].participant_id, name: qualified[qualified.length - 1 - i].name, score: null, users: [] },
-                    ],
+                        participantToMatchParticipant(qualified[i]),
+                        participantToMatchParticipant(qualified[qualified.length - 1 - i]),
+                    ].filter((p): p is MatchParticipantSchema => p != null),
                     status: 'pending',
                     round: nextRound,
                     pool_id: undefined,
@@ -745,13 +938,13 @@ async function createAndPersistMatch(match: Match, poolId?: number) {
         return;
     }
 
-    console.log("SAUVEGARDE MATCH : ", match.participants.map(p => p?.name).join(" vs "));
+    console.log("SAUVEGARDE MATCH : ", match.participants.map(p => p?.name).join(" vs "), "Round:", match.round, "Pool ID:", poolId);
 
     const payload: any = {
         tournament_id: tournamentId.value,
         participant_ids: participantIds,
         status: "pending",
-        round: match.round || 1,
+        round: match.round ?? 1, // Utiliser ?? pour préserver 0
     };
 
     if (poolId !== undefined && poolId !== null) {

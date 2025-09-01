@@ -27,8 +27,11 @@ export const useTournamentStore = defineStore('tournament', () => {
 
     // Fetch registered users
     const fetchRegisteredUsers = async (tournamentId: number) => {
+        const authStore = useAuthStore();
         try {
-            const { data } = await backendApi.get(`/tournaments/${tournamentId}/registered-users`);
+            const { data } = await backendApi.get(`/tournaments/${tournamentId}/registered-users`, {
+                headers: { Authorization: `Bearer ${authStore.token}` },
+            });
             registeredUsers.value = data;
         } catch (error) {
             console.error('Error fetching registered users:', error);

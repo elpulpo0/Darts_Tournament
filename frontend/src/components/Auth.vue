@@ -271,6 +271,7 @@ const fetchUser = async () => {
       refreshToken: authStore.refreshToken,
       email: authStore.email,
       name: response.data.name,
+      userId: response.data.id,
       scopes: response.data.scopes || []
     });
 
