@@ -89,43 +89,50 @@ async function onLevelChange(level: LogLevel) {
 </script>
 
 <template>
-    <div v-if="authStore.scopes.includes('admin')">
-        <div class="module">
-            <h2>System logs</h2>
+    <div v-if="authStore.isAuthenticated">
+        <div v-if="authStore.scopes.includes('admin')">
+            <div class="module">
+                <h2>System logs</h2>
 
-            <div>
-                <button v-for="level in logLevels"
-                    :class="['log-btn', `log-btn--${level}`, { active: selectedLevel === level }]"
-                    @click="onLevelChange(level)" :key="level">
-                    {{ level.toUpperCase() }}
-                </button>
+                <div>
+                    <button v-for="level in logLevels"
+                        :class="['log-btn', `log-btn--${level}`, { active: selectedLevel === level }]"
+                        @click="onLevelChange(level)" :key="level">
+                        {{ level.toUpperCase() }}
+                    </button>
 
+                </div>
+
+                <div v-if="currentFiles.length">
+                    <h3>Available files</h3>
+                    <ul>
+                        <li v-for="file in currentFiles" :key="file.filename">
+                            <strong style="cursor: pointer; color: #3af;" @click="loadLogFile(file)">
+                                📄 {{ file.filename }}
+                            </strong> — {{ (file.size_bytes / 1024).toFixed(1) }} KB
+                        </li>
+                    </ul>
+                </div>
+                <p v-else>No {{ selectedLevel }} file found.</p>
+
+                <div v-if="selectedFile">
+                    <h3>Log content : {{ selectedFile.filename }}</h3>
+                    <div v-if="loading">Loading...</div>
+
+                    <pre v-if="fileLines.length" class="log-output" v-html="formattedLines" />
+
+                </div>
             </div>
-
-            <div v-if="currentFiles.length">
-                <h3>Available files</h3>
-                <ul>
-                    <li v-for="file in currentFiles" :key="file.filename">
-                        <strong style="cursor: pointer; color: #3af;" @click="loadLogFile(file)">
-                            📄 {{ file.filename }}
-                        </strong> — {{ (file.size_bytes / 1024).toFixed(1) }} KB
-                    </li>
-                </ul>
-            </div>
-            <p v-else>No {{ selectedLevel }} file found.</p>
-
-            <div v-if="selectedFile">
-                <h3>Log content : {{ selectedFile.filename }}</h3>
-                <div v-if="loading">Loading...</div>
-
-                <pre v-if="fileLines.length" class="log-output" v-html="formattedLines" />
-
+        </div>
+        <div v-if="!authStore.scopes.includes('admin')">
+            <div class="module module-prel">
+                <p>Vous n'avez pas les droits suffisants pour accéder à cette section</p>
             </div>
         </div>
     </div>
-    <div v-else>
-        <h2>🔒 Login Required</h2>
-        <p>Please log in to access the application's features.</p>
+    <div v-else class="centered-block">
+        <h2>🔒 Connexion requise</h2>
+        <p>Veuillez vous connecter pour accéder aux fonctionnalités de l’application.</p>
     </div>
 </template>
 

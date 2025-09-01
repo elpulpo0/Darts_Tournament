@@ -1,271 +1,278 @@
 <template>
-    <div v-if="authStore.scopes.includes('admin')">
-        <div v-if="loading">Chargement...</div>
-        <div v-if="error" class="error">{{ error }}</div>
+    <div v-if="authStore.isAuthenticated">
+        <div v-if="authStore.scopes.includes('editor')">
+            <div v-if="loading">Chargement...</div>
+            <div v-if="error" class="error">{{ error }}</div>
 
-        <div v-if="tournament" class="module">
-            <h2>Gérer le tournoi</h2>
-            <div class="tournament-details">
-                <h3>Détails</h3>
-                <p>Nom : {{ tournament.name }}</p>
-                <p>Type : {{ tournament.type || 'Non défini' }}</p>
-                <p>Mode : {{ tournament.mode || 'Non défini' }}</p>
-                <p>Description : {{ tournament.description || 'Aucune description' }}</p>
-                <p>Date de début : {{ new Date(tournament.start_date.split('T')[0]).toLocaleDateString() }}</p>
-                <p>Statut : {{ tournament.status }}</p>
-                <button @click="startEditing">Modifier le tournoi</button>
-            </div>
+            <div v-if="tournament" class="module">
+                <h2>Gérer le tournoi</h2>
+                <div class="tournament-details">
+                    <h3>Détails</h3>
+                    <p>Nom : {{ tournament.name }}</p>
+                    <p>Type : {{ tournament.type || 'Non défini' }}</p>
+                    <p>Mode : {{ tournament.mode || 'Non défini' }}</p>
+                    <p>Description : {{ tournament.description || 'Aucune description' }}</p>
+                    <p>Date de début : {{ new Date(tournament.start_date.split('T')[0]).toLocaleDateString() }}</p>
+                    <p>Statut : {{ tournament.status }}</p>
+                    <button @click="startEditing">Modifier le tournoi</button>
+                </div>
 
-            <!-- Formulaire de modification du tournoi -->
-            <div v-if="isEditing" class="tournament-edit-form">
-                <h3>Modifier le tournoi</h3>
-                <label>Nom :
-                    <input v-model="editForm.name" class="form-input" />
-                </label>
-                <label>Description :
-                    <textarea v-model="editForm.description" class="form-input" />
-                </label>
-                <label>Date de début :
-                    <input v-model="editForm.start_date" type="date" class="form-input" />
-                </label>
-                <label>Type :
-                    <select v-model="editForm.type" class="form-input">
-                        <option value="pool">Poule</option>
-                        <option value="elimination">Élimination</option>
-                    </select>
-                </label>
-                <label>Mode :
-                    <select v-model="editForm.mode" class="form-input">
-                        <option value="single">Single</option>
-                        <option value="double">Double</option>
-                    </select>
-                </label>
-                <label>Statut :
-                    <select v-model="editForm.status" class="form-input">
-                        <option value="open">Ouvert</option>
-                        <option value="running">En cours</option>
-                        <option value="closed">Terminé</option>
-                    </select>
-                </label>
-                <button @click="updateTournament">Mettre à jour le tournoi</button>
-                <button @click="cancelEditing">Annuler</button>
-            </div>
+                <!-- Formulaire de modification du tournoi -->
+                <div v-if="isEditing" class="tournament-edit-form">
+                    <h3>Modifier le tournoi</h3>
+                    <label>Nom :
+                        <input v-model="editForm.name" class="form-input" />
+                    </label>
+                    <label>Description :
+                        <textarea v-model="editForm.description" class="form-input" />
+                    </label>
+                    <label>Date de début :
+                        <input v-model="editForm.start_date" type="date" class="form-input" />
+                    </label>
+                    <label>Type :
+                        <select v-model="editForm.type" class="form-input">
+                            <option value="pool">Poule</option>
+                            <option value="elimination">Élimination</option>
+                        </select>
+                    </label>
+                    <label>Mode :
+                        <select v-model="editForm.mode" class="form-input">
+                            <option value="single">Single</option>
+                            <option value="double">Double</option>
+                        </select>
+                    </label>
+                    <label>Statut :
+                        <select v-model="editForm.status" class="form-input">
+                            <option value="open">Ouvert</option>
+                            <option value="running">En cours</option>
+                            <option value="closed">Terminé</option>
+                        </select>
+                    </label>
+                    <button @click="updateTournament">Mettre à jour le tournoi</button>
+                    <button @click="cancelEditing">Annuler</button>
+                </div>
 
-            <button v-if="tournament && ['running', 'closed'].includes(tournament.status)" @click="openProjection">
-                Projeter l’arborescence
-            </button>
-
-            <div class="tournament-actions">
-                <button v-if="tournament.status === 'open'" @click="startLaunchingTournament(tournament.id)">
-                    Lancer
+                <button v-if="tournament && ['running', 'closed'].includes(tournament.status)" @click="openProjection">
+                    Projeter l’arborescence
                 </button>
-                <button v-if="tournament.status === 'running'" @click="closeTournament(tournament.id)">
-                    Clôturer
-                </button>
-                <button @click="deleteTournament">Supprimer</button>
-                <button @click="resetTournament(tournament.id)">Réinitialiser</button>
-            </div>
 
-            <!-- Formulaire de lancement du tournoi -->
-            <div v-if="launchingTournamentId === tournament.id" class="launch-form module">
-                <h4>Lancer {{ tournament.name }}</h4>
-                <label>Nombre de cibles disponibles (optionnel) :
-                    <input v-model.number="launchTargetCount" type="number" min="1" class="form-input" />
-                </label>
-                <label>Mode de type :
-                    <select v-model="launchTypeMode" class="form-input">
-                        <option value="auto">Sélection automatique</option>
-                        <option value="manual">Sélection manuelle</option>
-                    </select>
-                </label>
-                <label v-if="launchTypeMode === 'manual'">Type de tournoi :
-                    <select v-model="launchTournamentType" class="form-input">
-                        <option value="pool">Poule</option>
-                        <option value="elimination">Élimination</option>
-                    </select>
-                </label>
-                <button @click="launchTournament()">Lancer</button>
-                <button @click="cancelLaunchingTournament">Annuler</button>
-            </div>
+                <div class="tournament-actions">
+                    <button v-if="tournament.status === 'open'" @click="startLaunchingTournament(tournament.id)">
+                        Lancer
+                    </button>
+                    <button v-if="tournament.status === 'running'" @click="closeTournament(tournament.id)">
+                        Clôturer
+                    </button>
+                    <button @click="deleteTournament">Supprimer</button>
+                    <button @click="resetTournament(tournament.id)">Réinitialiser</button>
+                </div>
 
-            <div v-if="tournament.status === 'open'" class="participants-section">
-                <h4>Joueurs inscrits ({{ registeredUsersCount }})</h4>
-                <table v-if="tournamentStore.registeredUsers?.length">
-                    <thead>
-                        <tr>
-                            <th>Nom</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="user in tournamentStore.registeredUsers" :key="user.id">
-                            <td>{{ user.name }}</td>
-                            <td>
-                                <button title="Désinscrire ce joueur" class="delete-btn"
-                                    @click="unregisterPlayer(user.id, tournament.id)">✖️</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p v-else>Aucun joueur inscrit pour le moment.</p>
+                <!-- Formulaire de lancement du tournoi -->
+                <div v-if="launchingTournamentId === tournament.id" class="launch-form module">
+                    <h4>Lancer {{ tournament.name }}</h4>
+                    <label>Nombre de cibles disponibles (optionnel) :
+                        <input v-model.number="launchTargetCount" type="number" min="1" class="form-input" />
+                    </label>
+                    <label>Mode de type :
+                        <select v-model="launchTypeMode" class="form-input">
+                            <option value="auto">Sélection automatique</option>
+                            <option value="manual">Sélection manuelle</option>
+                        </select>
+                    </label>
+                    <label v-if="launchTypeMode === 'manual'">Type de tournoi :
+                        <select v-model="launchTournamentType" class="form-input">
+                            <option value="pool">Poule</option>
+                            <option value="elimination">Élimination</option>
+                        </select>
+                    </label>
+                    <button @click="launchTournament()">Lancer</button>
+                    <button @click="cancelLaunchingTournament">Annuler</button>
+                </div>
 
-                <div v-if="tournament.mode === 'double'" class="participants-section">
-                    <h4>Participants ({{ participantsCount }})</h4>
-                    <table v-if="tournamentStore.participants?.length">
+                <div v-if="tournament.status === 'open'" class="participants-section">
+                    <h4>Joueurs inscrits ({{ registeredUsersCount }})</h4>
+                    <table v-if="tournamentStore.registeredUsers?.length">
                         <thead>
                             <tr>
                                 <th>Nom</th>
-                                <th>Membres</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="participant in tournamentStore.participants" :key="participant.id">
-                                <td>{{ getParticipantDisplayName(participant) }}</td>
-                                <td>{{participant.users.map(u => u.name).join(' & ')}}</td>
+                            <tr v-for="user in tournamentStore.registeredUsers" :key="user.id">
+                                <td>{{ user.name }}</td>
                                 <td>
-                                    <button title="Supprimer ce participant" class="delete-btn"
-                                        @click="deleteParticipant(participant.id, tournament.id)">✖️</button>
+                                    <button title="Désinscrire ce joueur" class="delete-btn"
+                                        @click="unregisterPlayer(user.id, tournament.id)">✖️</button>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
-                    <p v-else>Aucun participant pour le moment.</p>
-                </div>
+                    <p v-else>Aucun joueur inscrit pour le moment.</p>
 
-                <button @click="startRegisteringPlayer(tournament.id)">
-                    Inscrire un joueur
-                </button>
-                <button v-if="tournament.mode === 'double'" @click="startCreatingParticipant(tournament.id)">
-                    Créer une équipe
-                </button>
+                    <div v-if="tournament.mode === 'double'" class="participants-section">
+                        <h4>Participants ({{ participantsCount }})</h4>
+                        <table v-if="tournamentStore.participants?.length">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Membres</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="participant in tournamentStore.participants" :key="participant.id">
+                                    <td>{{ getParticipantDisplayName(participant) }}</td>
+                                    <td>{{participant.users.map(u => u.name).join(' & ')}}</td>
+                                    <td>
+                                        <button title="Supprimer ce participant" class="delete-btn"
+                                            @click="deleteParticipant(participant.id, tournament.id)">✖️</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p v-else>Aucun participant pour le moment.</p>
+                    </div>
 
-                <!-- Formulaire d'inscription d'un joueur -->
-                <div v-if="registeringTournamentId === tournament.id" class="module">
-                    <h4>Inscrire un joueur pour {{ tournament.name }}</h4>
-                    <label>Choisir un joueur existant :
-                        <select v-model="selectedUserId">
-                            <option :value="null">-- Sélectionner --</option>
-                            <option v-for="user in selectableUsers" :value="user.id" :key="user.id">
-                                {{ user.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <div>
-                        <button :disabled="!selectedUserId"
-                            @click="registerExistingUserToTournament(selectedUserId, tournament.id)">
-                            Ajouter le joueur sélectionné
-                        </button>
-                        <button @click="cancelRegisteringPlayer">
-                            Fermer
-                        </button>
+                    <button @click="startRegisteringPlayer(tournament.id)">
+                        Inscrire un joueur
+                    </button>
+                    <button v-if="tournament.mode === 'double'" @click="startCreatingParticipant(tournament.id)">
+                        Créer une équipe
+                    </button>
+
+                    <!-- Formulaire d'inscription d'un joueur -->
+                    <div v-if="registeringTournamentId === tournament.id" class="module">
+                        <h4>Inscrire un joueur pour {{ tournament.name }}</h4>
+                        <label>Choisir un joueur existant :
+                            <select v-model="selectedUserId">
+                                <option :value="null">-- Sélectionner --</option>
+                                <option v-for="user in selectableUsers" :value="user.id" :key="user.id">
+                                    {{ user.name }}
+                                </option>
+                            </select>
+                        </label>
+                        <div>
+                            <button :disabled="!selectedUserId"
+                                @click="registerExistingUserToTournament(selectedUserId, tournament.id)">
+                                Ajouter le joueur sélectionné
+                            </button>
+                            <button @click="cancelRegisteringPlayer">
+                                Fermer
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Formulaire de création d'équipe (participant) -->
+                    <div v-if="creatingParticipantTournamentId === tournament.id" class="register-form module">
+                        <h4>Créer une équipe pour {{ tournament.name }}</h4>
+                        <label>Nom de l'équipe :
+                            <input v-model="newTeamName" required />
+                        </label>
+                        <label>Joueurs de l’équipe :
+                            <select v-model="selectedTeamUsers" multiple :size="selectableParticipantUsers.length">
+                                <option v-for="user in selectableParticipantUsers" :value="user.id" :key="user.id">
+                                    {{ user.name }}
+                                </option>
+                            </select>
+                        </label>
+                        <button @click="createParticipant(tournament.id)">Créer équipe</button>
+                        <button @click="cancelCreatingParticipant">Fermer</button>
                     </div>
                 </div>
 
-                <!-- Formulaire de création d'équipe (participant) -->
-                <div v-if="creatingParticipantTournamentId === tournament.id" class="register-form module">
-                    <h4>Créer une équipe pour {{ tournament.name }}</h4>
-                    <label>Nom de l'équipe :
-                        <input v-model="newTeamName" required />
-                    </label>
-                    <label>Joueurs de l’équipe :
-                        <select v-model="selectedTeamUsers" multiple :size="selectableParticipantUsers.length">
-                            <option v-for="user in selectableParticipantUsers" :value="user.id" :key="user.id">
-                                {{ user.name }}
-                            </option>
-                        </select>
-                    </label>
-                    <button @click="createParticipant(tournament.id)">Créer équipe</button>
-                    <button @click="cancelCreatingParticipant">Fermer</button>
+                <!-- Classements par poule -->
+                <h4 v-if="leaderboardsStore.poolsLeaderboard.length">Classements par poule</h4>
+                <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
+                <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
+                    leaderboardsStore.poolsLeaderboardError
+                }}</div>
+                <div v-if="leaderboardsStore.poolsLeaderboard.length">
+                    <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
+                        <h5>{{ poolLeaderboard.pool_name }}</h5>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Victoires (Principal)</th>
+                                    <th>Manches gagnées (Tiebreaker)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="entry in poolLeaderboard.leaderboard" :key="entry.participant_id">
+                                    <td>{{getParticipantDisplayName(tournamentStore.participants.find(p => p.id ===
+                                        entry.participant_id) ?? null)}}</td>
+                                    <td>{{ entry.wins }}</td>
+                                    <td>{{ entry.total_manches }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div v-if="tournament.status === 'running' || tournament.status === 'closed'" class="matches-section">
+                    <h4>Matchs</h4>
+                    <div v-for="round in Array.from({ length: currentRound + 1 }, (_, i) => i)" :key="round">
+                        <h5>{{ round === 0 ? 'Poules' : `Tour ${round}` }}</h5>
+                        <table
+                            v-if="matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round)).length">
+                            <thead>
+                                <tr>
+                                    <th>Participants</th>
+                                    <th>Statut</th>
+                                    <th>Scores</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="match in matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round && m.participants.length === 2))"
+                                    :key="match.id">
+                                    <td>
+                                        {{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
+                                    </td>
+                                    <td>{{ match.status }}</td>
+                                    <td>
+                                        <div v-if="match.status === 'completed'">
+                                            {{match.participants.map(p => p?.score ?? 'N/A').join(', ')}}
+                                        </div>
+                                        <div v-else class="score-inputs">
+                                            <input v-for="(_, index) in match.participants"
+                                                v-model="tempScores[match.id][index]" type="number" :key="index" />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button v-if="match.status === 'pending'" class="valid-btn"
+                                            title="Valider les scores" @click="updateMatch(match)">
+                                            ✔️
+                                        </button>
+                                        <button v-if="match.status === 'completed'" class="edit-btn"
+                                            title="Réinitialiser les scores" @click="cancelMatchScores(match.id)">
+                                            ✖️
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p v-else>Aucun match pour ce tour.</p>
+                    </div>
+
+                    <div v-if="isTournamentFinished && getTournamentWinner">
+                        <h4>Tournoi terminé !</h4>
+                        <p>Vainqueur : {{ getParticipantDisplayName(getTournamentWinner) }}</p>
+                    </div>
+                    <button v-else-if="isCurrentRoundFinished" @click="generateFinalStage">
+                        Générer le tour {{ currentRound === 0 ? 'des éliminatoires' : currentRound + 1 }}
+                    </button>
                 </div>
             </div>
-
-            <!-- Classements par poule -->
-            <h4 v-if="leaderboardsStore.poolsLeaderboard.length">Classements par poule</h4>
-            <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
-            <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{ leaderboardsStore.poolsLeaderboardError
-            }}</div>
-            <div v-if="leaderboardsStore.poolsLeaderboard.length">
-                <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
-                    <h5>{{ poolLeaderboard.pool_name }}</h5>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nom</th>
-                                <th>Victoires (Principal)</th>
-                                <th>Manches gagnées (Tiebreaker)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="entry in poolLeaderboard.leaderboard" :key="entry.participant_id">
-                                <td>{{getParticipantDisplayName(tournamentStore.participants.find(p => p.id ===
-                                    entry.participant_id) ?? null)}}</td>
-                                <td>{{ entry.wins }}</td>
-                                <td>{{ entry.total_manches }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div v-if="tournament.status === 'running' || tournament.status === 'closed'" class="matches-section">
-                <h4>Matchs</h4>
-                <div v-for="round in Array.from({ length: currentRound + 1 }, (_, i) => i)" :key="round">
-                    <h5>{{ round === 0 ? 'Poules' : `Tour ${round}` }}</h5>
-                    <table
-                        v-if="matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round)).length">
-                        <thead>
-                            <tr>
-                                <th>Participants</th>
-                                <th>Statut</th>
-                                <th>Scores</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="match in matches.filter(m => (round === 0 && m.pool_id != null) || (m.pool_id == null && m.round === round && m.participants.length === 2))"
-                                :key="match.id">
-                                <td>
-                                    {{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
-                                </td>
-                                <td>{{ match.status }}</td>
-                                <td>
-                                    <div v-if="match.status === 'completed'">
-                                        {{match.participants.map(p => p?.score ?? 'N/A').join(', ')}}
-                                    </div>
-                                    <div v-else class="score-inputs">
-                                        <input v-for="(_, index) in match.participants"
-                                            v-model="tempScores[match.id][index]" type="number" :key="index" />
-                                    </div>
-                                </td>
-                                <td>
-                                    <button v-if="match.status === 'pending'" class="valid-btn"
-                                        title="Valider les scores" @click="updateMatch(match)">
-                                        ✔️
-                                    </button>
-                                    <button v-if="match.status === 'completed'" class="edit-btn"
-                                        title="Réinitialiser les scores" @click="cancelMatchScores(match.id)">
-                                        ✖️
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <p v-else>Aucun match pour ce tour.</p>
-                </div>
-
-                <div v-if="isTournamentFinished && getTournamentWinner">
-                    <h4>Tournoi terminé !</h4>
-                    <p>Vainqueur : {{ getParticipantDisplayName(getTournamentWinner) }}</p>
-                </div>
-                <button v-else-if="isCurrentRoundFinished" @click="generateFinalStage">
-                    Générer le tour {{ currentRound === 0 ? 'des éliminatoires' : currentRound + 1 }}
-                </button>
+        </div>
+        <div v-if="!authStore.scopes.includes('editor')">
+            <div class="module module-prel">
+                <p>Vous n'avez pas les droits suffisants pour accéder à cette section</p>
             </div>
         </div>
     </div>
-
-    <div v-if="!authStore.isAuthenticated" class="centered-block">
+    <div v-else class="centered-block">
         <h2>🔒 Connexion requise</h2>
         <p>Veuillez vous connecter pour gérer les tournois.</p>
     </div>

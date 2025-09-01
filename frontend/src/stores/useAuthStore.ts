@@ -2,8 +2,10 @@ import { defineStore } from 'pinia';
 import { useStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import backendApi from '../axios/backendApi';
+import { useRouter } from 'vue-router';
 
 export const useAuthStore = defineStore('auth', () => {
+  const router = useRouter();
   const scopes = useStorage<string[]>('scopes', [], localStorage, {
     serializer: {
       read: (v) => (v ? JSON.parse(v) : []),
@@ -43,10 +45,11 @@ export const useAuthStore = defineStore('auth', () => {
     email.value = '';
     name.value = '';
     scopes.value = [];
+    router.push('/');
   };
 
   const isAuthenticated = computed(() => {
-    return !!token.value;
+    return !!token.value && isTokenValid(token.value);
   });
 
   const proxyAuthToken = ref<string | null>(null);

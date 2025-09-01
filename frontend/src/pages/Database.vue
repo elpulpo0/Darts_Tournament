@@ -237,142 +237,149 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="authStore.scopes.includes('admin')">
-    <div class="module">
-      <div class="backup-group">
-        <h2>Backups</h2>
-        <button :disabled="backupLoading" @click="doBackup">
-          {{ backupLoading ? 'Backing up...' : 'Create backup' }}
-        </button>
-        <p v-if="backupMessage" style="color: green;">{{ backupMessage }}</p>
-        <p v-if="backupError" style="color: red;">{{ backupError }}</p>
+  <div v-if="authStore.isAuthenticated">
+    <div v-if="authStore.scopes.includes('admin')">
+      <div class="module">
+        <div class="backup-group">
+          <h2>Backups</h2>
+          <button :disabled="backupLoading" @click="doBackup">
+            {{ backupLoading ? 'Backing up...' : 'Create backup' }}
+          </button>
+          <p v-if="backupMessage" style="color: green;">{{ backupMessage }}</p>
+          <p v-if="backupError" style="color: red;">{{ backupError }}</p>
 
-        <p v-if="lastBackup && lastBackupDate">
-          Last backup : {{ lastBackupDate.toLocaleString() }}
-          ({{ formatRelativeDate(lastBackup.created_at) }})
-        </p>
-        <p v-else>No backup found</p>
+          <p v-if="lastBackup && lastBackupDate">
+            Last backup : {{ lastBackupDate.toLocaleString() }}
+            ({{ formatRelativeDate(lastBackup.created_at) }})
+          </p>
+          <p v-else>No backup found</p>
 
-        <h3>{{ backups.length }} backup(s) —
-          <span v-if="!showAll">(last 5 shown)</span>
-          <span v-else>(all shown)</span>
-        </h3>
+          <h3>{{ backups.length }} backup(s) —
+            <span v-if="!showAll">(last 5 shown)</span>
+            <span v-else>(all shown)</span>
+          </h3>
 
-        <button v-if="backups.length > 5" style="margin-top: 10px;" @click="showAll = !showAll">
-          {{ showAll ? 'Show less' : 'Show more' }}
-        </button>
+          <button v-if="backups.length > 5" style="margin-top: 10px;" @click="showAll = !showAll">
+            {{ showAll ? 'Show less' : 'Show more' }}
+          </button>
 
-        <ul v-if="backups && backups.length">
-          <li v-for="backup in visibleBackups" :key="backup.filename">
-            <strong>{{ backup.filename }}</strong> — created on {{ new Date(backup.created_at * 1000).toLocaleString()
-            }}
-            <span v-if="backup.size_bytes"> — {{ formatSize(backup.size_bytes) }}</span>
+          <ul v-if="backups && backups.length">
+            <li v-for="backup in visibleBackups" :key="backup.filename">
+              <strong>{{ backup.filename }}</strong> — created on {{ new Date(backup.created_at * 1000).toLocaleString()
+              }}
+              <span v-if="backup.size_bytes"> — {{ formatSize(backup.size_bytes) }}</span>
 
-            <span role="button" tabindex="0" style="margin-left: 10px; color: red; cursor: pointer;"
-              title="Delete backup" @click="confirmDelete(backup.filename)">
-              🗑
-            </span>
-            <span role="button" tabindex="0" style="margin-left: 10px; color: var(--color-accent); cursor: pointer;"
-              title="Download backup" @click="downloadBackup(backup.filename)">
-              ⬇
-            </span>
-          </li>
-          <p>Total backup size : {{ formatSize(totalBackupSize) }}</p>
-        </ul>
+              <span role="button" tabindex="0" style="margin-left: 10px; color: red; cursor: pointer;"
+                title="Delete backup" @click="confirmDelete(backup.filename)">
+                🗑
+              </span>
+              <span role="button" tabindex="0" style="margin-left: 10px; color: var(--color-accent); cursor: pointer;"
+                title="Download backup" @click="downloadBackup(backup.filename)">
+                ⬇
+              </span>
+            </li>
+            <p>Total backup size : {{ formatSize(totalBackupSize) }}</p>
+          </ul>
 
-        <p v-else>No backups available</p>
+          <p v-else>No backups available</p>
 
-        <div v-if="disk">
-          <h4>Disk space</h4>
-          <progress :value="diskUsage" max="100" :style="{
-            accentColor:
-              diskUsage < 70 ? 'green' : diskUsage < 90 ? 'orange' : 'red'
-          }" />
+          <div v-if="disk">
+            <h4>Disk space</h4>
+            <progress :value="diskUsage" max="100" :style="{
+              accentColor:
+                diskUsage < 70 ? 'green' : diskUsage < 90 ? 'orange' : 'red'
+            }" />
 
-          <p>{{ formatSize(disk.free_bytes) }} free out of {{ formatSize(disk.total_bytes) }} ({{
-            diskUsage.toFixed(2)
-          }}% used)</p>
+            <p>{{ formatSize(disk.free_bytes) }} free out of {{ formatSize(disk.total_bytes) }} ({{
+              diskUsage.toFixed(2)
+            }}% used)</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div v-if="showDeleteModal" class="modal-overlay">
-      <div class="modal-content">
-        <p>Delete backup<strong>{{ backupToDelete }}</strong> ?</p>
-        <button style="color: red;" @click="deleteBackupConfirmed">Yes, delete</button>
-        <button @click="cancelDelete">Cancel</button>
+      <div v-if="showDeleteModal" class="modal-overlay">
+        <div class="modal-content">
+          <p>Delete backup<strong>{{ backupToDelete }}</strong> ?</p>
+          <button style="color: red;" @click="deleteBackupConfirmed">Yes, delete</button>
+          <button @click="cancelDelete">Cancel</button>
+        </div>
+      </div>
+
+      <div class="module">
+        <h2>Database Health Status</h2>
+        <div v-if="healthLoading">Loading...</div>
+        <div v-if="healthError" style="color: red;">{{ healthError }}</div>
+
+        <table v-if="health && !healthLoading">
+          <tbody>
+            <tr>
+              <th>Integrity Check</th>
+              <td>{{ health.integrity_check }}</td>
+            </tr>
+            <tr>
+              <th>Page Count</th>
+              <td>{{ health.page_count }}</td>
+            </tr>
+            <tr>
+              <th>Page Size (bytes)</th>
+              <td>{{ health.page_size }}</td>
+            </tr>
+            <tr>
+              <th>Calculated Size (bytes)</th>
+              <td>{{ health.calculated_size_bytes }}</td>
+            </tr>
+            <tr>
+              <th>File Size (bytes)</th>
+              <td>{{ health.file_size_bytes ?? 'N/A' }}</td>
+            </tr>
+            <tr>
+              <th>Free Pages (freelist_count)</th>
+              <td>{{ health.freelist_count }}</td>
+            </tr>
+            <tr>
+              <th>Journal Mode</th>
+              <td>{{ health.journal_mode }}</td>
+            </tr>
+            <tr>
+              <th>Synchronous mode</th>
+              <td>{{ health.synchronous }}</td>
+            </tr>
+            <tr>
+              <th>SQLite Version</th>
+              <td>{{ health.sqlite_version }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="module">
+        <h2>Tables and Number of Rows</h2>
+        <div v-if="tablesLoading">Loading...</div>
+        <div v-if="tablesError" style="color: red;">{{ tablesError }}</div>
+        <table v-if="tables.length && !tablesLoading">
+          <thead>
+            <tr>
+              <th>Table name</th>
+              <th>Number of rows</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="table in tables" :key="table.table">
+              <td>{{ table.table }}</td>
+              <td>{{ table.rows !== null ? table.rows : 'Erreur' }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
-
-    <div class="module">
-      <h2>Database Health Status</h2>
-      <div v-if="healthLoading">Loading...</div>
-      <div v-if="healthError" style="color: red;">{{ healthError }}</div>
-
-      <table v-if="health && !healthLoading">
-        <tbody>
-          <tr>
-            <th>Integrity Check</th>
-            <td>{{ health.integrity_check }}</td>
-          </tr>
-          <tr>
-            <th>Page Count</th>
-            <td>{{ health.page_count }}</td>
-          </tr>
-          <tr>
-            <th>Page Size (bytes)</th>
-            <td>{{ health.page_size }}</td>
-          </tr>
-          <tr>
-            <th>Calculated Size (bytes)</th>
-            <td>{{ health.calculated_size_bytes }}</td>
-          </tr>
-          <tr>
-            <th>File Size (bytes)</th>
-            <td>{{ health.file_size_bytes ?? 'N/A' }}</td>
-          </tr>
-          <tr>
-            <th>Free Pages (freelist_count)</th>
-            <td>{{ health.freelist_count }}</td>
-          </tr>
-          <tr>
-            <th>Journal Mode</th>
-            <td>{{ health.journal_mode }}</td>
-          </tr>
-          <tr>
-            <th>Synchronous mode</th>
-            <td>{{ health.synchronous }}</td>
-          </tr>
-          <tr>
-            <th>SQLite Version</th>
-            <td>{{ health.sqlite_version }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="module">
-      <h2>Tables and Number of Rows</h2>
-      <div v-if="tablesLoading">Loading...</div>
-      <div v-if="tablesError" style="color: red;">{{ tablesError }}</div>
-      <table v-if="tables.length && !tablesLoading">
-        <thead>
-          <tr>
-            <th>Table name</th>
-            <th>Number of rows</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="table in tables" :key="table.table">
-            <td>{{ table.table }}</td>
-            <td>{{ table.rows !== null ? table.rows : 'Erreur' }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <div v-if="!authStore.scopes.includes('admin')">
+      <div class="module module-prel">
+        <p>Vous n'avez pas les droits suffisants pour accéder à cette section</p>
+      </div>
     </div>
   </div>
-  <div v-else>
-    <h2>🔒 Login Required</h2>
-    <p>Please log in to access the application's features.</p>
+  <div v-else class="centered-block">
+    <h2>🔒 Connexion requise</h2>
+    <p>Veuillez vous connecter pour accéder aux fonctionnalités de l’application.</p>
   </div>
 </template>

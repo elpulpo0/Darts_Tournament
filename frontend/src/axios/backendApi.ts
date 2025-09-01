@@ -6,43 +6,22 @@ const backendApi = axios.create({
   baseURL: backend_url,
 });
 
-// Intercepteur de requête pour ajouter le token
-backendApi.interceptors.request.use(
-  async (config) => {
-    const authStore = useAuthStore();
-    if (config.url !== '/auth/refresh' && config.url !== '/auth/login') {
-      if (!authStore.token || !authStore.isTokenValid(authStore.token)) {
-        const refreshed = await authStore.refreshAccessToken();
-        if (!refreshed) {
-          console.warn('Aucun token valide disponible pour la requête:', config.url);
-        }
-      }
-    }
-    if (authStore.token) {
-      config.headers['Authorization'] = `Bearer ${authStore.token}`;  // Note: Pour refresh, headers manuels overrident
-    } else {
-      console.warn('Aucun token disponible pour la requête:', config.url);
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Intercepteur de réponse existant
 backendApi.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response) {
       if (error.response.status === 401 && !error.config._retry) {
         const authStore = useAuthStore();
-        error.config._retry = true;
+        error.config._retry = true; // Mark request as retried to prevent infinite loops
 
-        // Tenter de rafraîchir le token
+        // Attempt to refresh the token
         const refreshed = await authStore.refreshAccessToken();
         if (refreshed) {
+          // Update the Authorization header with the new access token
           error.config.headers['Authorization'] = `Bearer ${authStore.token}`;
-          return backendApi(error.config); // Réessayer la requête
+          return backendApi(error.config); // Retry the original request
         } else {
+          // Refresh failed, log out
           authStore.logout();
           console.error('Échec de la réactualisation du token, déconnexion.');
         }

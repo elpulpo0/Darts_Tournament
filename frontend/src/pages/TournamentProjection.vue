@@ -62,7 +62,7 @@ const getRoundName = computed(() => {
 </script>
 
 <template>
-    <div class="projection-root">
+    <div v-if="authStore.isAuthenticated" class="projection-root">
         <h2>Projection du tournoi : {{ tournamentStore.tournamentDetail?.name }}</h2>
         <div v-if="tournamentStore.loading">Chargement...</div>
         <div v-else>
@@ -162,6 +162,10 @@ const getRoundName = computed(() => {
                 </table>
             </div>
         </div>
+    </div>
+    <div v-else class="centered-block">
+        <h2>🔒 Connexion requise</h2>
+        <p>Veuillez vous connecter pour accéder à ce tournoi.</p>
     </div>
 </template>
 

@@ -257,31 +257,21 @@ const updateProfile = async () => {
 };
 
 const fetchUser = async () => {
-  if (isFetchingUser) {
+  if (isFetchingUser || !authStore.isAuthenticated) {
     return;
   }
   isFetchingUser = true;
   try {
-    let accessToken = authStore.token;
-    if (!accessToken) throw new Error('Pas de token');
-
-    if (isTokenExpired(accessToken) && authStore.refreshToken) {
-      const refreshed = await authStore.refreshAccessToken();
-      if (!refreshed) throw new Error('Erreur lors du refresh');
-      accessToken = authStore.token;
-    }
-
     const response = await backendApi.get(`/users/users/me`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
+      headers: { Authorization: `Bearer ${authStore.token}` }
     });
 
     authStore.setAuthData({
-      token: accessToken,
+      token: authStore.token,
       refreshToken: authStore.refreshToken,
       email: authStore.email,
       name: response.data.name,
-      userId: response.data.id,
-      scopes: response.data.scopes
+      scopes: response.data.scopes || []
     });
 
     user.value = {
@@ -292,7 +282,7 @@ const fetchUser = async () => {
     };
   } catch (error) {
     console.error('Fetch user error:', error);
-    errorMessage.value = 'Session expirée';
+    errorMessage.value = "Session expirée";
     handleLogout();
   } finally {
     isFetchingUser = false;
@@ -300,10 +290,6 @@ const fetchUser = async () => {
 };
 
 const handleLogout = () => {
-  if (tokenCheckInterval.value) {
-    clearInterval(tokenCheckInterval.value);
-    tokenCheckInterval.value = null;
-  }
   authStore.logout();
   user.value = null;
   resetMessages();
@@ -349,7 +335,7 @@ watch(() => authStore.token, async (newToken) => {
 
 <template>
   <div :class="['auth-container', { 'wide': showEditForm }]">
-    <div v-if="!authStore.token" class="auth-form">
+    <div v-if="!authStore.isAuthenticated" class="auth-form">
       <h2 v-if="!isRegistering">Connexion</h2>
       <h2 v-else>Créer un compte</h2>
 

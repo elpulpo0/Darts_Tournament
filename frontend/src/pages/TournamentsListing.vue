@@ -74,7 +74,7 @@
         </div>
     </div>
 
-    <div v-if="!authStore.isAuthenticated" class="centered-block">
+    <div v-else class="centered-block">
         <h2>🔒 Connexion requise</h2>
         <p>Veuillez vous connecter pour voir les informations des tournois.</p>
     </div>
