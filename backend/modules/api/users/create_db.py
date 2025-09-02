@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from modules.api.auth.security import hash_password
+# from modules.api.auth.security import hash_password
 from utils.logger_config import configure_logger
 from modules.api.users.models import User, Role
 from modules.database.config import USERS_DATABASE_PATH, INITIAL_USERS_CONFIG_PATH
@@ -23,7 +23,7 @@ def init_users_db():
         logger.info("The 'users' database does not exist. Creating it...")
         UsersBase.metadata.create_all(bind=users_engine)
         logger.info("The 'users' database was successfully created.")
-    
+
     sync_users_from_yaml()
 
 
@@ -74,9 +74,13 @@ def sync_users_from_yaml():
                 db.add(user)
                 db.commit()
                 db.refresh(user)
-                logger.info(f"User '{user.name}' was successfully added from YAML config.")
+                logger.info(
+                    f"User '{user.name}' was successfully added from YAML config."
+                )
             else:
-                logger.debug(f"User with email '{user_cfg['email']}' already exists in the database.")
+                logger.debug(
+                    f"User with email '{user_cfg['email']}' already exists in the database."
+                )
 
     except Exception as e:
         db.rollback()

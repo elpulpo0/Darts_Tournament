@@ -210,6 +210,8 @@
                     </div>
                 </div>
 
+                <p>{{matches.filter(m => m.status === 'pending').length}} matchs en attente de validation.</p>
+
                 <div v-if="tournament.status === 'running' || tournament.status === 'closed'" class="matches-section">
                     <h4>Matchs</h4>
                     <!-- Section Barrage -->
@@ -218,6 +220,7 @@
                         <table>
                             <thead>
                                 <tr>
+                                    <th>Cible</th>
                                     <th>Participants</th>
                                     <th>Statut</th>
                                     <th>Scores</th>
@@ -225,8 +228,9 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="match in matches.filter(m => m.round === 0 && m.pool_id == null && m.participants.length === 2)"
+                                <tr v-for="(match, index) in matches.filter(m => m.round === 0 && m.pool_id == null && m.participants.length === 2)"
                                     :key="match.id">
+                                    <td>{{ getTargetNumber(index, launchTargetCount) }}</td>
                                     <td>{{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
                                     </td>
                                     <td>{{ match.status }}</td>
@@ -253,48 +257,11 @@
                     <!-- Section Poules -->
                     <div v-if="poolIds.length">
                         <h5>Poules</h5>
-                        <table v-if="matches.filter(m => m.pool_id != null).length">
-                            <thead>
-                                <tr>
-                                    <th>Participants</th>
-                                    <th>Statut</th>
-                                    <th>Scores</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="match in matches.filter(m => m.pool_id != null && m.participants.length === 2)"
-                                    :key="match.id">
-                                    <td>{{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
-                                    </td>
-                                    <td>{{ match.status }}</td>
-                                    <td>
-                                        <div v-if="match.status === 'completed'">
-                                            {{match.participants.map(p => p?.score ?? 'N/A').join(', ')}}
-                                        </div>
-                                        <div v-else class="score-inputs">
-                                            <input v-for="(_, index) in match.participants"
-                                                v-model="tempScores[match.id][index]" type="number" :key="index" />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <button v-if="match.status === 'pending'" class="valid-btn"
-                                            title="Valider les scores" @click="updateMatch(match)">✔️</button>
-                                        <button v-if="match.status === 'completed'" class="edit-btn"
-                                            title="Réinitialiser les scores"
-                                            @click="cancelMatchScores(match.id)">✖️</button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <p v-else>Aucun match pour les poules.</p>
-                    </div>
-                    <!-- Section Tours d'élimination -->
-                    <div v-if="currentRound > 0">
-                        <div v-for="round in Array.from({ length: currentRound }, (_, i) => i + 1)" :key="round">
-                            <h5>Tour {{ round }}</h5>
+                        <div v-for="poolId in poolIds" :key="poolId">
+                            <h6>{{ getPoolName(poolId) }} (Cible {{ getTargetNumber(poolId, launchTargetCount) }})
+                            </h6>
                             <table
-                                v-if="matches.filter(m => m.pool_id == null && m.round === round && m.participants.length === 2).length">
+                                v-if="matches.filter(m => m.pool_id === poolId && m.participants.length === 2).length">
                                 <thead>
                                     <tr>
                                         <th>Participants</th>
@@ -304,8 +271,54 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="match in matches.filter(m => m.pool_id == null && m.round === round && m.participants.length === 2)"
+                                    <tr v-for="match in matches.filter(m => m.pool_id === poolId && m.participants.length === 2)"
                                         :key="match.id">
+                                        <td>{{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
+                                        </td>
+                                        <td>{{ match.status }}</td>
+                                        <td>
+                                            <div v-if="match.status === 'completed'">
+                                                {{match.participants.map(p => p?.score ?? 'N/A').join(', ')}}
+                                            </div>
+                                            <div v-else class="score-inputs">
+                                                <input v-for="(_, index) in match.participants"
+                                                    v-model="tempScores[match.id][index]" type="number"
+                                                    @keyup.enter="updateMatch(match)" :key="index" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button v-if="match.status === 'pending'" class="valid-btn"
+                                                title="Valider les scores" @click="updateMatch(match)">✔️</button>
+                                            <button v-if="match.status === 'completed'" class="edit-btn"
+                                                title="Réinitialiser les scores"
+                                                @click="cancelMatchScores(match.id)">✖️</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p v-else>Aucun match pour {{ getPoolName(poolId) }}.</p>
+                        </div>
+                    </div>
+
+                    <!-- Section Tours d'élimination -->
+                    <div v-if="currentRound > 0">
+                        <div v-for="round in Array.from({ length: currentRound }, (_, i) => i + 1)" :key="round">
+                            <h5>Tour {{ round }}</h5>
+                            <table
+                                v-if="matches.filter(m => m.pool_id == null && m.round === round && m.participants.length === 2).length">
+                                <thead>
+                                    <tr>
+                                        <th>Cible</th>
+                                        <th>Participants</th>
+                                        <th>Statut</th>
+                                        <th>Scores</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(match, index) in matches.filter(m => m.pool_id == null && m.round === round && m.participants.length === 2)"
+                                        :key="match.id">
+                                        <td>{{ getNonPoolTargetNumber(index, launchTargetCount) }}</td>
                                         <td>{{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
                                         </td>
                                         <td>{{ match.status }}</td>
@@ -403,6 +416,26 @@ const hasBarrage = computed(() => {
     console.log('hasBarrage:', result, 'Matches with round 0 and pool_id null:', matches.value.filter(m => m.round === 0 && m.pool_id == null));
     return result;
 });
+
+// Fonction pour obtenir le numéro de la cible en fonction du pool_id
+const getTargetNumber = (poolId: number | undefined, totalTargets: number): number => {
+    if (!poolId || totalTargets <= 0) return 1; // Par défaut pour les matchs sans poule
+    const poolIndex = poolIds.value.indexOf(poolId); // Index de la poule dans poolIds
+    if (poolIndex === -1) return 1; // Fallback si poule non trouvée
+    return (poolIndex % totalTargets) + 1; // Associe la poule à une cible (1 à totalTargets)
+};
+
+// Fonction pour les matchs hors poules (barrage et élimination)
+const getNonPoolTargetNumber = (matchIndex: number, totalTargets: number): number => {
+    if (totalTargets <= 0) return 1;
+    return (matchIndex % totalTargets) + 1;
+};
+
+const getPoolName = (poolId: number | undefined): string => {
+    if (!poolId) return 'N/A';
+    const pool = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolId);
+    return pool?.pool_name || `Poule ${poolId}`;
+};
 
 const poolIds = computed(() => {
     const ids = matches.value.map(m => m.pool_id).filter(id => id != null);
@@ -617,29 +650,45 @@ const launchTournament = async () => {
 
         const N = participants.length;
         let useBarrage = N > 32;
-        const effectiveN = useBarrage ? 32 : N;  // Utilisé pour calculer le type/numPools de la phase principale
+        const effectiveN = useBarrage ? 32 : N;
 
         let tournamentType: 'pool' | 'elimination';
-        let numPools: number = 1;
+        let numPools: number;
+
+        // Définir des bornes pour le nombre de joueurs par poule (par exemple, 4 à 8 joueurs)
+        const minPlayersPerPool = 4;
+        const maxPlayersPerPool = 8;
+
+        // Calculer le nombre maximum de poules possibles (basé sur le minimum de joueurs par poule)
+        const maxPossiblePools = Math.floor(effectiveN / minPlayersPerPool);
+        // Calculer le nombre minimum de poules nécessaires (basé sur le maximum de joueurs par poule)
+        const minPossiblePools = Math.ceil(effectiveN / maxPlayersPerPool);
+
         if (launchTypeMode.value === 'manual') {
             tournamentType = launchTournamentType.value;
-            numPools = Math.max(1, Math.min(launchTargetCount.value, effectiveN));
-            if (tournamentType === 'elimination' && effectiveN % 2 !== 0) {
-                throw new Error("Nombre impair de participants non supporté en mode élimination sans ajustement");
+            if (tournamentType === 'elimination') {
+                numPools = 0; // Pas de poules en mode élimination
+                if (effectiveN % 2 !== 0) {
+                    throw new Error("Nombre impair de participants non supporté en mode élimination sans ajustement");
+                }
+            } else {
+                // Utiliser launchTargetCount, mais limiter entre minPossiblePools et maxPossiblePools
+                numPools = Math.max(minPossiblePools, Math.min(launchTargetCount.value, maxPossiblePools));
             }
         } else {
+            // Mode automatique : utiliser launchTargetCount si défini, sinon fallback sur une logique par défaut
             if (effectiveN <= 4) {
                 tournamentType = 'elimination';
                 numPools = 0;
-            } else if (effectiveN <= 12) {
-                tournamentType = 'pool';
-                numPools = effectiveN === 5 ? 1 : 2;
-            } else if (effectiveN <= 24) {
-                tournamentType = 'pool';
-                numPools = Math.ceil(effectiveN / 5);
             } else {
                 tournamentType = 'pool';
-                numPools = Math.ceil(effectiveN / 8);
+                // Si launchTargetCount est défini (> 0), l'utiliser, sinon fallback sur la logique par défaut
+                if (launchTargetCount.value > 0) {
+                    numPools = Math.max(minPossiblePools, Math.min(launchTargetCount.value, maxPossiblePools));
+                } else {
+                    // Logique par défaut : essayer d'avoir environ 4 à 8 joueurs par poule
+                    numPools = Math.max(minPossiblePools, Math.min(Math.ceil(effectiveN / 6), maxPossiblePools));
+                }
             }
         }
 
@@ -668,7 +717,6 @@ const launchTournament = async () => {
             }
             console.log(`Barrage généré : ${excess} matchs pour réduire à 32.`);
         } else {
-            // Phase principale immédiate (comme avant)
             if (tournamentType === 'pool') {
                 const pools = createPools(participants, numPools);
                 const poolIdMap: Record<number, number> = {};

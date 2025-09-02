@@ -101,10 +101,8 @@ button:hover {
     display: flex;
     gap: 10px;
     justify-content: center;
-}
-
-.score-inputs input {
-    width: 60px;
+    margin-top: 10px;
+    width: 100%;
     text-align: center;
 }
 
@@ -128,11 +126,9 @@ input, select {
   background-color: var(--color-bg);;
   color: var(--color-fg);
   border: 1px solid var(--color-fg);
-  width: 95%;
+  width: 100%;
   padding: 12px;
   margin-bottom: 10px;
-  margin-left: auto;
-  margin-right: auto;
   display: block;
   border-radius: var(--radius);
   box-sizing: border-box;
