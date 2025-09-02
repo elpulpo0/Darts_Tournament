@@ -210,6 +210,7 @@ watch(
         <thead>
           <tr>
             <th class="recoltes small" data-label="Name">Name</th>
+            <th class="recoltes small" data-label="Email">Email</th>
             <th class="recoltes small" data-label="Role">Role</th>
             <th class="recoltes small" data-label="Active">Active</th>
             <th class="recoltes small" data-label="Last Session">Last Session</th>
@@ -219,6 +220,7 @@ watch(
         <tbody>
           <tr v-for="user in users" :key="user.id">
             <td data-label="Name">{{ user.name.charAt(0).toUpperCase() + user.name.slice(1) }}</td>
+            <td data-label="Email">{{ user.email }}</td>
             <td data-label="Role">{{ user.role }}</td>
             <td data-label="Active">
               <span v-if="user.is_active">✔️</span>
