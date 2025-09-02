@@ -22,10 +22,9 @@ onMounted(() => {
 const finalMatches = computed(() => tournamentStore.tournamentDetail?.final_matches || [] as MatchDetailSchema[]);
 const maxRounds = computed(() => {
     const highestRound = Math.max(...finalMatches.value.map((m: MatchDetailSchema) => m.round || 0), 0);
-    return highestRound > 0 ? highestRound : 1; // Ensure at least 1 round for display
+    return highestRound > 0 ? highestRound : 1;
 });
 
-// Organize matches by round for bracket display
 const matchesByRound = computed(() => {
     const rounds: { [key: number]: MatchDetailSchema[] } = {};
     for (let i = 1; i <= maxRounds.value; i++) {
@@ -34,7 +33,6 @@ const matchesByRound = computed(() => {
     return rounds;
 });
 
-// Calculate total elimination rounds based on first round matches
 const totalEliminationRounds = computed(() => {
     const firstRoundMatches = matchesByRound.value[1]?.length || 0;
     if (firstRoundMatches === 0) return 1;
@@ -42,7 +40,6 @@ const totalEliminationRounds = computed(() => {
     return Math.ceil(Math.log2(numPlayers));
 });
 
-// Map round numbers to names
 const getRoundName = computed(() => {
     const roundNames = [
         'Finale',
@@ -58,6 +55,27 @@ const getRoundName = computed(() => {
         return roundIndex >= 0 && roundIndex < roundNames.length ? roundNames[roundIndex] : `Tour ${round}`;
     };
 });
+
+const baseGap = 0.6;
+const baseH = 5.2;
+
+const gaps = computed(() => {
+    const g: { [key: number]: number } = {};
+    g[1] = baseGap;
+    for (let r = 2; r <= maxRounds.value; r++) {
+        g[r] = 2 * g[r - 1] + baseH;
+    }
+    return g;
+});
+
+const paddings = computed(() => {
+    const p: { [key: number]: number } = {};
+    p[1] = 0;
+    for (let r = 2; r <= maxRounds.value; r++) {
+        p[r] = p[r - 1] + (baseH / 2) + (gaps.value[r - 1] / 2);
+    }
+    return p;
+});
 </script>
 
 <template>
@@ -65,31 +83,31 @@ const getRoundName = computed(() => {
         <h2 class="tournament-title">{{ tournamentStore.tournamentDetail?.name }}</h2>
         <div v-if="tournamentStore.loading">Chargement...</div>
         <div v-else class="content-wrapper">
-            <!-- Pools and Leaderboards (Left Side) -->
-            <div class="pools-leaderboard">
-                <!-- Pools -->
-                <div v-if="tournamentStore.tournamentDetail?.pools?.length" class="pools-block">
-                    <h3>Poules</h3>
-                    <div class="pool-cards">
-                        <div v-for="pool in tournamentStore.tournamentDetail.pools" class="pool-tile" :key="pool.id">
-                            <h4>{{ pool.name || `Poule ${pool.id}` }}</h4>
-                            <div class="pool-participants">
-                                <span v-for="participant in pool.participants" class="participant-in-pool"
-                                    :key="participant.participant_id">
-                                    {{ participant.name }}
-                                    <span v-if="participant.users?.length > 1">
-                                        ({{participant.users.map(u => u.name).join(' & ')}})
-                                    </span>
+            <!-- Pools -->
+            <div v-if="tournamentStore.tournamentDetail?.pools?.length" class="pools-block">
+                <h3>Poules</h3>
+                <div class="pool-cards">
+                    <div v-for="pool in tournamentStore.tournamentDetail.pools" class="pool-tile" :key="pool.id">
+                        <h4>{{ pool.name || `Poule ${pool.id}` }}</h4>
+                        <div class="pool-participants">
+                            <span v-for="participant in pool.participants" class="participant-in-pool"
+                                :key="participant.participant_id">
+                                {{ participant.name }}
+                                <span v-if="participant.users?.length > 1">
+                                    ({{participant.users.map(u => u.name).join(' & ')}})
                                 </span>
-                            </div>
+                            </span>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Leaderboards -->
-                <div v-if="leaderboardsStore.poolsLeaderboard.length" class="leaderboard-section">
-                    <h3>Classements</h3>
-                    <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
+            <!-- Leaderboards -->
+            <div v-if="leaderboardsStore.poolsLeaderboard.length" class="leaderboard-section">
+                <h3>Classements</h3>
+                <div class="leaderboard-container">
+                    <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" class="leaderboard-tile"
+                        :key="poolLeaderboard.pool_id">
                         <h4>{{ poolLeaderboard.pool_name }}</h4>
                         <table class="leaderboard-table">
                             <thead>
@@ -114,13 +132,17 @@ const getRoundName = computed(() => {
                 </div>
             </div>
 
-            <!-- Bracket (Right Side) -->
+            <!-- Bracket -->
             <div class="bracket-container">
-                <h3>Phases Finales</h3>
+                <h3>Tableau Final</h3>
                 <div class="bracket">
                     <div v-for="round in maxRounds" class="round" :key="round">
                         <h5>{{ getRoundName(round) }}</h5>
-                        <div class="matches">
+                        <div class="matches" :style="{
+                            gap: `${gaps[round]}em`,
+                            paddingTop: `${paddings[round]}em`,
+                            paddingBottom: `${paddings[round]}em`
+                        }">
                             <div v-for="match in matchesByRound[round]" class="match" :key="match.id">
                                 <div class="match-cell">
                                     <div v-for="participant in match.participants" class="participant-slot"
@@ -133,10 +155,6 @@ const getRoundName = computed(() => {
                                         </span>
                                         <span v-if="typeof participant?.score === 'number'" class="score">({{
                                             participant.score }})</span>
-                                    </div>
-                                    <div class="match-status">
-                                        <span v-if="match.status === 'completed'">Terminé</span>
-                                        <span v-else>En attente</span>
                                     </div>
                                 </div>
                             </div>
@@ -172,28 +190,19 @@ const getRoundName = computed(() => {
 
 .content-wrapper {
     display: flex;
-    flex: 1;
-    gap: 1em;
-    height: calc(100vh - 3em);
-    /* Adjust for title and padding */
-}
-
-.pools-leaderboard {
-    flex: 1;
-    display: flex;
     flex-direction: column;
-    gap: 0.5em;
-    overflow: hidden;
+    gap: 1em;
 }
 
 .pools-block,
-.leaderboard-section {
-    flex: 1;
-    overflow-y: auto;
+.leaderboard-section,
+.bracket-container {
+    width: 100%;
 }
 
 .pools-block h3,
-.leaderboard-section h3 {
+.leaderboard-section h3,
+.bracket-container h3 {
     font-size: 1.2em;
     margin-bottom: 0.3em;
     color: var(--color-main);
@@ -230,6 +239,17 @@ const getRoundName = computed(() => {
     padding: 0.1em 0.4em;
 }
 
+.leaderboard-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+}
+
+.leaderboard-tile {
+    flex: 1 1 200px;
+    max-width: 300px;
+}
+
 .leaderboard-table {
     width: 100%;
     border-collapse: collapse;
@@ -253,29 +273,25 @@ const getRoundName = computed(() => {
 }
 
 .bracket-container {
-    flex: 2;
     display: flex;
     flex-direction: column;
 }
 
-.bracket-container h3 {
-    font-size: 1.2em;
-    margin-bottom: 0.3em;
-    color: var(--color-main);
-}
-
 .bracket {
-    flex: 1;
     display: flex;
     justify-content: flex-start;
     gap: 0.5em;
+    align-items: stretch;
+    overflow-x: auto;
+    padding-bottom: 1em;
 }
 
 .round {
     flex: 0 1 auto;
     display: flex;
     flex-direction: column;
-    gap: 0.3em;
+    gap: 0.5em;
+    min-width: 200px;
 }
 
 .round h5 {
@@ -285,24 +301,23 @@ const getRoundName = computed(() => {
 }
 
 .matches {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 0.5em;
+    justify-content: flex-start;
 }
 
 .match {
     background: var(--color-bg-lighter);
     border-radius: 6px;
-    padding: 0.3em;
-    box-shadow: 0 1px 2px var(--color-light-shadow);
+    padding: 0.5em;
+    box-shadow: 0 4px 5px var(--color-fg-darker);
 }
 
 .match-cell {
     display: flex;
     flex-direction: column;
-    gap: 0.2em;
+    gap: 0.5em;
+    padding: 4px;
 }
 
 .participant-slot {
@@ -310,7 +325,7 @@ const getRoundName = computed(() => {
     justify-content: space-between;
     align-items: center;
     padding: 0.2em 0.4em;
-    background: var(--color-bg);
+    background: var(--color-fg-darker);
     border-radius: 4px;
 }
 
@@ -319,14 +334,9 @@ const getRoundName = computed(() => {
 }
 
 .score {
-    font-size: 0.7em;
+    font-size: 0.8em;
+    font-weight: bold;
     color: var(--color-link);
-}
-
-.match-status {
-    font-size: 0.7em;
-    color: var(--color-fg-darker);
-    text-align: center;
 }
 
 .centered-block {

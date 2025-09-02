@@ -186,7 +186,7 @@
                 <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
                 <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
                     leaderboardsStore.poolsLeaderboardError
-                }}</div>
+                    }}</div>
                 <div v-if="leaderboardsStore.poolsLeaderboard.length">
                     <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
                         <h5>{{ poolLeaderboard.pool_name }}</h5>
@@ -880,20 +880,25 @@ async function generateFinalStage() {
                 qualified = qualified.slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
             }
 
+            // Generate matches for round 1 by pairing consecutive winners
             const nextMatches: Match[] = [];
-            for (let i = 0; i < qualified.length / 2; i++) {
-                nextMatches.push({
-                    id: 0,
-                    tournament_id: tournamentId.value,
-                    match_date: null,
-                    participants: [
-                        participantToMatchParticipant(qualified[i]),
-                        participantToMatchParticipant(qualified[qualified.length - 1 - i]),
-                    ].filter((p): p is MatchParticipantSchema => p != null),
-                    status: 'pending',
-                    round: nextRound,
-                    pool_id: undefined,
-                });
+            for (let i = 0; i < qualified.length / 2; i += 2) {
+                const match1Winner = qualified[i];
+                const match2Winner = qualified[i + 1];
+                if (match1Winner && match2Winner) {
+                    nextMatches.push({
+                        id: 0,
+                        tournament_id: tournamentId.value,
+                        match_date: null,
+                        participants: [
+                            participantToMatchParticipant(match1Winner),
+                            participantToMatchParticipant(match2Winner),
+                        ].filter((p): p is MatchParticipantSchema => p != null),
+                        status: 'pending',
+                        round: nextRound,
+                        pool_id: undefined,
+                    });
+                }
             }
 
             if (nextMatches.length === 0) {
@@ -908,10 +913,11 @@ async function generateFinalStage() {
                 await createAndPersistMatch(match);
             }
         } else {
-            // Cas élimination
+            // Elimination phase: Pair winners of previous round matches sequentially
             const previousRoundMatches = matches.value.filter(
                 m => m.pool_id == null && m.round === currentRound.value
-            );
+            ).sort((a, b) => a.id - b.id); // Sort by match ID to ensure order
+
             for (const match of previousRoundMatches) {
                 const winner = getMatchWinner(match);
                 if (winner) {
@@ -927,31 +933,25 @@ async function generateFinalStage() {
                 return;
             }
 
+            // Pair winners sequentially: match 1 vs. match 2, match 3 vs. match 4, etc.
             const nextMatches: Match[] = [];
-            qualified = qualified
-                .map(participant => {
-                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p =>
-                        matches.value.some(m => m.pool_id === p.pool_id && m.participants.some(p => p?.participant_id === participant.id))
-                    );
-                    const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.id);
-                    return { participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
-                })
-                .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches)
-                .map(item => item.participant);
-
             for (let i = 0; i < qualified.length / 2; i++) {
-                nextMatches.push({
-                    id: 0,
-                    tournament_id: tournamentId.value,
-                    match_date: null,
-                    participants: [
-                        participantToMatchParticipant(qualified[i]),
-                        participantToMatchParticipant(qualified[qualified.length - 1 - i]),
-                    ].filter((p): p is MatchParticipantSchema => p != null),
-                    status: 'pending',
-                    round: nextRound,
-                    pool_id: undefined,
-                });
+                const match1Winner = qualified[2 * i];
+                const match2Winner = qualified[2 * i + 1];
+                if (match1Winner && match2Winner) {
+                    nextMatches.push({
+                        id: 0,
+                        tournament_id: tournamentId.value,
+                        match_date: null,
+                        participants: [
+                            participantToMatchParticipant(match1Winner),
+                            participantToMatchParticipant(match2Winner),
+                        ].filter((p): p is MatchParticipantSchema => p != null),
+                        status: 'pending',
+                        round: nextRound,
+                        pool_id: undefined,
+                    });
+                }
             }
 
             if (nextMatches.length === 0) {
