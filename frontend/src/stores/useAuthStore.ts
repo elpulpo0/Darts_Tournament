@@ -16,6 +16,8 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshToken = useStorage<string>('refreshToken', '');
   const email = useStorage<string>('email', '');
   const name = useStorage<string>('name', '');
+  const nickname = useStorage<string>('name', '');
+  const discord = useStorage<string>('name', '');
   const userId = useStorage<number | null>('userId', null, localStorage, {
     serializer: {
       read: (v) => (v ? JSON.parse(v) : null),
@@ -28,6 +30,8 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken?: string;
     email: string;
     name: string;
+    nickname: string;
+    discord: string;
     userId?: number;
     scopes: string[];
   }) => {
@@ -35,6 +39,8 @@ export const useAuthStore = defineStore('auth', () => {
     if (auth.refreshToken) refreshToken.value = auth.refreshToken;
     email.value = auth.email;
     name.value = auth.name;
+    nickname.value = auth.nickname
+    discord.value = auth.discord
     userId.value = auth.userId;
     scopes.value = auth.scopes;
   };
@@ -87,6 +93,8 @@ export const useAuthStore = defineStore('auth', () => {
           refreshToken: response.data.refresh_token,
           email: email.value,
           name: name.value,
+          nickname: nickname.value,
+          discord: discord.value,
           scopes: scopes.value
         });
         return true; // Refresh successful

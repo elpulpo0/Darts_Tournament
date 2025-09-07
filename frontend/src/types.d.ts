@@ -1,6 +1,8 @@
 interface User {
   id: number;
   name: string;
+  nickname: string;
+  discord: string;
 }
 
 type Participant = {

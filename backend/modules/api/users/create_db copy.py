@@ -52,7 +52,6 @@ def sync_users_from_yaml():
         for role_name in config.get("roles", []):
             if not db.query(Role).filter_by(role=role_name).first():
                 db.add(Role(role=role_name))
-        db.commit()
 
         roles = {role.role: role.id for role in db.query(Role).all()}
 
@@ -117,7 +116,7 @@ def sync_users_from_yaml():
             )
             db.add(user)
             logger.info(
-                f"User '{user.name or user.nickname or user.email or 'Unknown'}' created."
+                f"User '{user.name or user.nickname or user.email or 'Unknown'}' queued for addition."
             )
 
         db.commit()  # Commit all changes at once

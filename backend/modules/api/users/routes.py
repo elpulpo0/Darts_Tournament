@@ -37,6 +37,8 @@ def read_users_me(
     return UserResponse(
         id=user.id,
         name=user.name,
+        nickname=user.nickname,
+        discord=user.discord,
         email=user.email,
         is_active=user.is_active,
         role=user.role.role,
@@ -67,6 +69,8 @@ def get_user(
     return UserResponse(
         id=user.id,
         name=user.name,
+        nickname=user.nickname,
+        discord=user.discord,
         email=user.email,
         is_active=user.is_active,
         role=user.role.role,
@@ -90,6 +94,8 @@ def get_all_users(
             UserResponse(
                 id=user.id,
                 name=user.name,
+                nickname=user.nickname,
+                discord=user.discord,
                 email=user.email,
                 is_active=user.is_active,
                 role=user.role.role,
@@ -130,7 +136,11 @@ def create_user(
     current_user: Optional[dict] = Depends(get_current_user_optional),
 ):
     # Check if the user is an admin
-    is_admin = current_user and current_user.get("scopes") and "admin" in current_user.get("scopes")
+    is_admin = (
+        current_user
+        and current_user.get("scopes")
+        and "admin" in current_user.get("scopes")
+    )
 
     # Validate email if provided and not admin
     if user_data.email and not is_admin:
@@ -145,6 +155,15 @@ def create_user(
     if existing_user_name:
         raise HTTPException(
             status_code=400, detail="A user with this name already exists."
+        )
+
+    # Check if a user with the nickname name already exists
+    existing_user_nickname = (
+        db.query(User).filter_by(nickname=user_data.nickname).first()
+    )
+    if existing_user_nickname:
+        raise HTTPException(
+            status_code=400, detail="A user with this nickname already exists."
         )
 
     # Validate password if provided and not admin
@@ -170,7 +189,11 @@ def create_user(
     new_user = User(
         email=user_data.email,
         name=user_data.name,
-        hashed_password=hash_password(user_data.password) if user_data.password else None,
+        nickname=user_data.nickname,
+        discord=user_data.discord,
+        hashed_password=hash_password(user_data.password)
+        if user_data.password
+        else None,
         role_id=role_obj.id,
         is_active=True,
     )
@@ -200,6 +223,8 @@ def create_user(
     return UserResponse(
         id=new_user.id,
         name=new_user.name,
+        nickname=new_user.nickname,
+        discord=new_user.discord,
         email=new_user.email,
         is_active=new_user.is_active,
         role=new_user.role.role,
@@ -229,6 +254,19 @@ def update_current_user(
                 status_code=400, detail="A user with this name already exists."
             )
 
+    # Check for duplicate nickname (excluding the current user)
+    if update_data.nickname and update_data.nickname != user.nickname:
+        existing_user_nickname = (
+            db.query(User)
+            .filter_by(nickname=update_data.nickname)
+            .filter(User.id != user.id)
+            .first()
+        )
+        if existing_user_nickname:
+            raise HTTPException(
+                status_code=400, detail="A user with this nickname already exists."
+            )
+
     # Check for duplicate email (if applicable)
     if update_data.email and update_data.email != user.email:
         existing_user_email = get_user_by_email(update_data.email, db)
@@ -240,6 +278,12 @@ def update_current_user(
     # Update fields
     if update_data.name:
         user.name = update_data.name
+
+    if update_data.nickname:
+        user.nickname = update_data.nickname
+
+    if update_data.discord:
+        user.discord = update_data.discord
 
     if update_data.email:
         user.email = anonymize(update_data.email)
@@ -253,6 +297,8 @@ def update_current_user(
     return UserResponse(
         id=user.id,
         name=user.name,
+        nickname=user.nickname,
+        discord=user.discord,
         email=user.email,
         is_active=user.is_active,
         role=user.role.role,
@@ -278,6 +324,12 @@ def admin_update_user(
     if update_data.name:
         user.name = update_data.name
 
+    if update_data.nickname:
+        user.nickname = update_data.nickname
+
+    if update_data.discord:
+        user.discord = update_data.discord
+
     if update_data.email:
         user.email = anonymize(update_data.email)
 
@@ -296,6 +348,8 @@ def admin_update_user(
     return UserResponse(
         id=user.id,
         name=user.name,
+        nickname=user.nickname,
+        discord=user.discord,
         email=user.email,
         is_active=user.is_active,
         role=user.role.role,

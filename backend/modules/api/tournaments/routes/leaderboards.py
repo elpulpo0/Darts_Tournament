@@ -81,7 +81,7 @@ def get_tournament_leaderboard(
     leaderboard = [
         TournamentLeaderboardEntry(
             participant_id=row.participant_id,
-            name=row.name or "Unknown",  # Fallback si name est null
+            nickname=row.name,
             wins=row.wins,
             total_manches=row.total_manches,
         )
@@ -161,7 +161,7 @@ def get_season_leaderboard(
             func.sum(MatchPlayer.score).label("single_manches"),
             literal(0.0).label("double_wins"),
             literal(0.0).label("double_manches"),
-            User.name,
+            User.nickname,
         )
         .join(Match, MatchPlayer.match_id == Match.id)
         .join(Participant, MatchPlayer.participant_id == Participant.id)
@@ -186,7 +186,7 @@ def get_season_leaderboard(
             member_count_subquery.c.member_count == 1,
             Match.status == "completed",
         )
-        .group_by(ParticipantMember.user_id, User.name)
+        .group_by(ParticipantMember.user_id, User.nickname)
     )
 
     team_score_subquery = (
@@ -244,7 +244,7 @@ def get_season_leaderboard(
             literal(0.0).label("single_manches"),
             func.sum(team_score_subquery.c.team_wins).label("double_wins"),
             func.sum(team_score_subquery.c.team_score).label("double_manches"),
-            User.name,
+            User.nickname,
         )
         .join(Participant, Participant.id == team_score_subquery.c.participant_id)
         .join(ParticipantMember, Participant.id == ParticipantMember.participant_id)
@@ -254,7 +254,7 @@ def get_season_leaderboard(
             member_count_subquery.c.participant_id == Participant.id,
         )
         .filter(member_count_subquery.c.member_count == 2)
-        .group_by(ParticipantMember.user_id, User.name)
+        .group_by(ParticipantMember.user_id, User.nickname)
     )
 
     union_query = union_all(single_query, double_query).alias("union_sub")
@@ -273,9 +273,9 @@ def get_season_leaderboard(
             func.sum(union_query.c.single_manches + union_query.c.double_manches).label(
                 "total_manches"
             ),
-            union_query.c.name,
+            union_query.c.nickname,
         )
-        .group_by(union_query.c.user_id, union_query.c.name)
+        .group_by(union_query.c.user_id, union_query.c.nickname)
         .order_by(desc("wins"), desc("total_manches"))
     )
 
@@ -283,7 +283,7 @@ def get_season_leaderboard(
     leaderboard = [
         LeaderboardEntry(
             user_id=row.user_id,
-            name=row.name,
+            nickname=row.nickname,
             total_points=float(row.total_points) or 0.0,
             single_wins=float(row.single_wins) or 0.0,
             double_wins=float(row.double_wins) or 0.0,
@@ -355,7 +355,7 @@ def get_pools_leaderboard(
         leaderboard = [
             TournamentLeaderboardEntry(
                 participant_id=row.participant_id,
-                name=row.name or "Unknown",  # Fallback si name est null
+                nickname=row.name,
                 wins=row.wins,
                 total_manches=row.total_manches,
             )

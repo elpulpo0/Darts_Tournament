@@ -253,7 +253,7 @@ def register_to_tournament(
         if not user:
             raise HTTPException(status_code=404, detail=f"User {user_id} not found")
         user_ids = [user_id]
-        participant_name = user.name
+        participant_name = user.nickname
         # Create participant only in single mode
         create_participant = tournament.mode == "single"
     elif registration_data.user_ids:  # Team creation (double mode only)
@@ -372,7 +372,7 @@ def register_new_player(
         if not user:
             raise HTTPException(status_code=404, detail=f"User {user_id} not found")
         user_ids = [user_id]
-        participant_name = user.name
+        participant_name = user.nickname
         # Create participant only in single mode
         create_participant = tournament.mode == "single"
     elif player_data.user_ids:  # Team creation (double mode only)
@@ -588,6 +588,7 @@ def get_registered_users(
             {
                 "id": user.id,
                 "name": user.name,
+                "nickname": user.nickname,
                 "participant_id": participant.id if participant else None,
                 "participant_name": participant.name if participant else None,
             }
@@ -751,7 +752,7 @@ def create_participant(
 
     # Prepare response
     users = [
-        PlayerResponse(id=m.user.id, name=m.user.name)
+        PlayerResponse(id=m.user.id, name=m.user.name, nickname=m.user.nickname)
         for m in db.query(ParticipantMember)
         .filter(ParticipantMember.participant_id == participant.id)
         .all()
@@ -864,7 +865,10 @@ def get_participants(
     )
     response = []
     for p in participants:
-        users = [PlayerResponse(id=m.user.id, name=m.user.name) for m in p.members]
+        users = [
+            PlayerResponse(id=m.user.id, name=m.user.name, nickname=m.user.nickname)
+            for m in p.members
+        ]
         name = p.name or (users[0].name if users else "")  # Fallback si name vide
         response.append(ParticipantResponse(id=p.id, name=name, users=users))
     return response

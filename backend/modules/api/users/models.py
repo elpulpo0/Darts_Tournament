@@ -8,8 +8,10 @@ class User(UsersBase):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-    email = Column(String, unique=True, index=True)
+    name = Column(String, nullable=True)
+    nickname = Column(String, nullable=False, index=True)
+    discord = Column(String, nullable=True)
+    email = Column(String, unique=True, index=True, nullable=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
 

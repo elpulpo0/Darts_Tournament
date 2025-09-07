@@ -100,7 +100,7 @@
                         </thead>
                         <tbody>
                             <tr v-for="user in tournamentStore.registeredUsers" :key="user.id">
-                                <td>{{ user.name }}</td>
+                                <td>{{ user.name ? user.nickname + ' (' + user.name + ')' : user.nickname }}</td>
                                 <td>
                                     <button title="Désinscrire ce joueur" class="delete-btn"
                                         @click="unregisterPlayer(user.id, tournament.id)">✖️</button>
@@ -122,8 +122,11 @@
                             </thead>
                             <tbody>
                                 <tr v-for="participant in tournamentStore.participants" :key="participant.id">
-                                    <td>{{ getParticipantDisplayName(participant) }}</td>
-                                    <td>{{participant.users.map(u => u.name).join(' & ')}}</td>
+                                    <td>{{ participant.name }}</td>
+                                    <td
+                                        :title="participant.users.map(u => u.name || u.nickname || 'Unknown').join(' & ')">
+                                        {{participant.users.map(u => u.nickname).join(' & ')}}
+                                    </td>
                                     <td>
                                         <button title="Supprimer ce participant" class="delete-btn"
                                             @click="deleteParticipant(participant.id, tournament.id)">✖️</button>
@@ -148,7 +151,7 @@
                             <select v-model="selectedUserId">
                                 <option :value="null">-- Sélectionner --</option>
                                 <option v-for="user in selectableUsers" :value="user.id" :key="user.id">
-                                    {{ user.name }}
+                                    {{ user.name ? user.nickname + ' (' + user.name + ')' : user.nickname }}
                                 </option>
                             </select>
                         </label>
@@ -172,7 +175,7 @@
                         <label>Joueurs de l’équipe :
                             <select v-model="selectedTeamUsers" multiple :size="selectableParticipantUsers.length">
                                 <option v-for="user in selectableParticipantUsers" :value="user.id" :key="user.id">
-                                    {{ user.name }}
+                                    {{ user.name ? user.nickname + ' (' + user.name + ')' : user.nickname }}
                                 </option>
                             </select>
                         </label>
@@ -200,8 +203,10 @@
                             </thead>
                             <tbody>
                                 <tr v-for="entry in poolLeaderboard.leaderboard" :key="entry.participant_id">
-                                    <td>{{getParticipantDisplayName(tournamentStore.participants.find(p => p.id ===
-                                        entry.participant_id) ?? null)}}</td>
+                                    <td :title="getParticipantName(tournamentStore.participants.find(p => p.id ===
+                                        entry.participant_id) ?? null)">
+                                        {{getParticipantDisplayNickname(tournamentStore.participants.find(p => p.id ===
+                                            entry.participant_id) ?? null)}}</td>
                                     <td>{{ entry.wins }}</td>
                                     <td>{{ entry.total_manches }}</td>
                                 </tr>
@@ -231,7 +236,8 @@
                                 <tr v-for="(match, index) in matches.filter(m => m.round === 0 && m.pool_id == null && m.participants.length === 2)"
                                     :key="match.id">
                                     <td>{{ getTargetNumber(index, launchTargetCount) }}</td>
-                                    <td>{{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
+                                    <td :title="match.participants.map(p => getParticipantName(p)).join(' vs ')">
+                                        {{match.participants.map(p => getParticipantDisplayNickname(p)).join(' vs ')}}
                                     </td>
                                     <td>{{ match.status }}</td>
                                     <td>
@@ -273,7 +279,9 @@
                                 <tbody>
                                     <tr v-for="match in matches.filter(m => m.pool_id === poolId && m.participants.length === 2)"
                                         :key="match.id">
-                                        <td>{{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
+                                        <td :title="match.participants.map(p => getParticipantName(p)).join(' vs ')">
+                                            {{match.participants.map(p =>
+                                                getParticipantDisplayNickname(p)).join(' vs ')}}
                                         </td>
                                         <td>{{ match.status }}</td>
                                         <td>
@@ -319,7 +327,9 @@
                                     <tr v-for="(match, index) in matches.filter(m => m.pool_id == null && m.round === round && m.participants.length === 2)"
                                         :key="match.id">
                                         <td>{{ getNonPoolTargetNumber(index, launchTargetCount) }}</td>
-                                        <td>{{match.participants.map(p => getParticipantDisplayName(p)).join(' vs ')}}
+                                        <td :title="match.participants.map(p => getParticipantName(p)).join(' vs ')">
+                                            {{match.participants.map(p =>
+                                                getParticipantDisplayNickname(p)).join(' vs ')}}
                                         </td>
                                         <td>{{ match.status }}</td>
                                         <td>
@@ -347,7 +357,7 @@
 
                     <div v-if="isTournamentFinished && getTournamentWinner">
                         <h4>Tournoi terminé !</h4>
-                        <p>Vainqueur : {{ getParticipantDisplayName(getTournamentWinner) }}</p>
+                        <p>Vainqueur : {{ getParticipantDisplayNickname(getTournamentWinner) }}</p>
                     </div>
                     <button v-else-if="showGenerateButton" @click="generateFinalStage">
                         Générer {{ currentRound === 0 && hasBarrage ? (tournament?.type === 'pool' ?
@@ -379,7 +389,7 @@ import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 import { useLeaderboardsStore } from '../stores/useLeaderboardsStore';
 import { useTournamentStore } from '../stores/useTournamentStore';
-import { getParticipantDisplayName } from '../functions/management';
+import { getParticipantDisplayNickname, getParticipantName } from '../functions/management';
 
 const route = useRoute();
 const router = useRouter();
@@ -643,12 +653,10 @@ const cancelLaunchingTournament = () => {
 const launchTournament = async () => {
     loading.value = true;
     try {
-        const { data: participants } = await backendApi.get(`/tournaments/${tournamentId.value}/participants`, {
-            headers: { Authorization: `Bearer ${authStore.token}` },
-        });
-        if ((participants?.length ?? 0) < 4) throw new Error("Minimum 4 participants requis");
+        tournamentStore.fetchParticipants(tournamentId.value)
+        if ((tournamentStore.participants?.length ?? 0) < 4) throw new Error("Minimum 4 participants requis");
 
-        const N = participants.length;
+        const N = tournamentStore.participants.length;
         let useBarrage = N > 32;
         const effectiveN = useBarrage ? 32 : N;
 
@@ -706,7 +714,7 @@ const launchTournament = async () => {
             // Générer barrage pour éliminer N - 32
             const excess = N - 32;
             const numBarragePlayers = 2 * excess;
-            const shuffledParticipants = [...participants].sort(() => Math.random() - 0.5);
+            const shuffledParticipants = [...tournamentStore.participants].sort(() => Math.random() - 0.5);
             const barrageParticipants = shuffledParticipants.slice(-numBarragePlayers);
             const barrageMatches = generateEliminationMatches(barrageParticipants);
             barrageMatches.forEach(match => {
@@ -718,7 +726,7 @@ const launchTournament = async () => {
             console.log(`Barrage généré : ${excess} matchs pour réduire à 32.`);
         } else {
             if (tournamentType === 'pool') {
-                const pools = createPools(participants, numPools);
+                const pools = createPools(tournamentStore.participants, numPools);
                 const poolIdMap: Record<number, number> = {};
                 for (const pool of pools) {
                     const { data: createdPool } = await backendApi.post(
@@ -740,7 +748,7 @@ const launchTournament = async () => {
                     }
                 }
             } else {
-                const generatedMatches = generateEliminationMatches(participants);
+                const generatedMatches = generateEliminationMatches(tournamentStore.participants);
                 for (const m of generatedMatches) {
                     await createAndPersistMatch(m);
                 }

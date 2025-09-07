@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { useTournamentStore } from '../stores/useTournamentStore';
 import { useLeaderboardsStore } from '../stores/useLeaderboardsStore';
 import { useAuthStore } from '../stores/useAuthStore';
+import { getParticipantDisplayNickname, getParticipantName } from '../functions/management';
 
 const route = useRoute();
 const tournamentId = computed(() => Number(route.params.tournamentId));
@@ -17,6 +18,7 @@ onMounted(() => {
     leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
     const currentYear = new Date().getFullYear();
     leaderboardsStore.fetchSeasonLeaderboard(currentYear, authStore.token);
+    tournamentStore.fetchParticipants(tournamentId.value)
 });
 
 const finalMatches = computed(() => tournamentStore.tournamentDetail?.final_matches || [] as MatchDetailSchema[]);
@@ -90,11 +92,11 @@ const paddings = computed(() => {
                     <div v-for="pool in tournamentStore.tournamentDetail.pools" class="pool-tile" :key="pool.id">
                         <h4>{{ pool.name || `Poule ${pool.id}` }}</h4>
                         <div class="pool-participants">
-                            <span v-for="participant in pool.participants" class="participant-in-pool"
-                                :key="participant.participant_id">
+                            <span v-for="participant in pool.participants" :title="getParticipantName(participant)"
+                                class="participant-in-pool" :key="participant.participant_id">
                                 {{ participant.name }}
                                 <span v-if="participant.users?.length > 1">
-                                    ({{participant.users.map(u => u.name).join(' & ')}})
+                                    ({{participant.users.map(u => u.nickname).join(' & ')}})
                                 </span>
                             </span>
                         </div>
@@ -114,15 +116,18 @@ const paddings = computed(() => {
                                 <tr>
                                     <th>#</th>
                                     <th>Nom</th>
-                                    <th>V</th>
-                                    <th>M</th>
+                                    <th>Victoires (Principal)</th>
+                                    <th>Manches gagnées (Tiebreaker)</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="(entry, index) in poolLeaderboard.leaderboard.slice(0, 4)"
                                     :key="entry.participant_id">
                                     <td>{{ index + 1 }}</td>
-                                    <td>{{ entry.name }}</td>
+                                    <td :title="getParticipantName(tournamentStore.participants.find(p => p.id ===
+                                        entry.participant_id) ?? null)">
+                                        {{getParticipantDisplayNickname(tournamentStore.participants.find(p => p.id ===
+                                            entry.participant_id) ?? null)}}</td>
                                     <td>{{ entry.wins }}</td>
                                     <td>{{ entry.total_manches }}</td>
                                 </tr>
@@ -146,7 +151,7 @@ const paddings = computed(() => {
                             <div v-for="match in matchesByRound[round]" class="match" :key="match.id">
                                 <div class="match-cell">
                                     <div v-for="participant in match.participants" class="participant-slot"
-                                        :key="participant.participant_id">
+                                        :title="getParticipantName(participant)" :key="participant.participant_id">
                                         <span class="participant-name">
                                             {{ participant.name }}
                                             <span v-if="participant.users?.length > 1">

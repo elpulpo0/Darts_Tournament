@@ -15,12 +15,16 @@ const tokenCheckInterval = ref<number | null>(null);
 interface User {
   email: string;
   name: string;
+  nickname: string;
+  discord: string;
   password: string;
   role: string;
 }
 
 const email = ref('');
 const name = ref('');
+const nickname = ref('');
+const discord = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const errorMessage = ref('');
@@ -29,6 +33,8 @@ const user = ref<User | null>(null);
 const isRegistering = ref(false);
 const showEditForm = ref(false);
 const newName = ref('');
+const newNickname = ref('');
+const newDiscord = ref('');
 const newEmail = ref('');
 const newPassword = ref('');
 
@@ -54,15 +60,12 @@ function resetMessages() {
 }
 
 // Client-side validation for the name field
-function validateName(name: string): string | null {
-  if (!name.trim()) {
-    return 'Le nom est requis.';
+function validateNickname(nickname: string): string | null {
+  if (!nickname.trim()) {
+    return 'Le pseudo est requis.';
   }
-  if (name.length < 3 || name.length > 20) {
-    return 'Le nom doit contenir entre 3 et 20 caractères.';
-  }
-  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
-    return 'Le nom ne peut contenir que des lettres, chiffres, tirets ou underscores.';
+  if (nickname.length < 3 || nickname.length > 20) {
+    return 'Le pseudo doit contenir entre 3 et 20 caractères.';
   }
   return null;
 }
@@ -89,6 +92,8 @@ const login = async () => {
         refreshToken: response.data.refresh_token,
         email: email.value,
         name: '',
+        nickname: '',
+        discord: '',
         userId: response.data.id,
         scopes: [],
       });
@@ -109,9 +114,9 @@ const register = async () => {
   resetMessages();
   try {
     // Client-side validation
-    const nameError = validateName(name.value);
-    if (nameError) {
-      errorMessage.value = nameError;
+    const nicknameError = validateNickname(nickname.value);
+    if (nicknameError) {
+      errorMessage.value = nicknameError;
       toast.error(errorMessage.value);
       return;
     }
@@ -139,6 +144,8 @@ const register = async () => {
       {
         email: email.value,
         name: name.value,
+        nickname: nickname.value,
+        discord: discord.value,
         password: password.value,
       },
       {
@@ -154,6 +161,8 @@ const register = async () => {
       toast.success(successMessage.value);
       email.value = '';
       name.value = '';
+      nickname.value = '';
+      discord.value = '';
       password.value = '';
       confirmPassword.value = '';
       isRegistering.value = false;
@@ -165,6 +174,8 @@ const register = async () => {
       const detail = error.response.data.detail;
       if (detail === 'A user with this name already exists.') {
         errorMessage.value = 'Ce nom est déjà utilisé. Veuillez en choisir un autre.';
+      } else if (detail === 'A user with this nickname already exists.') {
+        errorMessage.value = 'Ce pseudo est déjà utilisé. Veuillez en choisir un autre.';
       } else if (detail === 'A user with this email already exists.') {
         errorMessage.value = 'Cet email est déjà utilisé. Veuillez en choisir un autre.';
       } else {
@@ -180,17 +191,17 @@ const register = async () => {
 const updateProfile = async () => {
   resetMessages();
 
-  if (!newName.value.trim() && !newEmail.value.trim() && !newPassword.value.trim()) {
+  if (!newName.value.trim() && !newEmail.value.trim() && !newPassword.value.trim() && !newNickname.value.trim() && !newDiscord.value.trim()) {
     errorMessage.value = 'Veuillez remplir au moins un champ pour mettre à jour votre profil.';
     toast.error(errorMessage.value);
     return;
   }
 
   // Validate new name if provided
-  if (newName.value.trim()) {
-    const nameError = validateName(newName.value);
-    if (nameError) {
-      errorMessage.value = nameError;
+  if (newNickname.value.trim()) {
+    const nicknameError = validateNickname(newNickname.value);
+    if (nicknameError) {
+      errorMessage.value = nicknameError;
       toast.error(errorMessage.value);
       return;
     }
@@ -217,6 +228,8 @@ const updateProfile = async () => {
   const payload: Record<string, string> = {};
 
   if (newName.value.trim()) payload.name = newName.value;
+  if (newNickname.value.trim()) payload.nickname = newNickname.value;
+  if (newDiscord.value.trim()) payload.discord = newDiscord.value;
   if (newEmail.value.trim()) payload.email = newEmail.value;
   if (newPassword.value.trim()) payload.password = newPassword.value;
 
@@ -233,6 +246,8 @@ const updateProfile = async () => {
     errorMessage.value = '';
     newEmail.value = '';
     newName.value = '';
+    newNickname.value = '';
+    newDiscord.value = '';
     newPassword.value = '';
     confirmPassword.value = '';
     await fetchUser();
@@ -244,6 +259,8 @@ const updateProfile = async () => {
       const detail = error.response.data.detail;
       if (detail === 'A user with this name already exists.') {
         errorMessage.value = 'Ce nom est déjà utilisé. Veuillez en choisir un autre.';
+      } else if (detail === 'A user with this nickname already exists.') {
+        errorMessage.value = 'Ce pseudo est déjà utilisé. Veuillez en choisir un autre.';
       } else if (detail === 'A user with this email already exists.') {
         errorMessage.value = 'Cet email est déjà utilisé. Veuillez en choisir un autre.';
       } else {
@@ -271,6 +288,8 @@ const fetchUser = async () => {
       refreshToken: authStore.refreshToken,
       email: authStore.email,
       name: response.data.name,
+      nickname: response.data.nickname,
+      discord: response.data.discord,
       userId: response.data.id,
       scopes: response.data.scopes || []
     });
@@ -279,6 +298,8 @@ const fetchUser = async () => {
       email: authStore.email,
       password: '',
       name: response.data.name.charAt(0).toUpperCase() + response.data.name.slice(1),
+      nickname: response.data.nickname,
+      discord: response.data.discord,
       role: response.data.role
     };
   } catch (error) {
@@ -353,7 +374,8 @@ watch(() => authStore.token, async (newToken) => {
 
       <form v-else @submit.prevent="register" :key="'register-form'">
         <input v-model="email" type="email" placeholder="Email" class="input-auth" />
-        <input v-model="name" type="text" placeholder="Nom" class="input-auth" />
+        <input v-model="name" type="text" placeholder="Nom et prénom" class="input-auth" />
+        <input v-model="nickname" type="text" placeholder="Pseudo" class="input-auth" />
         <input v-model="password" type="password" placeholder="Mot de passe" autocomplete="new-password"
           class="input-auth" />
         <input v-model="confirmPassword" type="password" placeholder="Confirmer le mot de passe"
@@ -366,13 +388,14 @@ watch(() => authStore.token, async (newToken) => {
     </div>
 
     <div v-else class="user-info">
-      <h2>Bienvenue {{ user?.name }}</h2>
+      <h2>Bienvenue {{ user?.nickname }}</h2>
       <button @click="showEditForm = !showEditForm; resetMessages()">
         {{ showEditForm ? 'Annuler' : 'Voir / Modifier mon profil' }}
       </button>
 
       <div v-if="showEditForm" class="edit-form">
         <div class="user-details">
+          <p><strong>{{ user?.nickname }}</strong></p>
           <p><strong>Nom :</strong> {{ user?.name }}</p>
           <p><strong>Email :</strong> {{ user?.email }}</p>
         </div>
@@ -380,9 +403,12 @@ watch(() => authStore.token, async (newToken) => {
         <div>
           <h2>Modifier mes informations</h2>
           <form class="form-grid">
-            <label for="newName">Nom</label>
-            <input id="newName" v-model="newName" type="text" placeholder="Nom" autocomplete="name"
+            <label for="newName">Nom et prénom</label>
+            <input id="newName" v-model="newName" type="text" placeholder="Nom et prénom" autocomplete="name"
               class="input-auth" />
+
+            <label for="newNickname">Pseudo</label>
+            <input id="newNickname" v-model="newNickname" type="text" placeholder="pseudo" class="input-auth" />
 
             <label for="newEmail">Email</label>
             <input id="newEmail" v-model="newEmail" type="email" placeholder="Email" autocomplete="email"

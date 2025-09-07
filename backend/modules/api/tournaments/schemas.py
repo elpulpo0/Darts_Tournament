@@ -84,7 +84,8 @@ class MatchUpdate(BaseModel):
 
 class PlayerResponse(BaseModel):
     id: int
-    name: str
+    name: Optional[str]
+    nickname: str
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -113,7 +114,7 @@ class PoolCreate(BaseModel):
 
 class LeaderboardEntry(BaseModel):
     user_id: int
-    name: str
+    nickname: str
     total_points: float
     single_wins: float
     double_wins: float
@@ -126,7 +127,7 @@ class LeaderboardEntry(BaseModel):
 
 class TournamentLeaderboardEntry(BaseModel):
     participant_id: int
-    name: str
+    nickname: str
     wins: int
     total_manches: float
 
