@@ -18,10 +18,10 @@
                         <th></th>
                         <th>Nom</th>
                         <th>Points</th>
-                        <th>Victoires (Simple)</th>
-                        <th>Victoires (Double)</th>
-                        <th>Manches (Simple)</th>
-                        <th>Manches (Double)</th>
+                        <th class="hideonmobile">Victoires (Simple)</th>
+                        <th class="hideonmobile">Victoires (Double)</th>
+                        <th class="hideonmobile">Manches (Simple)</th>
+                        <th class="hideonmobile">Manches (Double)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -30,10 +30,10 @@
                         <td>{{ getRank(index) }}</td>
                         <td :title="entry.name">{{ entry.nickname }}</td>
                         <td>{{ entry.total_points }}</td>
-                        <td>{{ entry.single_wins }}</td>
-                        <td>{{ entry.double_wins }}</td>
-                        <td>{{ entry.single_manches }}</td>
-                        <td>{{ entry.double_manches }}</td>
+                        <td class="hideonmobile">{{ entry.single_wins }}</td>
+                        <td class="hideonmobile">{{ entry.double_wins }}</td>
+                        <td class="hideonmobile">{{ entry.single_manches }}</td>
+                        <td class="hideonmobile">{{ entry.double_manches }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -82,5 +82,11 @@ onMounted(() => {
 .current-user {
     color: var(--color-error);
     font-weight: bold;
+}
+
+@media screen and (max-width: 600px) {
+    .hideonmobile {
+        display: none;
+    }
 }
 </style>
