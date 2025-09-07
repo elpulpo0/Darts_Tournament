@@ -1001,3 +1001,85 @@ def get_full_tournament_details(
         "pools": pool_dicts,
         "final_matches": finals_matches_dict,
     }
+
+
+@tournaments_router.patch(
+    "/{tournament_id}/registrations/close",
+    response_model=TournamentResponse,
+    summary="Close registrations for a tournament",
+    description="Manually closes registrations by setting status to 'closed'. Requires admin or editor privileges.",
+)
+def close_tournament_registrations(
+    tournament_id: int,
+    db: Session = Depends(get_users_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
+        raise HTTPException(
+            status_code=403, detail="Access denied: administrators or editors only."
+        )
+
+    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    if tournament.status != "open":
+        raise HTTPException(
+            status_code=400, detail="Tournament must be open to close registrations"
+        )
+
+    tournament.status = "closed"  # Ferme les inscriptions
+    db.commit()
+    db.refresh(tournament)
+
+    return TournamentResponse(
+        id=tournament.id,
+        name=tournament.name,
+        description=tournament.description,
+        start_date=tournament.start_date,
+        is_active=tournament.is_active,
+        type=tournament.type,
+        mode=tournament.mode,
+        status=tournament.status,
+    )
+
+
+@tournaments_router.patch(
+    "/{tournament_id}/registrations/open",
+    response_model=TournamentResponse,
+    summary="Close registrations for a tournament",
+    description="Manually opens registrations by setting status to 'open'. Requires admin or editor privileges.",
+)
+def open_tournament_registrations(
+    tournament_id: int,
+    db: Session = Depends(get_users_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
+        raise HTTPException(
+            status_code=403, detail="Access denied: administrators or editors only."
+        )
+
+    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+
+    if tournament.status != "closed":
+        raise HTTPException(
+            status_code=400, detail="Tournament must be close to open registrations"
+        )
+
+    tournament.status = "open"  # Ouvre les inscriptions
+    db.commit()
+    db.refresh(tournament)
+
+    return TournamentResponse(
+        id=tournament.id,
+        name=tournament.name,
+        description=tournament.description,
+        start_date=tournament.start_date,
+        is_active=tournament.is_active,
+        type=tournament.type,
+        mode=tournament.mode,
+        status=tournament.status,
+    )

@@ -10,7 +10,7 @@ class TournamentCreate(BaseModel):
     is_active: bool = True
     type: Optional[str] = None  # 'pool' ou 'elimination', nullable
     mode: Optional[str] = None  # 'single' or 'double'
-    status: str = "open"  # Statut unique ('open', 'running', 'closed'), default 'open'
+    status: str = "open"  # Statut unique ('open', 'running', 'finished', 'closed'), default 'open'
 
 
 class TournamentUpdate(BaseModel):

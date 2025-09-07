@@ -36,7 +36,7 @@ type Tournament = {
   is_active: boolean;
   type: 'pool' | 'elimination' | null;
   mode: 'single' | 'double' | null;
-  status: 'open' | 'running' | 'closed';
+  status: 'open' | 'running' | 'finished' | 'closed';
 };
 
 type LeaderboardEntry = {

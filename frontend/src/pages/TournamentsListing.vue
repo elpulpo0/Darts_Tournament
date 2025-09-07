@@ -14,10 +14,12 @@
                             tournament.status === "open"
                                 ? "Inscriptions ouvertes"
                                 : tournament.status === "closed"
-                                    ? "Tournoi terminé"
-                                    : tournament.status === "running"
-                                        ? "Tournoi en cours"
-                                        : ""
+                                    ? "Inscriptions fermées"
+                                    : tournament.status === "finished"
+                                        ? "Tournoi terminé"
+                                        : tournament.status === "running"
+                                            ? "Tournoi en cours"
+                                            : ""
                         }}
                     </p>
                     <p>Mode: {{ tournament.mode || 'Non défini' }}</p>
@@ -47,7 +49,7 @@
                     <p>Les inscriptions sont closes pour ce tournoi.</p>
                 </div>
 
-                <button v-if="selectedTournament && ['running', 'closed'].includes(selectedTournament.status)"
+                <button v-if="selectedTournament && ['running', 'finished'].includes(selectedTournament.status)"
                     @click="openProjection">
                     Projeter l’arborescence
                 </button>

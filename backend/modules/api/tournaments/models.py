@@ -71,7 +71,9 @@ class Tournament(UsersBase):
     is_active = Column(Boolean, default=True)
     type = Column(String, nullable=True, index=True)  # 'pool' or 'elimination'
     mode = Column(String, nullable=True, index=True)  # 'single' or 'double'
-    status = Column(String, default="open", index=True)  # 'open', 'running', 'closed'
+    status = Column(
+        String, default="open", index=True
+    )  # 'open', 'running', 'finished', 'closed'
 
     registrations = relationship(
         "TournamentRegistration",

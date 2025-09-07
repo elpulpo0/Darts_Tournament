@@ -29,35 +29,31 @@
                     <label>Date de début :
                         <input v-model="editForm.start_date" type="date" class="form-input" />
                     </label>
-                    <label>Type :
-                        <select v-model="editForm.type" class="form-input">
-                            <option value="pool">Poule</option>
-                            <option value="elimination">Élimination</option>
-                        </select>
-                    </label>
                     <label>Mode :
                         <select v-model="editForm.mode" class="form-input">
                             <option value="single">Single</option>
                             <option value="double">Double</option>
                         </select>
                     </label>
-                    <label>Statut :
-                        <select v-model="editForm.status" class="form-input">
-                            <option value="open">Ouvert</option>
-                            <option value="running">En cours</option>
-                            <option value="closed">Terminé</option>
-                        </select>
-                    </label>
                     <button @click="updateTournament">Mettre à jour le tournoi</button>
                     <button @click="cancelEditing">Annuler</button>
                 </div>
 
-                <button v-if="tournament && ['running', 'closed'].includes(tournament.status)" @click="openProjection">
+                <button v-if="tournament.status === 'open'" @click="closeRegistrations(tournament.id)">
+                    Fermer les inscriptions
+                </button>
+                <button v-if="tournament.status === 'closed'" @click="openRegistrations(tournament.id)">
+                    Ouvrir les inscriptions
+                </button>
+
+                <button v-if="tournament && ['running', 'finished'].includes(tournament.status)"
+                    @click="openProjection">
                     Projeter l’arborescence
                 </button>
 
                 <div class="tournament-actions">
-                    <button v-if="tournament.status === 'open'" @click="startLaunchingTournament(tournament.id)">
+                    <button v-if="tournament.status === 'open' || tournament.status === 'closed'"
+                        @click="startLaunchingTournament(tournament.id)">
                         Lancer
                     </button>
                     <button v-if="tournament.status === 'running'" @click="closeTournament(tournament.id)">
@@ -89,7 +85,7 @@
                     <button @click="cancelLaunchingTournament">Annuler</button>
                 </div>
 
-                <div v-if="tournament.status === 'open'" class="participants-section">
+                <div v-if="tournament.status === 'open' || tournament.status === 'closed'" class="participants-section">
                     <h4>Joueurs inscrits ({{ registeredUsersCount }})</h4>
                     <table v-if="tournamentStore.registeredUsers?.length">
                         <thead>
@@ -189,7 +185,7 @@
                 <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
                 <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
                     leaderboardsStore.poolsLeaderboardError
-                }}</div>
+                    }}</div>
                 <div v-if="leaderboardsStore.poolsLeaderboard.length">
                     <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
                         <h5>{{ poolLeaderboard.pool_name }}</h5>
@@ -217,7 +213,7 @@
 
                 <p>{{matches.filter(m => m.status === 'pending').length}} matchs en attente de validation.</p>
 
-                <div v-if="tournament.status === 'running' || tournament.status === 'closed'" class="matches-section">
+                <div v-if="tournament.status === 'running' || tournament.status === 'finished'" class="matches-section">
                     <h4>Matchs</h4>
                     <!-- Section Barrage -->
                     <div v-if="hasBarrage">
@@ -427,6 +423,30 @@ const hasBarrage = computed(() => {
     return result;
 });
 
+const closeRegistrations = async (tournamentId: number) => {
+    try {
+        await backendApi.patch(`/tournaments/${tournamentId}/registrations/close`, {}, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+        toast.success('Inscriptions fermées avec succès.');
+        await fetchTournament(tournamentId);
+    } catch (err) {
+        handleError(err, 'closing registrations');
+    }
+};
+
+const openRegistrations = async (tournamentId: number) => {
+    try {
+        await backendApi.patch(`/tournaments/${tournamentId}/registrations/open`, {}, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+        toast.success('Inscriptions ouvertes avec succès.');
+        await fetchTournament(tournamentId);
+    } catch (err) {
+        handleError(err, 'opening registrations');
+    }
+};
+
 // Fonction pour obtenir le numéro de la cible en fonction du pool_id
 const getTargetNumber = (poolId: number | undefined, totalTargets: number): number => {
     if (!poolId || totalTargets <= 0) return 1; // Par défaut pour les matchs sans poule
@@ -539,7 +559,7 @@ const fetchTournament = async (id: number) => {
             tournamentStore.fetchRegisteredUsers(id),
             tournamentStore.fetchParticipants(id),
         ]);
-        if (data.status === 'running' || data.status === 'closed') {
+        if (data.status === 'running' || data.status === 'finished') {
             await fetchMatches();
             await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
             const currentYear = new Date().getFullYear();
@@ -610,7 +630,7 @@ const updateTournament = async () => {
         resetEditForm(data);
         await fetchTournament(tournamentId.value);
         toast.success('Tournoi mis à jour');
-        if (data.status === 'running' || data.status === 'closed') {
+        if (data.status === 'running' || data.status === 'finished') {
             await fetchMatches();
             await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
         }
@@ -1032,7 +1052,7 @@ const updateMatch = async (match: Match) => {
 
         if (isTournamentFinished.value && getTournamentWinner.value) {
             await backendApi.patch(`/tournaments/${tournamentId.value}`, {
-                status: 'closed'
+                status: 'finished'
             }, {
                 headers: { Authorization: `Bearer ${authStore.token}` },
             });
@@ -1053,8 +1073,8 @@ const cancelMatchScores = async (matchId: number) => {
         await fetchMatches();
         await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
 
-        // If the tournament was closed due to this match, revert the tournament status
-        if (tournament.value?.status === 'closed' && isTournamentFinished.value) {
+        // If the tournament was finished due to this match, revert the tournament status
+        if (tournament.value?.status === 'finished' && isTournamentFinished.value) {
             await backendApi.patch(`/tournaments/${tournamentId.value}`, {
                 status: 'running'
             }, {
@@ -1191,7 +1211,7 @@ const resetTournament = async (tournamentId: number) => {
 const closeTournament = async (tournamentId: number) => {
     try {
         const updatePayload = {
-            status: 'closed',
+            status: 'finished',
         };
         await backendApi.patch(`/tournaments/${tournamentId}`, updatePayload, {
             headers: { Authorization: `Bearer ${authStore.token}` },
