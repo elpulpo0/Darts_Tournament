@@ -1,7 +1,8 @@
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
-from modules.api.users.create_db import init_users_db
+
+# from modules.api.users.create_db import init_users_db
 from modules.api.users.routes import users_router
 from modules.api.auth.routes import auth_router
 from modules.api.notifs.routes import notifs_router
@@ -60,7 +61,7 @@ def create_app() -> FastAPI:
         return RedirectResponse(url="/docs")
 
     # Initialisation safe de la DB
-    init_users_db()
+    # init_users_db()
 
     start_scheduler()
 
