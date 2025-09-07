@@ -9,7 +9,9 @@ const toast = useToast()
 
 type User = {
   id: number
-  name: string
+  name: string | 'Inconnu'
+  nickname: string
+  discord: string | 'Inconnu'
   email: string
   role: string
   is_active: boolean
@@ -21,9 +23,13 @@ const loading = ref(false)
 const error = ref('')
 const editingUserId = ref<number | null>(null);
 const editName = ref('');
+const editNickname = ref('');
+const editDiscord = ref('');
 const editEmail = ref('');
 const editPassword = ref('');
 const editRole = ref('');
+const newNickname = ref('');
+const newDiscord = ref('');
 const newName = ref('');
 const newEmail = ref('');
 const newPassword = ref('');
@@ -97,6 +103,8 @@ const fetchUsers = async () => {
 const startEditing = (user: User) => {
   editingUserId.value = user.id;
   editName.value = user.name;
+  editNickname.value = user.nickname;
+  editDiscord.value = user.discord;
   editRole.value = user.role;
   editEmail.value = '';
   editPassword.value = '';
@@ -105,6 +113,8 @@ const startEditing = (user: User) => {
 const cancelEdit = () => {
   editingUserId.value = null;
   editName.value = '';
+  editNickname.value = '';
+  editDiscord.value = '';
   editRole.value = '';
   editEmail.value = '';
   editPassword.value = '';
@@ -114,6 +124,8 @@ const submitEdit = async (userId: number) => {
   try {
     const updatePayload: any = {};
     if (editName.value) updatePayload.name = editName.value;
+    if (editNickname.value) updatePayload.nickname = editNickname.value;
+    if (editDiscord.value) updatePayload.discord = editDiscord.value;
     if (editEmail.value) updatePayload.email = editEmail.value;
     if (editRole.value) updatePayload.role = editRole.value;
     if (editPassword.value) updatePayload.password = editPassword.value;
@@ -155,7 +167,9 @@ const deleteUser = async (userId: number) => {
 
 const createUser = async () => {
   try {
-    const userData: any = { name: newName.value };
+    const userData: any = { nickname: newNickname.value };
+    if (newName.value) userData.name = newName.value;
+    if (newDiscord.value) userData.discord = newDiscord.value;
     if (newEmail.value) userData.email = newEmail.value;
     if (newPassword.value) userData.password = newPassword.value;
     if (newRole.value) userData.role = newRole.value;
@@ -168,6 +182,8 @@ const createUser = async () => {
 
     // Reset form
     newName.value = '';
+    newNickname.value = '';
+    newDiscord.value = '';
     newEmail.value = '';
     newPassword.value = '';
     newRole.value = '';
@@ -209,7 +225,9 @@ watch(
       <table>
         <thead>
           <tr>
-            <th class="recoltes small" data-label="Name">Name</th>
+            <th class="recoltes small" data-label="Name">Pseudo</th>
+            <th class="recoltes small" data-label="Name">Nom</th>
+            <th class="recoltes small" data-label="Pseudo Name">Discord</th>
             <th class="recoltes small" data-label="Email">Email</th>
             <th class="recoltes small" data-label="Role">Role</th>
             <th class="recoltes small" data-label="Active">Active</th>
@@ -219,7 +237,9 @@ watch(
         </thead>
         <tbody>
           <tr v-for="user in users" :key="user.id">
-            <td data-label="Name">{{ user.name.charAt(0).toUpperCase() + user.name.slice(1) }}</td>
+            <td data-label="Pseudo">{{ user.nickname.charAt(0).toUpperCase() + user.nickname.slice(1) }}</td>
+            <td data-label="Nom">{{ user.name }}</td>
+            <td data-label="Pseudo Discord">{{ user.discord }}</td>
             <td data-label="Email">{{ user.email }}</td>
             <td data-label="Role">{{ user.role }}</td>
             <td data-label="Active">
@@ -240,7 +260,9 @@ watch(
             </td>
             <td v-if="editingUserId == user.id" data-label="Edit">
               <form class="form-section" @submit.prevent>
-                <input v-model="editName" placeholder="Name" class="form-input" />
+                <input v-model="editNickname" placeholder="Pseudo" class="form-input" />
+                <input v-model="editName" placeholder="Nom" class="form-input" />
+                <input v-model="editDiscord" placeholder="Pseudo Discord" class="form-input" />
                 <input v-model="editEmail" placeholder="Email" class="form-input" />
                 <input v-model="editPassword" placeholder="Password" class="form-input" />
                 <select v-model="editRole" class="form-input">

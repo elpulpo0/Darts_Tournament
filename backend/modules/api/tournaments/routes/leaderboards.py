@@ -8,7 +8,7 @@ from modules.api.tournaments.models import (
     MatchPlayer,
     Pool,
     Participant,
-    ParticipantMember,  # Changé de TeamMember
+    ParticipantMember,
 )
 from modules.api.tournaments.schemas import (
     TournamentLeaderboardResponse,
@@ -162,6 +162,7 @@ def get_season_leaderboard(
             literal(0.0).label("double_wins"),
             literal(0.0).label("double_manches"),
             User.nickname,
+            User.name,
         )
         .join(Match, MatchPlayer.match_id == Match.id)
         .join(Participant, MatchPlayer.participant_id == Participant.id)
@@ -245,6 +246,7 @@ def get_season_leaderboard(
             func.sum(team_score_subquery.c.team_wins).label("double_wins"),
             func.sum(team_score_subquery.c.team_score).label("double_manches"),
             User.nickname,
+            User.name,
         )
         .join(Participant, Participant.id == team_score_subquery.c.participant_id)
         .join(ParticipantMember, Participant.id == ParticipantMember.participant_id)
@@ -274,8 +276,9 @@ def get_season_leaderboard(
                 "total_manches"
             ),
             union_query.c.nickname,
+            union_query.c.name,
         )
-        .group_by(union_query.c.user_id, union_query.c.nickname)
+        .group_by(union_query.c.user_id, union_query.c.nickname, union_query.c.name)
         .order_by(desc("wins"), desc("total_manches"))
     )
 
@@ -283,6 +286,7 @@ def get_season_leaderboard(
     leaderboard = [
         LeaderboardEntry(
             user_id=row.user_id,
+            name=row.name or "Inconnu",
             nickname=row.nickname,
             total_points=float(row.total_points) or 0.0,
             single_wins=float(row.single_wins) or 0.0,

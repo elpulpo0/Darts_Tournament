@@ -42,6 +42,7 @@ type Tournament = {
 type LeaderboardEntry = {
   user_id: number;
   name: string;
+  nickname: string;
   total_points: number;
   single_wins: number;
   double_wins: number;

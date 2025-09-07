@@ -52,6 +52,6 @@ backend/logs/*
 database/*
 logs/*
 backend/backups/
-backend/excel/
+backend/scripts/
 backend/modules/api/users/initial_users.yaml
 monitoring/uptime-kuma/*

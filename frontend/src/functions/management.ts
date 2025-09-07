@@ -2,7 +2,7 @@ import { useTournamentStore } from '../stores/useTournamentStore';
 
 export const getParticipantDisplayNickname = (participant: MatchParticipantSchema | Participant | null): string => {
     const tournamentStore = useTournamentStore();
-    if (!participant) return 'N/A';
+    if (!participant) return 'Inconnu';
 
     let fullParticipant: MatchParticipantSchema | Participant = participant;
     // Check for participant_id (MatchParticipantSchema) or id (Participant)
@@ -14,7 +14,7 @@ export const getParticipantDisplayNickname = (participant: MatchParticipantSchem
         }
     }
 
-    const baseName = fullParticipant.name || (fullParticipant.users?.length === 1 ? fullParticipant.users[0]?.nickname || 'N/A' : 'N/A');
+    const baseName = fullParticipant.name || (fullParticipant.users?.length === 1 ? fullParticipant.users[0]?.nickname || 'Inconnu' : 'Inconnu');
     if (fullParticipant.users?.length === 2) {
         const userNames = fullParticipant.users.map(u => u.nickname || 'Unknown').join(' & ');
         return `${baseName} (${userNames})`;
@@ -25,7 +25,7 @@ export const getParticipantDisplayNickname = (participant: MatchParticipantSchem
 
 export const getParticipantName = (participant: MatchParticipantSchema | Participant | null): string => {
     const tournamentStore = useTournamentStore();
-    if (!participant) return 'N/A';
+    if (!participant) return 'Inconnu';
 
     let fullParticipant: MatchParticipantSchema | Participant = participant;
     // Check for participant_id (MatchParticipantSchema) or id (Participant)
@@ -37,7 +37,7 @@ export const getParticipantName = (participant: MatchParticipantSchema | Partici
         }
     }
 
-    const baseName = (fullParticipant.users?.length === 1 ? fullParticipant.users[0]?.name || 'N/A' : 'N/A');
+    const baseName = (fullParticipant.users?.length === 1 ? fullParticipant.users[0]?.name || 'Inconnu' : 'Inconnu');
     if (fullParticipant.users?.length === 2) {
         const userNames = fullParticipant.users.map(u => u.name || 'Unknown').join(' & ');
         return `${userNames}`;

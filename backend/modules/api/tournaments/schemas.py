@@ -114,6 +114,7 @@ class PoolCreate(BaseModel):
 
 class LeaderboardEntry(BaseModel):
     user_id: int
+    name: Optional[str] = "Inconnu"
     nickname: str
     total_points: float
     single_wins: float

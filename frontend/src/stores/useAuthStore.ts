@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshToken = useStorage<string>('refreshToken', '');
   const email = useStorage<string>('email', '');
   const name = useStorage<string>('name', '');
-  const nickname = useStorage<string>('name', '');
+  const nickname = useStorage<string>('nickname', '');
   const discord = useStorage<string>('name', '');
   const userId = useStorage<number | null>('userId', null, localStorage, {
     serializer: {
@@ -113,6 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken,
     email,
     name,
+    nickname,
     userId,
     scopes,
     setAuthData,

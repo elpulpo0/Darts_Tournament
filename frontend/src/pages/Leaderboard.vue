@@ -26,9 +26,9 @@
                 </thead>
                 <tbody>
                     <tr v-for="(entry, index) in leaderboardsStore.seasonLeaderboard"
-                        :class="{ 'current-user': entry.name === currentUserName }" :key="entry.user_id">
+                        :class="{ 'current-user': entry.nickname === currentUserName }" :key="entry.user_id">
                         <td>{{ getRank(index) }}</td>
-                        <td>{{ entry.name }}</td>
+                        <td :title="entry.name">{{ entry.nickname }}</td>
                         <td>{{ entry.total_points }}</td>
                         <td>{{ entry.single_wins }}</td>
                         <td>{{ entry.double_wins }}</td>
@@ -55,7 +55,7 @@ import { useLeaderboardsStore } from '../stores/useLeaderboardsStore';
 const authStore = useAuthStore();
 const leaderboardsStore = useLeaderboardsStore();
 
-const currentUserName = computed(() => authStore.name || '');
+const currentUserName = computed(() => authStore.nickname || '');
 const currentYear = new Date().getFullYear();
 
 const getRank = (index: number) => {

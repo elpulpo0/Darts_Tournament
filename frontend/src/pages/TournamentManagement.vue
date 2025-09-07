@@ -124,7 +124,7 @@
                                 <tr v-for="participant in tournamentStore.participants" :key="participant.id">
                                     <td>{{ participant.name }}</td>
                                     <td
-                                        :title="participant.users.map(u => u.name || u.nickname || 'Unknown').join(' & ')">
+                                        :title="participant.users.map(u => u.name || u.nickname || 'Inconnu').join(' & ')">
                                         {{participant.users.map(u => u.nickname).join(' & ')}}
                                     </td>
                                     <td>
@@ -189,7 +189,7 @@
                 <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
                 <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
                     leaderboardsStore.poolsLeaderboardError
-                    }}</div>
+                }}</div>
                 <div v-if="leaderboardsStore.poolsLeaderboard.length">
                     <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
                         <h5>{{ poolLeaderboard.pool_name }}</h5>

@@ -44,7 +44,7 @@ def create_match(
         )
         db.add(match_player)
         name = participant.name or (
-            participant.members[0].user.name if participant.members else "Unknown"
+            participant.members[0].user.name if participant.members else "Inconnu"
         )
         participants_list.append(
             {"participant_id": participant_id, "name": name, "score": None}
@@ -75,7 +75,7 @@ def get_tournament_matches(
         participants_list = []
         for mp in match.match_participations:
             p = mp.participant
-            name = p.name or (p.members[0].user.name if p.members else "Unknown")
+            name = p.name or (p.members[0].user.name if p.members else "Inconnu")
             participants_list.append(
                 {"participant_id": p.id, "name": name, "score": mp.score}
             )
@@ -125,7 +125,7 @@ def update_match(
                 )
             match_player.score = score
             p = match_player.participant
-            name = p.name or (p.members[0].user.name if p.members else "Unknown")
+            name = p.name or (p.members[0].user.name if p.members else "Inconnu")
             participants_list.append(
                 {"participant_id": participant_id, "name": name, "score": score}
             )
@@ -136,7 +136,7 @@ def update_match(
     if not participants_list:
         for mp in match.match_participations:
             p = mp.participant
-            name = p.name or (p.members[0].user.name if p.members else "Unknown")
+            name = p.name or (p.members[0].user.name if p.members else "Inconnu")
             participants_list.append(
                 {"participant_id": p.id, "name": name, "score": mp.score}
             )
@@ -168,7 +168,7 @@ def cancel_match_scores(
     for match_player in match.match_participations:
         match_player.score = None
         p = match_player.participant
-        name = p.name or (p.members[0].user.name if p.members else "Unknown")
+        name = p.name or (p.members[0].user.name if p.members else "Inconnu")
         participants_list.append({"participant_id": p.id, "name": name, "score": None})
 
     db.commit()
