@@ -11,7 +11,7 @@ from modules.api.users.functions import (
 )
 from modules.api.users.schemas import UserResponse, UserCreate, UserUpdate, TokenData
 from modules.api.users.models import User, Role
-from modules.api.auth.security import anonymize, hash_password
+from modules.api.auth.security import hash_password
 from typing import Optional
 from modules.api.users.telegram import notify_telegram
 
@@ -286,7 +286,7 @@ def update_current_user(
         user.discord = update_data.discord
 
     if update_data.email:
-        user.email = anonymize(update_data.email)
+        user.email = update_data.email
 
     if update_data.password:
         user.hashed_password = hash_password(update_data.password)
@@ -331,7 +331,7 @@ def admin_update_user(
         user.discord = update_data.discord
 
     if update_data.email:
-        user.email = anonymize(update_data.email)
+        user.email = update_data.email
 
     if update_data.password:
         user.hashed_password = hash_password(update_data.password)
