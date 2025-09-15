@@ -41,12 +41,37 @@
                         <button @click="registerToTournament(selectedTournament.id)">S’inscrire</button>
                     </div>
                     <div v-else>
+                        <p>Vous êtes inscrit à ce tournoi.</p>
                         <button @click="unregisterFromTournament(selectedTournament.id)">Se désinscrire</button>
-                        <p>Vous êtes déjà inscrit à ce tournoi.</p>
                     </div>
                 </div>
-                <div v-else>
+                <div v-if="selectedTournament.status === 'closed'">
                     <p>Les inscriptions sont closes pour ce tournoi.</p>
+                </div>
+                <div v-if="selectedTournament.status === 'finished'">
+                    <p>Ce tournoi est terminé. </p>
+                </div>
+
+                <div v-if="selectedTournament.status === 'open'" class="participants-section">
+                    <h4>Participants ({{ tournamentStore.participants?.length }})</h4>
+                    <table v-if="tournamentStore.participants?.length">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th v-if="selectedTournament.mode === 'double'">Membres</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="participant in tournamentStore.participants" :key="participant.id">
+                                <td>{{ participant.name }}</td>
+                                <td v-if="selectedTournament.mode === 'double'"
+                                    :title="participant.users.map(u => u.name || u.nickname || 'Inconnu').join(' & ')">
+                                    {{participant.users.map(u => u.nickname).join(' & ')}}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p v-else>Aucun participant pour le moment.</p>
                 </div>
 
                 <button v-if="selectedTournament && ['running', 'finished'].includes(selectedTournament.status)"
@@ -89,10 +114,12 @@ import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useRouter } from 'vue-router';
 import { handleError } from '../functions/utils';
+import { useTournamentStore } from '../stores/useTournamentStore';
 
 const authStore = useAuthStore();
 const toast = useToast();
 const router = useRouter();
+const tournamentStore = useTournamentStore();
 
 const tournaments = ref<Tournament[]>([]);
 const selectedTournament = ref<Tournament | null>(null);
@@ -103,7 +130,6 @@ const newTournamentDescription = ref('');
 const newTournamentStartDate = ref('');
 const newTournamentMode = ref<'single' | 'double'>('single'); // Nouveau champ pour le mode
 const registrationStatus = ref<{ [key: number]: boolean }>({});
-const matches = ref<{ [key: number]: Match[] }>({});
 
 const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
 
@@ -151,12 +177,6 @@ const fetchTournaments = async () => {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
         tournaments.value = data;
-        for (const tournament of tournaments.value) {
-            if (tournament.status === 'open') {
-                registrationStatus.value[tournament.id] = await checkIfUserRegistered(tournament.id);
-            }
-            matches.value[tournament.id] = await fetchMatches(tournament.id);
-        }
     } catch (err) {
         handleError(err, 'récupération des tournois');
     } finally {
@@ -176,6 +196,7 @@ const registerToTournament = async (tournamentId: number) => {
         );
         toast.success('Inscription au tournoi réussie.');
         registrationStatus.value[tournamentId] = true;
+        await tournamentStore.fetchParticipants(tournamentId);
     } catch (err) {
         handleError(err, 'inscription au tournoi');
     }
@@ -205,26 +226,16 @@ const unregisterFromTournament = async (tournamentId: number) => {
         );
         toast.success('Désinscription du tournoi réussie.');
         registrationStatus.value[tournamentId] = false;
+        await tournamentStore.fetchParticipants(tournamentId);
     } catch (err) {
         handleError(err, 'désinscription du tournoi');
     }
 };
 
-const fetchMatches = async (tournamentId: number): Promise<Match[]> => {
-    try {
-        const { data } = await backendApi.get(`/tournaments/matches/tournament/${tournamentId}`, {
-            headers: { Authorization: `Bearer ${authStore.token}` },
-        });
-        return data;
-    } catch (err) {
-        handleError(err, 'récupération des matchs');
-        return [];
-    }
-};
-
 const selectTournament = async (tournament: Tournament) => {
     selectedTournament.value = tournament;
-    matches.value[tournament.id] = await fetchMatches(tournament.id);
+    await tournamentStore.fetchParticipants(tournament.id);
+    registrationStatus.value[tournament.id] = await checkIfUserRegistered(tournament.id);
 };
 
 watch(

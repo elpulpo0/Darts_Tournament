@@ -848,18 +848,13 @@ def delete_participant(
     "/{tournament_id}/participants",
     response_model=List[ParticipantResponse],
     summary="List participants of a tournament",
-    description="Retrieves all participants (players or teams) for a specific tournament. Requires admin or editor privileges.",
+    description="Retrieves all participants (players or teams) for a specific tournament.",
 )
 def get_participants(
     tournament_id: int,
     db: Session = Depends(get_users_db),
     current_user: TokenData = Depends(get_current_user),
 ):
-    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
-        raise HTTPException(
-            status_code=403, detail="Access denied: administrators or editors only."
-        )
-
     participants = (
         db.query(Participant).filter(Participant.tournament_id == tournament_id).all()
     )
