@@ -18,7 +18,6 @@ onMounted(() => {
     leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
     const currentYear = new Date().getFullYear();
     leaderboardsStore.fetchSeasonLeaderboard(currentYear, authStore.token);
-    tournamentStore.fetchParticipants(tournamentId.value)
 });
 
 const finalMatches = computed(() => tournamentStore.tournamentDetail?.final_matches || [] as MatchDetailSchema[]);

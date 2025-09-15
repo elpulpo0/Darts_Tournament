@@ -103,7 +103,6 @@ const newTournamentDescription = ref('');
 const newTournamentStartDate = ref('');
 const newTournamentMode = ref<'single' | 'double'>('single'); // Nouveau champ pour le mode
 const registrationStatus = ref<{ [key: number]: boolean }>({});
-const participants = ref<{ [key: number]: Participant[] }>({});
 const matches = ref<{ [key: number]: Match[] }>({});
 
 const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
@@ -156,25 +155,12 @@ const fetchTournaments = async () => {
             if (tournament.status === 'open') {
                 registrationStatus.value[tournament.id] = await checkIfUserRegistered(tournament.id);
             }
-            participants.value[tournament.id] = await fetchParticipants(tournament.id);
             matches.value[tournament.id] = await fetchMatches(tournament.id);
         }
     } catch (err) {
         handleError(err, 'récupération des tournois');
     } finally {
         loading.value = false;
-    }
-};
-
-const fetchParticipants = async (tournamentId: number): Promise<Participant[]> => {
-    try {
-        const { data } = await backendApi.get(`/tournaments/${tournamentId}/participants`, {
-            headers: { Authorization: `Bearer ${authStore.token}` },
-        });
-        return data;
-    } catch (err) {
-        handleError(err, 'récupération des participants');
-        return [];
     }
 };
 
@@ -190,7 +176,6 @@ const registerToTournament = async (tournamentId: number) => {
         );
         toast.success('Inscription au tournoi réussie.');
         registrationStatus.value[tournamentId] = true;
-        participants.value[tournamentId] = await fetchParticipants(tournamentId);
     } catch (err) {
         handleError(err, 'inscription au tournoi');
     }
@@ -220,7 +205,6 @@ const unregisterFromTournament = async (tournamentId: number) => {
         );
         toast.success('Désinscription du tournoi réussie.');
         registrationStatus.value[tournamentId] = false;
-        participants.value[tournamentId] = await fetchParticipants(tournamentId);
     } catch (err) {
         handleError(err, 'désinscription du tournoi');
     }
@@ -240,7 +224,6 @@ const fetchMatches = async (tournamentId: number): Promise<Match[]> => {
 
 const selectTournament = async (tournament: Tournament) => {
     selectedTournament.value = tournament;
-    participants.value[tournament.id] = await fetchParticipants(tournament.id);
     matches.value[tournament.id] = await fetchMatches(tournament.id);
 };
 
