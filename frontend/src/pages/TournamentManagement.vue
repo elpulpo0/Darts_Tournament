@@ -95,7 +95,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="user in tournamentStore.registeredUsers" :key="user.id">
+                            <tr v-for="user in unregisteredTeamUsers" :key="user.id">
                                 <td>{{ user.name ? user.nickname + ' (' + user.name + ')' : user.nickname }}</td>
                                 <td>
                                     <button title="Désinscrire ce joueur" class="delete-btn"
@@ -185,7 +185,7 @@
                 <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
                 <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
                     leaderboardsStore.poolsLeaderboardError
-                    }}</div>
+                }}</div>
                 <div v-if="leaderboardsStore.poolsLeaderboard.length">
                     <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
                         <h5>{{ poolLeaderboard.pool_name }}</h5>
@@ -527,6 +527,17 @@ const isCurrentRoundFinished = computed(() => {
             .filter(m => m.pool_id == null && m.round === currentRound.value)
             .every(m => m.status === 'completed');
     }
+});
+
+const unregisteredTeamUsers = computed(() => {
+    // Filter users who are not in any participant (team)
+    const usersNotInTeam = tournamentStore.registeredUsers.filter(user =>
+        !tournamentStore.participants.some(p => p.users.some(u => u.id === user.id))
+    );
+
+    return usersNotInTeam.sort((a, b) => {
+        return new Date(a.id).getTime() - new Date(b.id).getTime();
+    });
 });
 
 const selectableUsers = computed(() => {
