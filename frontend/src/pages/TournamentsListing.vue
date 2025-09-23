@@ -14,8 +14,8 @@
                     <p class="info">📅 {{ formatDate(tournament.start_date) }}</p>
                     <p class="info">🎮 {{ tournament.mode || 'Non défini' }}</p>
                 </div>
-                <img :src="`src/assets/affiche_tournoi_${tournament.id}.jpg`" alt="Affiche du tournoi"
-                    class="tournament-image" :key="tournament.id">
+                <img :src="getTournamentImage(tournament.id)" alt="Affiche du tournoi" class="tournament-image"
+                    :key="tournament.id">
             </div>
         </div>
 
@@ -133,6 +133,10 @@ const newTournamentMode = ref<'single' | 'double'>('single');
 const registrationStatus = ref<{ [key: number]: boolean }>({});
 
 const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
+
+const getTournamentImage = (tournamentId: number) => {
+    return new URL(`../assets/affiche_tournoi_${tournamentId}.jpg`, import.meta.url).href;
+};
 
 const getStatusLabel = (status: Tournament['status']) => {
     const labels: Record<Tournament['status'], string> = {
