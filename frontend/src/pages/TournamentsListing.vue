@@ -1,109 +1,101 @@
 <template>
-    <div v-if="authStore.isAuthenticated">
-        <div v-if="loading">Chargement des tournois...</div>
+    <div v-if="authStore.isAuthenticated" class="module">
+        <div v-if="loading" class="loading">Chargement...</div>
 
-        <div v-if="tournaments.length" class="module">
-            <h2>Tournois</h2>
-            <div class="tournament-tiles">
-                <div v-for="tournament in tournaments" class="tile"
-                    :class="{ 'selected': selectedTournament?.id === tournament.id }"
-                    @click="selectTournament(tournament)" :key="tournament.id">
+        <h2>Tournois</h2>
+        <div v-if="tournaments.length" class="tournament-grid">
+            <div v-for="tournament in tournaments" class="tournament-card"
+                :class="{ 'selected': selectedTournament?.id === tournament.id }" @click="selectTournament(tournament)">
+                <div class="card-content">
                     <h3>{{ tournament.name }}</h3>
-                    <p>
-                        {{
-                            tournament.status === "open"
-                                ? "Inscriptions ouvertes"
-                                : tournament.status === "closed"
-                                    ? "Inscriptions fermées"
-                                    : tournament.status === "finished"
-                                        ? "Tournoi terminé"
-                                        : tournament.status === "running"
-                                            ? "Tournoi en cours"
-                                            : ""
-                        }}
-                    </p>
-                    <p>Mode: {{ tournament.mode || 'Non défini' }}</p>
-                    <p>Date : {{ formatDate(tournament.start_date) }}</p>
-                    <p>{{ tournament.description || 'Aucune description' }}</p>
-                </div>
-            </div>
-
-            <div v-if="selectedTournament" class="tournament-details">
-
-                <button v-if="isEditor"
-                    @click="router.push({ name: 'TournamentManagement', params: { tournamentId: selectedTournament.id } })">
-                    Gérer le tournoi
-                </button>
-
-                <!-- Register or Unregister button -->
-                <div v-if="selectedTournament.status === 'open'">
-                    <div v-if="!registrationStatus[selectedTournament.id]">
-                        <button @click="registerToTournament(selectedTournament.id)">S’inscrire</button>
+                    <div class="status" :class="tournament.status">
+                        <span>{{ getStatusLabel(tournament.status) }}</span>
                     </div>
-                    <div v-else>
-                        <p>Vous êtes inscrit à ce tournoi.</p>
-                        <button @click="unregisterFromTournament(selectedTournament.id)">Se désinscrire</button>
-                    </div>
+                    <p class="info">📅 {{ formatDate(tournament.start_date) }}</p>
+                    <p class="info">🎮 {{ tournament.mode || 'Non défini' }}</p>
                 </div>
-                <div v-if="selectedTournament.status === 'closed'">
-                    <p>Les inscriptions sont closes pour ce tournoi.</p>
-                </div>
-                <div v-if="selectedTournament.status === 'finished'">
-                    <p>Ce tournoi est terminé. </p>
-                </div>
-
-                <div v-if="selectedTournament.status === 'open'" class="participants-section">
-                    <h4>Participants ({{ tournamentStore.participants?.length }})</h4>
-                    <table v-if="tournamentStore.participants?.length">
-                        <thead>
-                            <tr>
-                                <th></th>
-                                <th v-if="selectedTournament.mode === 'double'">Membres</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="participant in tournamentStore.participants" :key="participant.id">
-                                <td>{{ participant.name }}</td>
-                                <td v-if="selectedTournament.mode === 'double'"
-                                    :title="participant.users.map(u => u.name || u.nickname || 'Inconnu').join(' & ')">
-                                    {{participant.users.map(u => u.nickname).join(' & ')}}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <p v-else>Aucun participant pour le moment.</p>
-                </div>
-
-                <button v-if="selectedTournament && ['running', 'finished'].includes(selectedTournament.status)"
-                    @click="openProjection">
-                    Projeter l’arborescence
-                </button>
+                <img :src="`src/assets/affiche_tournoi_${tournament.id}.jpg`" alt="Affiche du tournoi"
+                    class="tournament-image" :key="tournament.id">
             </div>
         </div>
 
-        <div v-else class="module">
+        <div v-else class="no-tournaments">
             <p>Aucun tournoi disponible.</p>
         </div>
 
-        <button v-if="isEditor" @click="toggleCreateTournamentForm">
-            {{ showCreateTournament ? 'Annuler' : 'Ajouter un tournoi' }}
+        <!-- Modal pour les détails du tournoi -->
+        <div v-if="selectedTournament" class="tournament-modal" @click.self="selectedTournament = null">
+            <div class="modal-content">
+                <h3>{{ selectedTournament.name }}</h3>
+                <p>{{ selectedTournament.description || 'Aucune description' }}</p>
+                <p><strong>Date :</strong> {{ formatDate(selectedTournament.start_date) }}</p>
+                <p><strong>Mode :</strong> {{ selectedTournament.mode || 'Non défini' }}</p>
+
+                <div v-if="selectedTournament.status === 'open'">
+                    <button v-if="!registrationStatus[selectedTournament.id]"
+                        @click="registerToTournament(selectedTournament.id)">
+                        S’inscrire
+                    </button>
+                    <div v-else>
+                        <p>Vous êtes inscrit.</p>
+                        <button @click="unregisterFromTournament(selectedTournament.id)">Se
+                            désinscrire</button>
+                    </div>
+                </div>
+                <p v-else-if="selectedTournament.status === 'closed'">Inscriptions closes.</p>
+                <p v-else-if="selectedTournament.status === 'finished'">Tournoi terminé.</p>
+
+                <div v-if="selectedTournament.status === 'open'" class="participants">
+                    <h4>Participants ({{ tournamentStore.participants?.length || 0 }})</h4>
+                    <ul v-if="tournamentStore.participants?.length">
+                        <li v-for="participant in tournamentStore.participants" :key="participant.id">
+                            {{ participant.name }}
+                            <span v-if="selectedTournament.mode === 'double'">
+                                ({{participant.users.map(u => u.nickname || 'Inconnu').join(' & ')}})
+                            </span>
+                        </li>
+                    </ul>
+                    <p v-else>Aucun participant.</p>
+                </div>
+
+                <button v-if="isEditor"
+                    @click="router.push({ name: 'TournamentManagement', params: { tournamentId: selectedTournament.id } })">
+                    Gérer
+                </button>
+                <button v-if="['running', 'finished'].includes(selectedTournament.status)" @click="openProjection">
+                    Voir l’arborescence
+                </button>
+                <button @click="selectedTournament = null">Fermer</button>
+            </div>
+        </div>
+
+        <!-- Bouton pour créer un tournoi -->
+        <button v-if="isEditor" class="add-button" @click="showCreateTournament = true">
+            + Ajouter un tournoi
         </button>
-        <div v-if="showCreateTournament" class="module">
-            <h3>Ajouter un tournoi</h3>
-            <input v-model="newTournamentName" placeholder="Nom" class="form-input" />
-            <input v-model="newTournamentDescription" placeholder="Description" class="form-input" />
-            <input v-model="newTournamentStartDate" type="datetime-local" class="form-input" />
-            <select v-model="newTournamentMode" class="form-input">
-                <option value="single">Single (Joueurs individuels)</option>
-                <option value="double">Double (Équipes de 2)</option>
-            </select>
-            <button @click="createTournament">Ajouter</button>
+
+        <!-- Modal pour créer un tournoi -->
+        <div v-if="showCreateTournament" class="create-modal" @click.self="toggleCreateTournamentForm">
+            <div class="modal-content">
+                <h3>Ajouter un tournoi</h3>
+                <input v-model="newTournamentName" placeholder="Nom" class="form-input" />
+                <input v-model="newTournamentDescription" placeholder="Description" class="form-input" />
+                <input v-model="newTournamentStartDate" type="datetime-local" class="form-input" />
+                <select v-model="newTournamentMode" class="form-input">
+                    <option value="single">Simple</option>
+                    <option value="double">Double</option>
+                </select>
+                <div class="modal-actions">
+                    <button @click="createTournament">Ajouter</button>
+                    <button @click="toggleCreateTournamentForm">Annuler</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <div v-else class="centered-block">
         <h2>🔒 Connexion requise</h2>
-        <p>Veuillez vous connecter pour voir les informations des tournois.</p>
+        <p>Veuillez vous connecter pour voir les tournois.</p>
     </div>
 </template>
 
@@ -115,6 +107,15 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { useRouter } from 'vue-router';
 import { handleError } from '../functions/utils';
 import { useTournamentStore } from '../stores/useTournamentStore';
+
+interface Tournament {
+    id: number;
+    name: string;
+    status: 'open' | 'closed' | 'finished' | 'running';
+    start_date: string;
+    mode?: string;
+    description?: string;
+}
 
 const authStore = useAuthStore();
 const toast = useToast();
@@ -128,10 +129,22 @@ const showCreateTournament = ref(false);
 const newTournamentName = ref('');
 const newTournamentDescription = ref('');
 const newTournamentStartDate = ref('');
-const newTournamentMode = ref<'single' | 'double'>('single'); // Nouveau champ pour le mode
+const newTournamentMode = ref<'single' | 'double'>('single');
 const registrationStatus = ref<{ [key: number]: boolean }>({});
 
 const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
+
+const getStatusLabel = (status: Tournament['status']) => {
+    const labels: Record<Tournament['status'], string> = {
+        open: 'Inscriptions ouvertes',
+        closed: 'Inscriptions fermées',
+        finished: 'Terminé',
+        running: 'En cours',
+    };
+    return labels[status] || '';
+};
+
+const formatDate = (date: string) => new Date(date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
 
 const toggleCreateTournamentForm = () => {
     showCreateTournament.value = !showCreateTournament.value;
@@ -143,20 +156,20 @@ const toggleCreateTournamentForm = () => {
     }
 };
 
-const formatDate = (date: string) => new Date(date).toLocaleString();
-
 const createTournament = async () => {
     if (!newTournamentName.value || !newTournamentStartDate.value) {
-        toast.error('Le nom et la date de début sont requis.');
+        toast.error('Nom et date requis.');
         return;
     }
+    const localDate = newTournamentStartDate.value;
+
     const tournamentData = {
         name: newTournamentName.value,
         description: newTournamentDescription.value || null,
-        start_date: new Date(newTournamentStartDate.value).toISOString(),
+        start_date: localDate,
         is_active: true,
         status: 'open',
-        mode: newTournamentMode.value, // Ajout du mode
+        mode: newTournamentMode.value,
     };
     try {
         await backendApi.post('/tournaments/', tournamentData, {
@@ -185,16 +198,12 @@ const fetchTournaments = async () => {
 };
 
 const registerToTournament = async (tournamentId: number) => {
-    const playerData = {
-        user_id: authStore.userId,
-        tournament_id: tournamentId,
-    };
+    const playerData = { user_id: authStore.userId, tournament_id: tournamentId };
     try {
-        await backendApi.post(
-            '/tournaments/registrations/', playerData,
-            { headers: { Authorization: `Bearer ${authStore.token}` } }
-        );
-        toast.success('Inscription au tournoi réussie.');
+        await backendApi.post('/tournaments/registrations/', playerData, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+        toast.success('Inscription réussie.');
         registrationStatus.value[tournamentId] = true;
         await tournamentStore.fetchParticipants(tournamentId);
     } catch (err) {
@@ -210,9 +219,9 @@ const checkIfUserRegistered = async (tournamentId: number): Promise<boolean> => 
         return data;
     } catch (err: any) {
         if (err.response?.status === 401) {
-            toast.error('Veuillez vous connecter pour vérifier l’état de l’inscription.');
+            toast.error('Connexion requise.');
         } else {
-            handleError(err, 'vérification de l’état de l’inscription');
+            handleError(err, 'vérification de l’inscription');
         }
         return false;
     }
@@ -220,11 +229,10 @@ const checkIfUserRegistered = async (tournamentId: number): Promise<boolean> => 
 
 const unregisterFromTournament = async (tournamentId: number) => {
     try {
-        await backendApi.delete(
-            `/tournaments/registrations/${tournamentId}`,
-            { headers: { Authorization: `Bearer ${authStore.token}` } }
-        );
-        toast.success('Désinscription du tournoi réussie.');
+        await backendApi.delete(`/tournaments/registrations/${tournamentId}`, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+        toast.success('Désinscription réussie.');
         registrationStatus.value[tournamentId] = false;
         await tournamentStore.fetchParticipants(tournamentId);
     } catch (err) {
@@ -238,15 +246,9 @@ const selectTournament = async (tournament: Tournament) => {
     registrationStatus.value[tournament.id] = await checkIfUserRegistered(tournament.id);
 };
 
-watch(
-    () => authStore.isAuthenticated,
-    (isAuthenticated: boolean) => {
-        if (isAuthenticated) {
-            fetchTournaments();
-        }
-    },
-    { immediate: true }
-);
+watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
+    if (isAuthenticated) fetchTournaments();
+}, { immediate: true });
 
 const openProjection = () => {
     if (!selectedTournament.value) return;
@@ -254,34 +256,167 @@ const openProjection = () => {
 };
 </script>
 
-<style>
-.tournament-tiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-}
-
-.tile {
-    border: 1px solid var(--color-light-shadow);
+<style scoped>
+.tournaments-container {
+    max-width: 1200px;
+    margin: 0 auto;
     padding: 1rem;
-    cursor: pointer;
-    border-radius: var(--radius);
-    background-color: var(--color-light-shadow);
-    color: var(--color-fg);
-    font-family: var(--font-main);
-    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.tile.selected {
-    background-color: var(--color-accent-bis);
-    border-color: var(--color-fg-darker);
+.tournament-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0.75rem;
+}
+
+.tournament-card {
+    background: var(--color-light-shadow);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+}
+
+.tournament-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tournament-card.selected {
+    background: var(--color-accent-bis);
     color: var(--color-bg);
 }
 
-.tournament-details {
-    margin-top: 2rem;
-    border-top: 1px solid var(--color-light-shadow);
-    padding-top: 1rem;
-    font-family: var(--font-main);
+.card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.tournament-card h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.status {
+    font-size: 0.8rem;
+    display: inline;
+    margin-bottom: 0.5rem;
+}
+
+.status span {
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    display: inline-block;
+    background: inherit;
+}
+
+.status.open span {
+    background: #28a745;
+    color: white;
+}
+
+.status.closed span {
+    background: #dc3545;
+    color: white;
+}
+
+.status.running span {
+    background: #007bff;
+    color: white;
+}
+
+.status.finished span {
+    background: #6c757d;
+    color: white;
+}
+
+.info {
+    font-size: 0.85rem;
+    margin: 0.25rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.tournament-image {
+    width: 100px;
+    height: 100%;
+    object-fit: contain;
+    border-radius: var(--radius);
+}
+
+.tournament-modal,
+.create-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--color-bg);
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.participants ul {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0;
+}
+
+.participants li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-light-shadow);
+}
+
+.add-button {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    cursor: pointer;
+}
+
+.form-input {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+    border: 1px solid var(--color-light-shadow);
+    border-radius: var(--radius);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.no-tournaments,
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--color-fg);
+}
+
+.centered-block {
+    text-align: center;
+    padding: 2rem;
 }
 </style>
