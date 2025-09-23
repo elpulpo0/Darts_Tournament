@@ -29,7 +29,7 @@ class Participant(UsersBase):
     tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=False)
     name = Column(
         String, nullable=True
-    )  # Nom du participant (généré pour singles, custom pour doubles)
+    )  # Nom du participant (vide pour singles, custom pour doubles)
 
     tournament = relationship("Tournament", back_populates="participants")
     members = relationship(

@@ -48,17 +48,17 @@ def create_token(data: dict, expires_delta: timedelta = None):
     expire_local = expire.astimezone(local_tz)
 
     if token_type == "access":
-        logger.info(
+        logger.debug(
             f"""
             New token {token_type} created for {name} with role {role} and scopes {scopes}
-            Expire at {expire_local.strftime('%Y-%m-%d %H:%M:%S')}"""
+            Expire at {expire_local.strftime("%Y-%m-%d %H:%M:%S")}"""
         )
 
     else:
-        logger.info(
+        logger.debug(
             f"""
             New token {token_type} created for {name}
-            Expire at {expire_local.strftime('%Y-%m-%d %H:%M:%S')}"""
+            Expire at {expire_local.strftime("%Y-%m-%d %H:%M:%S")}"""
         )
 
     return encoded_jwt
@@ -115,7 +115,7 @@ def find_refresh_token(db: Session, hashed_token: str) -> RefreshToken | None:
         db.query(RefreshToken).filter(RefreshToken.token == hashed_token).first()
     )
     if refresh_token:
-        logger.info(
+        logger.debug(
             f"""
             Refresh token found: {refresh_token.token},
             Expite at: {refresh_token.expires_at}"""

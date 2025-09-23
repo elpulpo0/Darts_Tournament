@@ -51,7 +51,7 @@ class TournamentRegistrationResponse(BaseModel):
 
 
 class ParticipantCreate(BaseModel):
-    name: Optional[str] = None  # Optionnel pour single (généré), requis pour double
+    name: Optional[str] = None  # Optionnel pour single, requis pour double
     user_ids: List[int]  # 1 pour single, 2 pour double
 
 

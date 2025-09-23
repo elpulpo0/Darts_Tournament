@@ -124,6 +124,8 @@ def delete_user(
     db.delete(user_to_delete)
     db.commit()
 
+    logger.info(f"User {user_to_delete.name} successfully deleted")
+
     return JSONResponse({"message": "User deleted"})
 
 
@@ -276,19 +278,24 @@ def update_current_user(
             )
 
     # Update fields
-    if update_data.name:
+    if update_data.name and update_data.name != user.name:
+        logger.info(f"User {user.id} updated name: {user.name} -> {update_data.name}")
         user.name = update_data.name
 
-    if update_data.nickname:
+    if update_data.nickname and update_data.nickname != user.nickname:
+        logger.info(
+            f"User {user.id} updated nickname: {user.nickname} -> {update_data.nickname}"
+        )
         user.nickname = update_data.nickname
 
-    if update_data.discord:
-        user.discord = update_data.discord
-
-    if update_data.email:
+    if update_data.email and update_data.email != user.email:
+        logger.info(
+            f"User {user.id} updated email: {user.email} -> {update_data.email}"
+        )
         user.email = update_data.email
 
     if update_data.password:
+        logger.info(f"User {user.id} updated password")
         user.hashed_password = hash_password(update_data.password)
 
     db.commit()
@@ -321,25 +328,37 @@ def admin_update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    if update_data.name:
+    if update_data.name and update_data.name != user.name:
+        logger.info(f"User {user.id} updated name: {user.name} -> {update_data.name}")
         user.name = update_data.name
 
-    if update_data.nickname:
+    if update_data.nickname and update_data.nickname != user.nickname:
+        logger.info(
+            f"User {user.id} updated nickname: {user.nickname} -> {update_data.nickname}"
+        )
         user.nickname = update_data.nickname
 
-    if update_data.discord:
+    if update_data.discord and update_data.discord != user.discord:
+        logger.info(
+            f"User {user.id} updated discord: {user.discord} -> {update_data.discord}"
+        )
         user.discord = update_data.discord
 
-    if update_data.email:
+    if update_data.email and update_data.email != user.email:
+        logger.info(
+            f"User {user.id} updated email: {user.email} -> {update_data.email}"
+        )
         user.email = update_data.email
 
     if update_data.password:
+        logger.info(f"User {user.id} updated password")
         user.hashed_password = hash_password(update_data.password)
 
     if update_data.role:
         role_obj = db.query(Role).filter(Role.role == update_data.role).first()
         if not role_obj:
             raise HTTPException(status_code=400, detail="Invalid role provided.")
+        logger.info(f"User {user.id} updated role: {user.role} -> {role_obj}")
         user.role = role_obj
 
     db.commit()

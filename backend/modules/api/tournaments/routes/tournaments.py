@@ -224,7 +224,7 @@ def get_tournaments(
     "/registrations/",
     response_model=TournamentRegistrationResponse,
     summary="Register user(s) to a tournament",
-    description="Registers a single user or a team to a tournament. For single mode, creates a participant with user_id or current user. For double mode, only registers user_id unless user_ids and name are provided to create a team.",
+    description="Registers a single user or a team to a tournament. For single mode, creates a participant without a name. For double mode, creates a team with a custom name.",
 )
 def register_to_tournament(
     registration_data: TournamentRegistrationCreate,
@@ -253,9 +253,10 @@ def register_to_tournament(
         if not user:
             raise HTTPException(status_code=404, detail=f"User {user_id} not found")
         user_ids = [user_id]
-        participant_name = user.nickname
-        # Create participant only in single mode
-        create_participant = tournament.mode == "single"
+        participant_name = None  # Explicitly set no name for single mode
+        create_participant = (
+            tournament.mode == "single"
+        )  # Create participant for single mode
     elif registration_data.user_ids:  # Team creation (double mode only)
         if tournament.mode != "double":
             raise HTTPException(
@@ -294,11 +295,12 @@ def register_to_tournament(
                 status_code=400, detail=f"User {user_id} already registered"
             )
 
-    # Create participant only if required
+    # Create participant if required
     participant = None
     if create_participant:
         participant = Participant(
-            tournament_id=registration_data.tournament_id, name=participant_name
+            tournament_id=registration_data.tournament_id,
+            name=participant_name,  # Will be None for single mode
         )
         db.add(participant)
         db.commit()
@@ -340,7 +342,7 @@ def register_to_tournament(
     response_model=TournamentRegistrationResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register a player or team (admin only)",
-    description="Registers a single player or team to a tournament. For single mode, creates a participant. For double mode, only registers user(s) unless a team is created with user_ids and name. Requires admin or editor privileges.",
+    description="Registers a single player or team to a tournament. For single mode, creates a participant without a name. For double mode, creates a team with a custom name. Requires admin or editor privileges.",
 )
 def register_new_player(
     player_data: TournamentRegistrationCreate,
@@ -372,9 +374,10 @@ def register_new_player(
         if not user:
             raise HTTPException(status_code=404, detail=f"User {user_id} not found")
         user_ids = [user_id]
-        participant_name = user.nickname
-        # Create participant only in single mode
-        create_participant = tournament.mode == "single"
+        participant_name = None  # Explicitly set no name for single mode
+        create_participant = (
+            tournament.mode == "single"
+        )  # Create participant for single mode
     elif player_data.user_ids:  # Team creation (double mode only)
         if tournament.mode != "double":
             raise HTTPException(
@@ -413,11 +416,12 @@ def register_new_player(
                 status_code=400, detail=f"User {user_id} already registered"
             )
 
-    # Create participant only if required
+    # Create participant if required
     participant = None
     if create_participant:
         participant = Participant(
-            tournament_id=player_data.tournament_id, name=participant_name
+            tournament_id=player_data.tournament_id,
+            name=participant_name,  # Will be None for single mode
         )
         db.add(participant)
         db.commit()
@@ -848,7 +852,7 @@ def delete_participant(
     "/{tournament_id}/participants",
     response_model=List[ParticipantResponse],
     summary="List participants of a tournament",
-    description="Retrieves all participants (players or teams) for a specific tournament.",
+    description="Retrieves all participants (players or teams) for a specific tournament. For single mode, participant names may be null.",
 )
 def get_participants(
     tournament_id: int,
@@ -864,7 +868,9 @@ def get_participants(
             PlayerResponse(id=m.user.id, name=m.user.name, nickname=m.user.nickname)
             for m in p.members
         ]
-        name = p.name or (users[0].name if users else "")  # Fallback si name vide
+        name = (
+            p.name if p.name else (users[0].nickname if users else "")
+        )  # Fallback to nickname for single mode
         response.append(ParticipantResponse(id=p.id, name=name, users=users))
     return response
 
@@ -927,14 +933,20 @@ def get_full_tournament_details(
         pool_matches = db.query(Match).filter(Match.pool_id == pool.id).all()
         pool_participants = []
         for p in pool.participants:
-            name = p.name
+            name = (
+                p.name if p.name else (p.members[0].user.nickname if p.members else "")
+            )
             pool_participants.append({"id": p.id, "name": name})
         pool_matches_dict = []
         for m in pool_matches:
             match_participants = []
             for mp in m.match_participations:
                 p = mp.participant
-                name = p.name
+                name = (
+                    p.name
+                    if p.name
+                    else (p.members[0].user.nickname if p.members else "")
+                )
                 match_participants.append(
                     {
                         "id": p.id,
@@ -970,7 +982,9 @@ def get_full_tournament_details(
         match_participants = []
         for mp in m.match_participations:
             p = mp.participant
-            name = p.name
+            name = (
+                p.name if p.name else (p.members[0].user.nickname if p.members else "")
+            )
             match_participants.append(
                 {
                     "id": p.id,
