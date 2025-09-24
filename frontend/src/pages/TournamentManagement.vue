@@ -681,10 +681,10 @@ const cancelLaunchingTournament = () => {
     launchTournamentType.value = 'pool';
 };
 
-const launchTournament = async () => {
+async function launchTournament() {
     loading.value = true;
     try {
-        tournamentStore.fetchParticipants(tournamentId.value)
+        tournamentStore.fetchParticipants(tournamentId.value);
         if ((tournamentStore.participants?.length ?? 0) < 4) throw new Error("Minimum 4 participants requis");
 
         const N = tournamentStore.participants.length;
@@ -694,13 +694,13 @@ const launchTournament = async () => {
         let tournamentType: 'pool' | 'elimination';
         let numPools: number;
 
-        // Définir des bornes pour le nombre de joueurs par poule (par exemple, 4 à 8 joueurs)
-        const minPlayersPerPool = 4;
+        // Définir des bornes pour le nombre de joueurs par poule (par exemple, 3 à 8 joueurs pour permettre plus de poules)
+        const minPlayersPerPool = 3; // Réduit à 3 pour permettre des poules de 3 joueurs
         const maxPlayersPerPool = 8;
 
-        // Calculer le nombre maximum de poules possibles (basé sur le minimum de joueurs par poule)
+        // Calculer le nombre maximum de poules possibles
         const maxPossiblePools = Math.floor(effectiveN / minPlayersPerPool);
-        // Calculer le nombre minimum de poules nécessaires (basé sur le maximum de joueurs par poule)
+        // Calculer le nombre minimum de poules nécessaires
         const minPossiblePools = Math.ceil(effectiveN / maxPlayersPerPool);
 
         if (launchTypeMode.value === 'manual') {
@@ -721,12 +721,11 @@ const launchTournament = async () => {
                 numPools = 0;
             } else {
                 tournamentType = 'pool';
-                // Si launchTargetCount est défini (> 0), l'utiliser, sinon fallback sur la logique par défaut
                 if (launchTargetCount.value > 0) {
                     numPools = Math.max(minPossiblePools, Math.min(launchTargetCount.value, maxPossiblePools));
                 } else {
-                    // Logique par défaut : essayer d'avoir environ 4 à 8 joueurs par poule
-                    numPools = Math.max(minPossiblePools, Math.min(Math.ceil(effectiveN / 6), maxPossiblePools));
+                    // Logique par défaut : viser environ 3 à 5 joueurs par poule pour 9 à 13 participants
+                    numPools = Math.max(minPossiblePools, Math.min(Math.ceil(effectiveN / 4), maxPossiblePools));
                 }
             }
         }
@@ -749,7 +748,7 @@ const launchTournament = async () => {
             const barrageParticipants = shuffledParticipants.slice(-numBarragePlayers);
             const barrageMatches = generateEliminationMatches(barrageParticipants);
             barrageMatches.forEach(match => {
-                match.round = 0;  // Marquer comme barrage
+                match.round = 0; // Marquer comme barrage
             });
             for (const match of barrageMatches) {
                 await createAndPersistMatch(match);
@@ -795,7 +794,7 @@ const launchTournament = async () => {
     } finally {
         loading.value = false;
     }
-};
+}
 
 async function generateFinalStage() {
     try {
@@ -864,89 +863,160 @@ async function generateFinalStage() {
                 }
             }
         } else if (currentRound.value === 0) {
-            // Cas poules
+            // Cas poules : qualifier targetQualifiers joueurs
             const totalParticipants = new Set(matches.value.flatMap(m => m.participants.map(p => p?.participant_id))).size;
-            const targetQualifiers = totalParticipants <= 12 ? 8 : totalParticipants <= 24 ? 16 : 32;
+            const targetQualifiers = totalParticipants <= 8 ? 4 : totalParticipants <= 16 ? 8 : totalParticipants <= 32 ? 16 : 32;
 
-            if (poolIds.value.length === 1) {
-                const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolIds.value[0]);
+            // Calculer le nombre de joueurs à prendre par poule
+            const numPools = poolIds.value.length;
+            const baseQualifiersPerPool = Math.floor(targetQualifiers / numPools);
+            const extraQualifiers = targetQualifiers % numPools;
+
+            // Étape 1 : Collecter les qualifiés
+            const firstPlaceParticipants: { participant: Participant; wins: number; total_manches: number; pool_id: number }[] = [];
+            const secondPlaceParticipants: { participant: Participant; wins: number; total_manches: number; pool_id: number }[] = [];
+            const thirdPlaceParticipants: { participant: Participant; wins: number; total_manches: number; pool_id: number }[] = [];
+            const qualified: Participant[] = [];
+
+            for (const poolId of poolIds.value) {
+                const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolId);
                 if (poolLeaderboard) {
-                    qualified = poolLeaderboard.leaderboard
-                        .slice(0, Math.min(targetQualifiers, poolLeaderboard.leaderboard.length))
-                        .map(entry => {
+                    // Prendre les baseQualifiersPerPool premiers
+                    const topParticipants = poolLeaderboard.leaderboard
+                        .slice(0, baseQualifiersPerPool)
+                        .map((entry, index) => {
                             const participant = tournamentStore.participants.find(p => p.id === entry.participant_id);
                             if (!participant) throw new Error(`Participant ${entry.participant_id} not found`);
-                            return participant;
+                            return { participant, wins: entry.wins, total_manches: entry.total_manches, pool_id: poolId, rank: index + 1 };
                         });
-                }
-            } else {
-                for (const poolId of poolIds.value) {
-                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolId);
-                    if (poolLeaderboard) {
-                        const poolSize = new Set(
-                            matches.value
-                                .filter(m => m.pool_id === poolId)
-                                .flatMap(m => m.participants.map(p => p?.participant_id))
-                        ).size;
-                        const numToQualify = poolSize >= 4 ? 4 : 2;
-                        const topParticipants = poolLeaderboard.leaderboard
-                            .slice(0, numToQualify)
-                            .map(entry => {
-                                const participant = tournamentStore.participants.find(p => p.id === entry.participant_id);
-                                if (!participant) throw new Error(`Participant ${entry.participant_id} not found`);
-                                return participant;
-                            });
-                        qualified = qualified.concat(topParticipants);
+                    if (topParticipants.length > 0) {
+                        firstPlaceParticipants.push(topParticipants[0]); // Premier
+                        qualified.push(topParticipants[0].participant);
+                        if (topParticipants.length > 1) {
+                            secondPlaceParticipants.push(topParticipants[1]); // Deuxième
+                            qualified.push(topParticipants[1].participant);
+                        }
                     }
                 }
             }
 
-            // Trier les qualifiés selon les critères
-            qualified = qualified
-                .map(participant => {
-                    const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p =>
-                        matches.value.some(m => m.pool_id === p.pool_id && m.participants.some(p => p?.participant_id === participant.id))
-                    );
-                    const stats = poolLeaderboard?.leaderboard.find(e => e.participant_id === participant.id);
-                    return { participant, wins: stats?.wins || 0, total_manches: stats?.total_manches || 0 };
-                })
-                .sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches)
-                .map(item => item.participant);
-
-            if (qualified.length > targetQualifiers) {
-                qualified = qualified.slice(0, targetQualifiers);
-            } else if (qualified.length < targetQualifiers) {
-                qualified = qualified.slice(0, Math.pow(2, Math.floor(Math.log2(qualified.length))));
-            }
-
-            // Generate matches for round 1 by pairing consecutive winners
-            const nextMatches: Match[] = [];
-            for (let i = 0; i < qualified.length / 2; i += 2) {
-                const match1Winner = qualified[i];
-                const match2Winner = qualified[i + 1];
-                if (match1Winner && match2Winner) {
-                    nextMatches.push({
-                        id: 0,
-                        tournament_id: tournamentId.value,
-                        match_date: null,
-                        participants: [
-                            participantToMatchParticipant(match1Winner),
-                            participantToMatchParticipant(match2Winner),
-                        ].filter((p): p is MatchParticipantSchema => p != null),
-                        status: 'pending',
-                        round: nextRound,
-                        pool_id: undefined,
-                    });
+            // Étape 2 : Prendre les extraQualifiers meilleurs troisièmes
+            const allThirds: { participant: Participant; wins: number; total_manches: number; pool_id: number }[] = [];
+            for (const poolId of poolIds.value) {
+                const poolLeaderboard = leaderboardsStore.poolsLeaderboard.find(p => p.pool_id === poolId);
+                if (poolLeaderboard && poolLeaderboard.leaderboard.length > 2) {
+                    const third = poolLeaderboard.leaderboard[2];
+                    const participant = tournamentStore.participants.find(p => p.id === third.participant_id);
+                    if (participant) {
+                        allThirds.push({
+                            participant,
+                            wins: third.wins,
+                            total_manches: third.total_manches,
+                            pool_id: poolId
+                        });
+                    }
                 }
             }
 
-            if (nextMatches.length === 0) {
-                toast.error('Aucun match ne peut être généré pour le tour suivant');
-                return;
+            // Trier les troisièmes par victoires, puis manches
+            allThirds.sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches);
+            thirdPlaceParticipants.push(...allThirds.slice(0, extraQualifiers));
+            qualified.push(...thirdPlaceParticipants.map(item => item.participant));
+
+            // Étape 3 : Vérifier que nous avons exactement targetQualifiers qualifiés
+            if (qualified.length !== targetQualifiers) {
+                throw new Error(`Nombre de qualifiés inattendu : ${qualified.length}, attendu : ${targetQualifiers}`);
             }
 
-            console.log('Qualifiés pour tour', nextRound, ':', qualified);
-            console.log('Matchs générés pour tour', nextRound, ':', nextMatches);
+            // Étape 4 : Trier les groupes
+            firstPlaceParticipants.sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches);
+            secondPlaceParticipants.sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches);
+            thirdPlaceParticipants.sort((a, b) => b.wins - a.wins || b.total_manches - a.total_manches);
+
+            // Étape 5 : Générer les matchs
+            const nextMatches: Match[] = [];
+            const usedParticipants = new Set<number>();
+            let validAssignment = false;
+            let bestMatches: Match[] = [];
+
+            // Recherche récursive pour trouver une combinaison valide
+            function tryAssignments(firstIndex: number, currentMatches: Match[], used: Set<number>) {
+                if (firstIndex >= firstPlaceParticipants.length) {
+                    const remainingThirds = thirdPlaceParticipants.filter(t => !used.has(t.participant.id));
+                    if (remainingThirds.length >= 2) {
+                        for (let i = 0; i < remainingThirds.length - 1; i++) {
+                            for (let j = i + 1; j < remainingThirds.length; j++) {
+                                if (remainingThirds[i].pool_id !== remainingThirds[j].pool_id) {
+                                    validAssignment = true;
+                                    bestMatches = [...currentMatches, {
+                                        id: 0,
+                                        tournament_id: tournamentId.value,
+                                        match_date: null,
+                                        participants: [
+                                            participantToMatchParticipant(remainingThirds[i].participant),
+                                            participantToMatchParticipant(remainingThirds[j].participant),
+                                        ].filter((p): p is MatchParticipantSchema => p != null),
+                                        status: 'pending' as const, // Explicitly set to literal type
+                                        round: nextRound,
+                                        pool_id: undefined,
+                                    }];
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                const first = firstPlaceParticipants[firstIndex];
+                for (const second of secondPlaceParticipants) {
+                    if (second.pool_id !== first.pool_id && !used.has(second.participant.id)) {
+                        const match: Match = {
+                            id: 0,
+                            tournament_id: tournamentId.value,
+                            match_date: null,
+                            participants: [
+                                participantToMatchParticipant(first.participant),
+                                participantToMatchParticipant(second.participant),
+                            ].filter((p): p is MatchParticipantSchema => p != null),
+                            status: 'pending',
+                            round: nextRound,
+                            pool_id: undefined,
+                        };
+                        used.add(first.participant.id);
+                        used.add(second.participant.id);
+                        currentMatches.push(match);
+
+                        if (tryAssignments(firstIndex + 1, currentMatches, used)) {
+                            return true;
+                        }
+
+                        used.delete(first.participant.id);
+                        used.delete(second.participant.id);
+                        currentMatches.pop();
+                    }
+                }
+                return false;
+            }
+
+            // Exécuter la recherche d'appariement
+            tryAssignments(0, nextMatches, usedParticipants);
+
+            if (!validAssignment) {
+                throw new Error(`Impossible d'apparier les premiers avec les seconds tout en permettant un match valide pour les troisièmes. Qualifiés: ${qualified.map(p => getParticipantDisplayNickname(p)).join(', ')}`);
+            }
+
+            // Étape 6 : Utiliser les matchs valides
+            nextMatches.length = 0;
+            nextMatches.push(...bestMatches);
+
+            // Étape 7 : Vérifier que nous avons généré le bon nombre de matchs
+            if (nextMatches.length !== targetQualifiers / 2) {
+                throw new Error(`Nombre de matchs générés inattendu : ${nextMatches.length}, attendu : ${targetQualifiers / 2}`);
+            }
+
+            console.log('Qualifiés pour tour', nextRound, ':', qualified.map(p => getParticipantDisplayNickname(p)));
+            console.log('Matchs générés pour tour', nextRound, ':', nextMatches.map(m => m.participants.map(p => p?.name).join(' vs ')));
 
             for (const match of nextMatches) {
                 await createAndPersistMatch(match);

@@ -286,6 +286,7 @@ watch(
     <div v-if="showCreateUser" class="module">
       <h3>Add User</h3>
       <div class="input-group">
+        <input v-model="newNickname" placeholder="Nickname" class="form-input" required />
         <input v-model="newName" placeholder="Name" class="form-input" required />
         <select v-model="newRole" class="form-input">
           <option value="">Select Role</option>
