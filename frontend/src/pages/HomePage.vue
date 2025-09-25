@@ -9,7 +9,7 @@
 
         <!-- Club Introduction -->
         <section class="section club-intro">
-            <h2>À Propos du Club</h2>
+            <h2>À Propos du club</h2>
             <p>Le Hérault Darts Club (Badarts) est une association dédiée aux amateurs de fléchettes traditionnelles
                 dans la région de
                 l'Hérault. Fondé pour réunir les passionnés, notre club organise des tournois réguliers, des
@@ -50,7 +50,7 @@
 
         <!-- Upcoming Events Section -->
         <section class="section events">
-            <h2>Événements à Venir</h2>
+            <h2>Événements à venir</h2>
             <p>Participe à nos tournois, que tu sois en simple ou en double. Consulte la liste complète
                 des tournois et inscris-toi dès maintenant !</p>
             <router-link to="/tournaments" class="tournament-button">Découvrir les tournois</router-link>
