@@ -10,6 +10,7 @@
   --color-main: magenta;
   --color-link: #89039b;
   --color-accent-bis: orange;
+  --color-mascot: #dd53bb; 
   --font-main: 'VT323', monospace;
   --radius: 0;
 }
@@ -26,6 +27,7 @@
   --color-main: #232a6a;            /* turquoise moderne, identitaire */
   --color-link: #3b82f6;            /* bleu dynamique pour les liens */
   --color-accent-bis: #232a6a;      /* variante plus foncée du main */
+  --color-mascot: #dd53bb; 
   --font-main: 'Inter', sans-serif;
   --radius: 8px;
 }

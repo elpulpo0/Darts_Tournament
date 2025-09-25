@@ -2,9 +2,13 @@
     <div class="homepage">
         <!-- Hero Section -->
         <section class="hero">
-            <h1>Badarts - Hérault Darts Club</h1>
-            <p>Viens partager la passion des fléchettes dans l'Hérault ! Participe à nos tournois, suis tes classements
-                et découvres une communauté dynamique.</p>
+            <div class="hero-content">
+                <h1>Badarts - Hérault Darts Club</h1>
+                <p>Viens partager la passion des fléchettes dans l'Hérault ! Participe à nos tournois, suis tes
+                    classements et découvres une communauté dynamique.</p>
+                <router-link to="/tournaments" class="tournament-button">Voir les tournois</router-link>
+            </div>
+            <img src="@/assets/mascotte.png" alt="Mascotte Badarts" class="hero-image" />
         </section>
 
         <!-- Club Introduction -->
@@ -86,13 +90,25 @@
 }
 
 .hero {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 3rem 1rem;
     background: var(--color-light-shadow);
     border-radius: var(--radius);
     margin-bottom: 2rem;
     width: 100%;
-    max-width: 800px;
+}
+
+.hero-content {
+    flex: 1;
+    padding-right: 1rem;
+}
+
+.hero-image {
+    max-height: 250px;
+    object-fit: contain;
+    border-radius: var(--radius);
 }
 
 .section {
@@ -112,7 +128,7 @@ h1 {
 h2 {
     font-size: 1.8rem;
     margin-bottom: 1rem;
-    color: var(--color-accent);
+    color: var(--color-mascot);
 }
 
 p {
@@ -125,7 +141,7 @@ p {
 .action-button {
     display: inline-block;
     padding: 1rem 2rem;
-    background: var(--color-accent);
+    background: var(--color-mascot);
     color: var(--color-bg);
     text-decoration: none;
     border-radius: var(--radius);
