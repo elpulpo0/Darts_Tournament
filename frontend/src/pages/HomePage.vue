@@ -3,14 +3,15 @@
         <!-- Hero Section -->
         <section class="hero">
             <h1>Badarts - Hérault Darts Club</h1>
-            <p>Rejoignez la passion des fléchettes dans l'Hérault ! Participez à nos tournois, suivez vos classements et
-                découvrez une communauté dynamique.</p>
+            <p>Viens partager la passion des fléchettes dans l'Hérault ! Participes à nos tournois, suis tes classements
+                et découvres une communauté dynamique.</p>
         </section>
 
         <!-- Club Introduction -->
         <section class="section club-intro">
             <h2>À Propos du Club</h2>
-            <p>Le Hérault Darts Club (Badarts) est une association dédiée aux amateurs de fléchettes dans la région de
+            <p>Le Hérault Darts Club (Badarts) est une association dédiée aux amateurs de fléchettes traditionnelles
+                dans la région de
                 l'Hérault. Fondé pour réunir les passionnés, notre club organise des tournois réguliers, des
                 entraînements et des événements sociaux pour tous les niveaux, du débutant au compétiteur aguerri.</p>
             <p>
@@ -29,14 +30,14 @@
 
         <!-- Membership Section -->
         <section class="section membership">
-            <h2>Rejoignez-nous</h2>
-            <p>Devenez membre du club Badarts et profitez de nos événements exclusifs, d'un accès à nos installations et
-                d'une communauté accueillante. Pour adhérer, plusieurs options s'offrent à vous :</p>
+            <h2>Rejoins-nous</h2>
+            <p>Deviens membre du club Badarts et profites de nos événements exclusifs, d'un accès à nos installations et
+                d'une communauté accueillante. Pour adhérer, plusieurs options s'offrent à toi :</p>
             <ul>
-                <li>Contactez-nous (voir ci-dessous)</li>
-                <li>Rejoignez notre serveur Discord</li>
+                <li>Contactes-nous (voir ci-dessous)</li>
+                <li>Rejoins notre serveur Discord</li>
                 <li>
-                    Venez nous rencontrer lors de nos sessions hebdomadaires :
+                    Viens nous rencontrer lors de nos sessions hebdomadaires :
                     <ul>
                         <li>Mercredis soir aux Bock'ale à Montpellier</li>
                         <li>Jeudis soir à Villeveyrac</li>
@@ -50,16 +51,16 @@
         <!-- Upcoming Events Section -->
         <section class="section events">
             <h2>Événements à Venir</h2>
-            <p>Participez à nos tournois, que vous soyez en simple ou en double. Consultez la liste complète
-                des tournois et inscrivez-vous dès maintenant !</p>
+            <p>Participes à nos tournois, que tu sois en simple ou en double. Consultes la liste complète
+                des tournois et inscris-toi dès maintenant !</p>
             <router-link to="/tournaments" class="tournament-button">Découvrir les Tournois</router-link>
         </section>
 
         <!-- Contact Section -->
         <section id="contact" class="section contact">
-            <h2>Contactez-nous</h2>
-            <p>Pour toute question, contactez-nous par email à <a
-                    href="mailto:mhdartsclub@gmail.com">mhdartsclub@gmail.com</a> ou suivez-nous sur nos réseaux sociaux
+            <h2>Contactes-nous</h2>
+            <p>Pour toute question, contactes-nous par email à <a
+                    href="mailto:mhdartsclub@gmail.com">mhdartsclub@gmail.com</a> ou suis-nous sur nos réseaux sociaux
                 :</p>
             <div class="social-links">
                 <a href="https://www.facebook.com/HeraultDartsClub" target="_blank" class="social-link">Facebook</a>
