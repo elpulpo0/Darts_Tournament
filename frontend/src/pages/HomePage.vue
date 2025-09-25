@@ -3,8 +3,8 @@
         <!-- Hero Section -->
         <section class="hero">
             <h1>Badarts - Hérault Darts Club</h1>
-            <p>Rejoignez la passion des fléchettes dans l'Hérault ! Découvrez nos tournois, suivez vos classements et
-                participez à une communauté dynamique.</p>
+            <p>Rejoignez la passion des fléchettes dans l'Hérault ! Participez à nos tournois, suivez vos classements et
+                découvrez une communauté dynamique.</p>
         </section>
 
         <!-- Club Introduction -->
@@ -28,24 +28,29 @@
         </section>
 
         <!-- Membership Section -->
-        <section class=" section membership">
+        <section class="section membership">
             <h2>Rejoignez-nous</h2>
-            <p>Devenez membre du Badarts et profitez de nos événements exclusifs, d'un accès à nos
-                installations et
-                d'une communauté accueillante. Pour adhérer, plusieurs options s'offrent à vous :
+            <p>Devenez membre du club Badarts et profitez de nos événements exclusifs, d'un accès à nos installations et
+                d'une communauté accueillante. Pour adhérer, plusieurs options s'offrent à vous :</p>
             <ul>
                 <li>Contactez-nous (voir ci-dessous)</li>
                 <li>Rejoignez notre serveur Discord</li>
-                <li>Venez nous rencontrer lors de nos sessions hebdomadaires.</li>
+                <li>
+                    Venez nous rencontrer lors de nos sessions hebdomadaires :
+                    <ul>
+                        <li>Mercredis soir aux Bock'ale à Montpellier</li>
+                        <li>Jeudis soir à Villeveyrac</li>
+                        <li>Dimanches matin à La Brasserie des Sports à Vendargues</li>
+                    </ul>
+                </li>
             </ul>
-            </p>
             <a href="#contact" class="action-button">En savoir plus</a>
         </section>
 
         <!-- Upcoming Events Section -->
         <section class="section events">
             <h2>Événements à Venir</h2>
-            <p>Participez à nos tournois excitants, que vous soyez en simple ou en double. Consultez la liste complète
+            <p>Participez à nos tournois, que vous soyez en simple ou en double. Consultez la liste complète
                 des tournois et inscrivez-vous dès maintenant !</p>
             <router-link to="/tournaments" class="tournament-button">Découvrir les Tournois</router-link>
         </section>
