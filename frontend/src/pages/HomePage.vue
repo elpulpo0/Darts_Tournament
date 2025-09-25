@@ -3,7 +3,7 @@
         <!-- Hero Section -->
         <section class="hero">
             <h1>Badarts - Hérault Darts Club</h1>
-            <p>Rejoignez la passion des fléchettes dans le Hérault ! Découvrez nos tournois, suivez vos classements et
+            <p>Rejoignez la passion des fléchettes dans l'Hérault ! Découvrez nos tournois, suivez vos classements et
                 participez à une communauté dynamique.</p>
         </section>
 
