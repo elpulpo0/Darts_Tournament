@@ -3,7 +3,7 @@
         <!-- Hero Section -->
         <section class="hero">
             <h1>Badarts - Hérault Darts Club</h1>
-            <p>Viens partager la passion des fléchettes dans l'Hérault ! Participes à nos tournois, suis tes classements
+            <p>Viens partager la passion des fléchettes dans l'Hérault ! Participe à nos tournois, suis tes classements
                 et découvres une communauté dynamique.</p>
         </section>
 
@@ -31,10 +31,10 @@
         <!-- Membership Section -->
         <section class="section membership">
             <h2>Rejoins-nous</h2>
-            <p>Deviens membre du club Badarts et profites de nos événements exclusifs, d'un accès à nos installations et
+            <p>Deviens membre du club Badarts et profite de nos événements exclusifs, d'un accès à nos installations et
                 d'une communauté accueillante. Pour adhérer, plusieurs options s'offrent à toi :</p>
             <ul>
-                <li>Contactes-nous (voir ci-dessous)</li>
+                <li>Contacte-nous (voir ci-dessous)</li>
                 <li>Rejoins notre serveur Discord</li>
                 <li>
                     Viens nous rencontrer lors de nos sessions hebdomadaires :
@@ -51,21 +51,24 @@
         <!-- Upcoming Events Section -->
         <section class="section events">
             <h2>Événements à Venir</h2>
-            <p>Participes à nos tournois, que tu sois en simple ou en double. Consultes la liste complète
+            <p>Participe à nos tournois, que tu sois en simple ou en double. Consulte la liste complète
                 des tournois et inscris-toi dès maintenant !</p>
-            <router-link to="/tournaments" class="tournament-button">Découvrir les Tournois</router-link>
+            <router-link to="/tournaments" class="tournament-button">Découvrir les tournois</router-link>
         </section>
 
         <!-- Contact Section -->
         <section id="contact" class="section contact">
-            <h2>Contactes-nous</h2>
-            <p>Pour toute question, contactes-nous par email à <a
+            <h2>Contacte-nous</h2>
+            <p>Pour toute question, contacte-nous par email à <a
                     href="mailto:mhdartsclub@gmail.com">mhdartsclub@gmail.com</a> ou suis-nous sur nos réseaux sociaux
                 :</p>
             <div class="social-links">
-                <a href="https://www.facebook.com/HeraultDartsClub" target="_blank" class="social-link">Facebook</a>
-                <a href="https://www.instagram.com/heraultdartsclub" target="_blank" class="social-link">Instagram</a>
-                <a href="https://discord.gg/PrgQ2FCCUd" target="_blank" class="social-link">Discord</a>
+                <a href="https://www.facebook.com/HeraultDartsClub" target="_blank" class="social-link"><img
+                        class="icon" src="@/assets/fb.png" /></a>
+                <a href="https://www.instagram.com/heraultdartsclub" target="_blank" class="social-link"><img
+                        class="icon" src="@/assets/in.png" /></a>
+                <a href="https://discord.gg/PrgQ2FCCUd" target="_blank" class="social-link"><img class="icon"
+                        src="@/assets/dc.png" /></a>
             </div>
         </section>
     </div>
@@ -151,6 +154,10 @@ p {
 
 .social-link:hover {
     color: var(--color-success);
+}
+
+.icon {
+    max-height: 30px;
 }
 
 @media (max-width: 768px) {
