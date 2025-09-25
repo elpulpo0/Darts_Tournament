@@ -15,21 +15,26 @@
         <section class="section club-intro">
             <h2>À Propos du club</h2>
             <p>Le Hérault Darts Club (Badarts) est une association dédiée aux amateurs de fléchettes traditionnelles
-                dans la région de
-                l'Hérault. Fondé pour réunir les passionnés, notre club organise des tournois réguliers, des
+                dans la région de l'Hérault. Fondé pour réunir les passionnés, notre club organise des tournois
+                réguliers, des
                 entraînements et des événements sociaux pour tous les niveaux, du débutant au compétiteur aguerri.</p>
-            <p>
-                Affiliations du club :
-            <ul>
-                <li><a href="https://www.ffdarts.fr/" target="_blank" class="social-link">Fédération Française de
+            <p>Affiliations du club :</p>
+            <div class="affiliations-container">
+                <div class="affiliation-item">
+                    <img class="logo-affiliation" src="@/assets/ffd.png" alt="Fédération Française de Darts" />
+                    <a href="https://www.ffdarts.fr/" target="_blank" class="social-link">Fédération Française de
                         Darts</a>
-                </li>
-                <li><a href="https://lsef.fr/" target="_blank" class="social-link">Ligue Sud Est</a></li>
-                <li><a href="https://www.facebook.com/comte.meridional.lsef/" target=" _blank"
-                        class="social-link">Comité
-                        Méridionnal</a></li>
-            </ul>
-            </p>
+                </div>
+                <div class="affiliation-item">
+                    <img class="logo-affiliation" src="@/assets/lsef.png" alt="Ligue Sud Est" />
+                    <a href="https://lsef.fr/" target="_blank" class="social-link">Ligue Sud Est</a>
+                </div>
+                <div class="affiliation-item">
+                    <img class="logo-affiliation" src="@/assets/cmer.png" alt="Comité Méridional" />
+                    <a href="https://www.facebook.com/comte.meridional.lsef/" target="_blank" class="social-link">Comité
+                        Méridional</a>
+                </div>
+            </div>
         </section>
 
         <!-- Membership Section -->
@@ -49,7 +54,10 @@
                     </ul>
                 </li>
             </ul>
-            <a href="#contact" class="action-button">En savoir plus</a>
+            <div class="membership-footer">
+                <a href="#contact" class="action-button">En savoir plus</a>
+                <img class="logo-footer" src="@/assets/bockale.png" alt="Logo Les Bock'Ale" />
+            </div>
         </section>
 
         <!-- Upcoming Events Section -->
@@ -174,6 +182,40 @@ p {
 
 .icon {
     max-height: 30px;
+}
+
+.affiliations-container {
+    display: flex;
+    justify-content: center;
+    gap: 80px;
+    /* Espacement entre les logos */
+    flex-wrap: wrap;
+    /* Pour gérer les petits écrans */
+}
+
+.affiliation-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.logo-affiliation {
+    max-height: 125px;
+    height: auto;
+    margin-bottom: 10px;
+}
+
+.membership-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+}
+
+.logo-footer {
+    max-width: 120px;
+    height: auto;
 }
 
 @media (max-width: 768px) {
