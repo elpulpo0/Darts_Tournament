@@ -28,6 +28,8 @@ from modules.api.users.models import User
 from modules.api.users.schemas import TokenData
 from typing import List
 from datetime import datetime, UTC
+from modules.api.users.telegram import notify_telegram, NotifyUserRegistration
+import os
 
 tournaments_router = APIRouter(prefix="/tournaments", tags=["tournaments"])
 
@@ -328,6 +330,14 @@ def register_to_tournament(
         )
         .first()
     )
+
+    if not os.getenv("TEST_MODE") and os.getenv("ENV") != "dev":
+        notify_user = NotifyUserRegistration(
+            nickname=user.nickname,
+            tournamentName=tournament.name,
+            type="userRegister",
+        )
+    notify_telegram(notify_user)
 
     return TournamentRegistrationResponse(
         id=first_registration.id,

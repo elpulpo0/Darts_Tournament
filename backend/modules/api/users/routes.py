@@ -13,8 +13,8 @@ from modules.api.users.schemas import UserResponse, UserCreate, UserUpdate, Toke
 from modules.api.users.models import User, Role
 from modules.api.auth.security import hash_password
 from typing import Optional
-from modules.api.users.telegram import notify_telegram
-
+from modules.api.users.telegram import notify_telegram, NotifyUserCreate
+import os
 
 logger = configure_logger()
 
@@ -204,21 +204,14 @@ def create_user(
     db.commit()
     db.refresh(new_user)
 
-    class NotifyUserCreate:
-        def __init__(self, name, email, role, type):
-            self.name = name
-            self.email = email
-            self.role = role
-            self.type = type
-
-    notify_user = NotifyUserCreate(
-        name=new_user.name,
-        email=new_user.email,
-        role=new_user.role.role,
-        type="userCreate",
-    )
-
-    notify_telegram(notify_user)
+    if not os.getenv("TEST_MODE") and os.getenv("ENV") != "dev":
+        notify_user = NotifyUserCreate(
+            name=new_user.name,
+            email=new_user.email,
+            role=new_user.role.role,
+            type="userCreate",
+        )
+        notify_telegram(notify_user)
 
     logger.info(f"User {new_user.name} successfully created")
 
