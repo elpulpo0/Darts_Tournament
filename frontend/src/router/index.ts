@@ -15,34 +15,42 @@ const routes = [
   },
   {
     path: '/users',
+    name: 'Users',
     component: Users
   },
   {
     path: '/tournament-management/:tournamentId',
+    name: 'TournamentManagement',
     component: TournamentManagement,
   },
   {
     path: '/tournaments',
+    name: 'TournamentsListing',
     component: TournamentsListing,
   },
   {
     path: '/database',
+    name: 'Database',
     component: Database
   },
   {
     path: '/logs',
+    name: 'Logs',
     component: Logs
   },
   {
     path: '/leaderboard',
+    name: 'Leaderboard',
     component: Leaderboard
   },
   {
     path: '/tournaments/:tournamentId/projection',
+    name: 'TournamentProjection',
     component: TournamentProjection,
   },
   {
     path: '/home',
+    name: 'HomePage',
     component: HomePage,
   },
 ]
