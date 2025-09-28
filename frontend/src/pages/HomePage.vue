@@ -16,8 +16,8 @@
             <h2>À Propos du club</h2>
             <p>Le Hérault Darts Club (Badarts) est une association dédiée aux amateurs de fléchettes traditionnelles
                 dans la région de l'Hérault. Fondé pour réunir les passionnés, notre club organise des tournois
-                réguliers, des
-                entraînements et des événements sociaux pour tous les niveaux, du débutant au compétiteur aguerri.</p>
+                réguliers, des entraînements et des événements sociaux pour tous les niveaux, du débutant au compétiteur
+                aguerri.</p>
             <p>Affiliations du club :</p>
             <div class="affiliations-container">
                 <div class="affiliation-item">
@@ -56,7 +56,10 @@
             </ul>
             <div class="membership-footer">
                 <a href="#contact" class="action-button">En savoir plus</a>
-                <img class="logo-footer" src="@/assets/bockale.png" alt="Logo Les Bock'Ale" />
+                <div class="logo-container">
+                    <img class="logo-footer" src="@/assets/bockale.png" alt="Logo Les Bock'Ale" />
+                    <img class="logo-footer" src="@/assets/brasserie.png" alt="Logo Brasserie des Sports" />
+                </div>
             </div>
         </section>
 
@@ -211,6 +214,13 @@ p {
     justify-content: space-between;
     align-items: center;
     margin-top: 20px;
+}
+
+.logo-container {
+    display: flex;
+    gap: 10px;
+    /* Adjust this value to control spacing between logos */
+    align-items: flex-end
 }
 
 .logo-footer {
