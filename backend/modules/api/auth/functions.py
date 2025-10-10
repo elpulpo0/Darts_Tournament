@@ -93,10 +93,11 @@ def store_refresh_token(db: Session, user_id: int, token: str, expires_at: datet
         RefreshToken.revoked.is_(False),
     ).update({RefreshToken.revoked: True}, synchronize_session=False)
 
-    # Try to insert a new token, handle duplicates safely
+    # Create a new token with explicit created_at
     new_token = RefreshToken(
         token=token,
         user_id=user_id,
+        created_at=datetime.now(UTC),  # Explicitly set created_at to current UTC time
         expires_at=expires_at,
         revoked=False,
     )
@@ -104,6 +105,9 @@ def store_refresh_token(db: Session, user_id: int, token: str, expires_at: datet
     db.add(new_token)
     try:
         db.commit()
+        logger.info(
+            f"Stored refresh token for user_id={user_id}, created_at={new_token.created_at}"
+        )
     except IntegrityError:
         db.rollback()
         logger.error("Duplicate refresh token encountered — regenerating.")
