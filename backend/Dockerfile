@@ -2,9 +2,13 @@ FROM python:alpine
 
 WORKDIR /app
 
-RUN adduser -D -s /bin/sh appuser
+# Install dependencies required for Rust and Cargo
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    su-exec
 
-RUN apk add --no-cache su-exec
+RUN adduser -D -s /bin/sh appuser
 
 COPY requirements.txt .
 RUN pip install --upgrade pip
