@@ -85,41 +85,43 @@
                     <button @click="cancelLaunchingTournament">Annuler</button>
                 </div>
 
-                <div v-if="tournament.status === 'open' || tournament.status === 'closed'" class="participants-section">
-                    <h4>Joueurs inscrits ({{ registeredUsersCount }})</h4>
-                    <table v-if="tournamentStore.registeredUsers?.length">
-                        <thead>
-                            <tr>
-                                <th>Nom</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="user in unregisteredTeamUsers" :key="user.id">
-                                <td>{{ user.name ? user.nickname + ' (' + user.name + ')' : user.nickname }}</td>
-                                <td>
-                                    <button title="Désinscrire ce joueur" class="delete-btn"
-                                        @click="unregisterPlayer(user.id, tournament.id)">✖️</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <p v-else>Aucun joueur inscrit pour le moment.</p>
+                <div v-if="tournament.status === 'open' || tournament.status === 'closed'">
+                    <div class="participants-section">
+                        <h4>Joueurs inscrits ({{ registeredUsersCount }})</h4>
+                        <table v-if="tournamentStore.registeredUsers?.length">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="user in unregisteredTeamUsers" :key="user.id">
+                                    <td>{{ user.name ? user.nickname + ' (' + user.name + ')' : user.nickname }}</td>
+                                    <td>
+                                        <button title="Désinscrire ce joueur" class="delete-btn"
+                                            @click="unregisterPlayer(user.id, tournament.id)">✖️</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p v-else>Aucun joueur inscrit pour le moment.</p>
+                    </div>
 
-                    <div v-if="tournament.mode === 'double'" class="participants-section">
+                    <div class="participants-section">
                         <h4>Participants ({{ participantsCount }})</h4>
                         <table v-if="tournamentStore.participants?.length">
                             <thead>
                                 <tr>
                                     <th>Nom</th>
-                                    <th>Membres</th>
+                                    <th v-if="tournament.mode === 'double'">Membres</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="participant in tournamentStore.participants" :key="participant.id">
-                                    <td>{{ participant.name }}</td>
-                                    <td
+                                    <td :title="getParticipantName(participant)">{{ participant.name }}</td>
+                                    <td v-if="tournament.mode === 'double'"
                                         :title="participant.users.map(u => u.name || u.nickname || 'Inconnu').join(' & ')">
                                         {{participant.users.map(u => u.nickname).join(' & ')}}
                                     </td>
