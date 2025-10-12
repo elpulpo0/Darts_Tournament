@@ -312,11 +312,11 @@ const displayMaxRounds = computed(() => winner.value ? maxRounds.value + 1 : max
 }
 
 .round {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     gap: 0.5em;
-    min-width: 200px;
+    min-width: min-content;
 }
 
 .round h5 {
@@ -356,6 +356,8 @@ const displayMaxRounds = computed(() => winner.value ? maxRounds.value + 1 : max
 
 .participant-name {
     font-size: 0.8em;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .score {
@@ -363,6 +365,7 @@ const displayMaxRounds = computed(() => winner.value ? maxRounds.value + 1 : max
     font-weight: bold;
     color: var(--color-link);
     padding-left: 15px;
+    flex-shrink: 0;
 }
 
 .centered-block {
