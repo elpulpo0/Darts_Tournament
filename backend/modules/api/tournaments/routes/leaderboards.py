@@ -279,7 +279,7 @@ def get_season_leaderboard(
             union_query.c.name,
         )
         .group_by(union_query.c.user_id, union_query.c.nickname, union_query.c.name)
-        .order_by(desc("wins"), desc("total_manches"))
+        .order_by(desc("total_points"), desc("wins"), desc("total_manches"))
     )
 
     results = db.execute(final_query).fetchall()

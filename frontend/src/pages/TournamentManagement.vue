@@ -336,7 +336,8 @@
                                             </div>
                                             <div v-else class="score-inputs">
                                                 <input v-for="(_, index) in match.participants"
-                                                    v-model="tempScores[match.id][index]" type="number" :key="index" />
+                                                    v-model="tempScores[match.id][index]" type="number"
+                                                    @keyup.enter="updateMatch(match)" :key="index" />
                                             </div>
                                         </td>
                                         <td>
@@ -349,7 +350,7 @@
                                     </tr>
                                 </tbody>
                             </table>
-                            <p v-else>Aucun match pour ce tour.</p>
+                            <p v-else>Aucun match pour le tour {{ round }}.</p>
                         </div>
                     </div>
 
@@ -360,6 +361,10 @@
                     <button v-else-if="showGenerateButton" @click="generateFinalStage">
                         Générer {{ currentRound === 0 && hasBarrage ? (tournament?.type === 'pool' ?
                             'les poules' : 'la phase suivante') : `le tour ${currentRound + 1}` }}
+                    </button>
+                    <button v-if="showRegenerateButton" @click="regenerateCurrentStage">
+                        Regénérer {{ currentRound === 0 && hasBarrage ? 'le barrage' : currentRound === 0 ? 'les poules'
+                            : `le tour ${currentRound}` }}
                     </button>
                 </div>
             </div>
@@ -683,6 +688,140 @@ const cancelLaunchingTournament = () => {
     launchTournamentType.value = 'pool';
 };
 
+async function generateInitialStage(previousNumPools = 0) {
+    try {
+        await tournamentStore.fetchParticipants(tournamentId.value);
+        if ((tournamentStore.participants?.length ?? 0) < 4) throw new Error("Minimum 4 participants requis");
+
+        const N = tournamentStore.participants.length;
+        const useBarrage = N > 32;
+        const effectiveN = useBarrage ? 32 : N;
+        const tournamentType = tournament.value?.type ?? 'pool';
+
+        const minPlayersPerPool = 3;
+        const maxPlayersPerPool = 8;
+        const maxPossiblePools = Math.floor(effectiveN / minPlayersPerPool);
+        const minPossiblePools = Math.ceil(effectiveN / maxPlayersPerPool);
+
+        let numPools: number;
+        if (tournamentType === 'elimination') {
+            numPools = 0;
+            if (effectiveN % 2 !== 0) {
+                throw new Error("Nombre impair de participants non supporté en mode élimination sans ajustement");
+            }
+        } else {
+            numPools = previousNumPools;
+            if (numPools <= 0) {
+                if (launchTargetCount.value > 0) {
+                    numPools = Math.max(minPossiblePools, Math.min(launchTargetCount.value, maxPossiblePools));
+                } else {
+                    numPools = Math.max(minPossiblePools, Math.min(Math.ceil(effectiveN / 4), maxPossiblePools));
+                }
+            }
+        }
+
+        if (useBarrage) {
+            const excess = N - 32;
+            const numBarragePlayers = 2 * excess;
+            const shuffledParticipants = [...tournamentStore.participants].sort(() => Math.random() - 0.5);
+            const barrageParticipants = shuffledParticipants.slice(-numBarragePlayers);
+            const barrageMatches = generateEliminationMatches(barrageParticipants);
+            barrageMatches.forEach(match => {
+                match.round = 0;
+            });
+            for (const match of barrageMatches) {
+                await createAndPersistMatch(match);
+            }
+        } else {
+            if (tournamentType === 'pool') {
+                const pools = createPools(tournamentStore.participants, numPools);
+                const poolIdMap: Record<number, number> = {};
+                for (const pool of pools) {
+                    const { data: createdPool } = await backendApi.post(
+                        `/tournaments/${tournamentId.value}/pools`,
+                        {
+                            name: pool.name || null,
+                            participant_ids: pool.participants.map((p: Participant) => p.id),
+                        },
+                        {
+                            headers: { Authorization: `Bearer ${authStore.token}` },
+                        }
+                    );
+                    poolIdMap[pool.id] = createdPool.id;
+                }
+                for (const pool of pools) {
+                    const poolSqlId = poolIdMap[pool.id];
+                    for (const match of pool.matches) {
+                        await createAndPersistMatch(match, poolSqlId);
+                    }
+                }
+            } else {
+                const generatedMatches = generateEliminationMatches(tournamentStore.participants);
+                for (const m of generatedMatches) {
+                    await createAndPersistMatch(m);
+                }
+            }
+        }
+
+        toast.success('Phase initiale régénérée !');
+    } catch (err) {
+        console.error('Erreur de régénération initiale:', err);
+        handleError(err, 'Problème lors de la régénération initiale');
+    }
+}
+
+async function regenerateCurrentStage() {
+    const currentMatches = getCurrentStageMatches();
+    if (currentMatches.length === 0) return;
+
+    if (currentMatches.some(m => m.status !== 'pending')) {
+        toast.warning("Impossible de régénérer : certains matchs ont déjà des scores validés. Réinitialisez-les d'abord.");
+        return;
+    }
+
+    const stageName = currentRound.value === 0 && hasBarrage.value ? 'le barrage' : currentRound.value === 0 ? 'les poules' : `le tour ${currentRound.value}`;
+    if (!window.confirm(`Voulez-vous supprimer les matchs existants et refaire le tirage pour ${stageName} ?`)) {
+        return;
+    }
+
+    loading.value = true;
+    try {
+        const previousNumPools = poolIds.value.length;
+
+        // Supprimer les poules si phase actuelle est les poules
+        if (currentRound.value === 0 && poolIds.value.length > 0) {
+            for (const poolId of poolIds.value) {
+                await backendApi.delete(`/tournaments/pools/${poolId}`, {
+                    headers: { Authorization: `Bearer ${authStore.token}` },
+                });
+            }
+        }
+
+        // Supprimer les matchs du tour actuel
+        for (const match of currentMatches) {
+            await backendApi.delete(`/tournaments/matches/${match.id}`, {
+                headers: { Authorization: `Bearer ${authStore.token}` },
+            });
+        }
+
+        await fetchMatches();
+        await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
+
+        // Régénérer
+        if (matches.value.length === 0) {
+            await generateInitialStage(previousNumPools);
+        } else {
+            await generateFinalStage();
+        }
+
+        toast.success('Tirage régénéré avec succès !');
+    } catch (err) {
+        handleError(err, 'régénérant le tour');
+    } finally {
+        loading.value = false;
+    }
+}
+
 async function launchTournament() {
     loading.value = true;
     try {
@@ -806,9 +945,30 @@ async function generateFinalStage() {
         const existingNextRoundMatches = matches.value.filter(
             m => m.pool_id == null && m.round === nextRound
         );
+
+        // Vérifier si des matchs existent déjà pour le tour suivant
         if (existingNextRoundMatches.length > 0) {
-            toast.error(`Le tour ${nextRound} existe déjà. Veuillez compléter ou supprimer les matchs existants.`);
-            return;
+            // Demander confirmation pour supprimer et régénérer
+            if (!window.confirm(`Le tour ${nextRound} existe déjà. Voulez-vous supprimer les matchs existants (seuls les matchs en attente seront supprimés) et refaire le tirage ?`)) {
+                return;
+            }
+
+            // Supprimer uniquement les matchs en attente (pending) pour éviter de perdre des scores validés
+            const pendingMatches = existingNextRoundMatches.filter(m => m.status === 'pending');
+            for (const match of pendingMatches) {
+                await backendApi.delete(`/tournaments/matches/${match.id}`, {
+                    headers: { Authorization: `Bearer ${authStore.token}` },
+                });
+            }
+
+            // Si des matchs complétés existent, avertir et ne pas procéder si tous ne sont pas supprimables
+            const completedMatches = existingNextRoundMatches.filter(m => m.status !== 'pending');
+            if (completedMatches.length > 0) {
+                toast.warning(`Impossible de régénérer : ${completedMatches.length} matchs ont déjà des scores validés. Réinitialisez-les d'abord.`);
+                return;
+            }
+
+            await fetchMatches(); // Rafraîchir les matchs après suppression
         }
 
         const isBarrage = currentRound.value === 0 && poolIds.value.length === 0;
@@ -923,7 +1083,7 @@ async function generateFinalStage() {
             const nextMatches: Match[] = [];
             for (let i = 0; i < shuffledQualified.length; i += 2) {
                 const p1 = shuffledQualified[i];
-           const p2 = shuffledQualified[i + 1];
+                const p2 = shuffledQualified[i + 1];
                 if (p1 && p2) {
                     nextMatches.push({
                         id: 0,
@@ -1100,6 +1260,22 @@ const getTournamentWinner = computed(() => {
     );
     if (!finalMatch) return null;
     return getMatchWinner(finalMatch);
+});
+
+const getCurrentStageMatches = () => {
+    if (currentRound.value > 0) {
+        return matches.value.filter(m => m.pool_id == null && m.round === currentRound.value && m.participants.length === 2);
+    } else if (hasBarrage.value && poolIds.value.length === 0) {
+        return matches.value.filter(m => m.round === 0 && m.pool_id == null && m.participants.length === 2);
+    } else {
+        return matches.value.filter(m => m.pool_id != null && m.participants.length === 2);
+    }
+};
+
+const showRegenerateButton = computed(() => {
+    if (tournament.value?.status !== 'running') return false;
+    const currentMatches = getCurrentStageMatches();
+    return currentMatches.length > 0 && currentMatches.every(m => m.status === 'pending');
 });
 
 const startRegisteringPlayer = (tournamentId: number) => {

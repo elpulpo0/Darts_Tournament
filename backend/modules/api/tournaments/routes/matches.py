@@ -182,3 +182,19 @@ def cancel_match_scores(
         pool_id=match.pool_id,
         round=match.round,
     )
+
+
+@matches_router.delete("/matches/{match_id}", status_code=204)
+def delete_match(
+    match_id: int,
+    db: Session = Depends(get_users_db),
+):
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+
+    # Supprimer les entrées liées dans MatchPlayer
+    db.query(MatchPlayer).filter(MatchPlayer.match_id == match_id).delete()
+    db.delete(match)
+    db.commit()
+    return None
