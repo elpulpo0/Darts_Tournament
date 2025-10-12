@@ -28,7 +28,7 @@
                     <tr v-for="(entry, index) in leaderboardsStore.seasonLeaderboard"
                         :class="{ 'current-user': entry.nickname === currentUserName }" :key="entry.user_id">
                         <td>{{ getRank(index) }}</td>
-                        <td :title="entry.name">{{ entry.nickname }}</td>
+                        <td>{{ entry.nickname }}</td>
                         <td>{{ entry.total_points }}</td>
                         <td class="hideonmobile">{{ entry.single_wins }}</td>
                         <td class="hideonmobile">{{ entry.double_wins }}</td>

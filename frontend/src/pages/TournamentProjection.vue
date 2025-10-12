@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { useTournamentStore } from '../stores/useTournamentStore';
 import { useLeaderboardsStore } from '../stores/useLeaderboardsStore';
 import { useAuthStore } from '../stores/useAuthStore';
-import { getParticipantDisplayNickname, getParticipantName } from '../functions/management';
+import { getParticipantDisplayNickname } from '../functions/management';
 
 const route = useRoute();
 const tournamentId = computed(() => Number(route.params.tournamentId));
@@ -52,6 +52,7 @@ const getRoundName = computed(() => {
         'Soixante-quatrième de finale'
     ];
     return (round: number) => {
+        if (round > totalEliminationRounds.value) return 'Vainqueur';
         const roundIndex = totalEliminationRounds.value - round;
         return roundIndex >= 0 && roundIndex < roundNames.length ? roundNames[roundIndex] : `Tour ${round}`;
     };
@@ -77,6 +78,22 @@ const paddings = computed(() => {
     }
     return p;
 });
+
+const winner = computed(() => {
+    const finalRoundMatches = matchesByRound.value[maxRounds.value] || [];
+    if (finalRoundMatches.length !== 1) return null;
+
+    const finalMatch = finalRoundMatches[0];
+
+    const [p1, p2] = finalMatch.participants;
+    if (p1 && p2 && typeof p1.score === 'number' && typeof p2.score === 'number') {
+        if (p1.score > p2.score) return p1;
+        else if (p2.score > p1.score) return p2;
+    }
+    return null;
+});
+
+const displayMaxRounds = computed(() => winner.value ? maxRounds.value + 1 : maxRounds.value);
 </script>
 
 <template>
@@ -91,12 +108,9 @@ const paddings = computed(() => {
                     <div v-for="pool in tournamentStore.tournamentDetail.pools" class="pool-tile" :key="pool.id">
                         <h4>{{ pool.name || `Poule ${pool.id}` }}</h4>
                         <div class="pool-participants">
-                            <span v-for="participant in pool.participants" :title="getParticipantName(participant)"
-                                class="participant-in-pool" :key="participant.participant_id">
-                                {{ participant.name }}
-                                <span v-if="participant.users?.length > 1">
-                                    ({{participant.users.map(u => u.nickname).join(' & ')}})
-                                </span>
+                            <span v-for="participant in pool.participants" class="participant-in-pool"
+                                :key="participant.participant_id">
+                                {{ getParticipantDisplayNickname(participant) }}
                             </span>
                         </div>
                     </div>
@@ -123,9 +137,9 @@ const paddings = computed(() => {
                                 <tr v-for="(entry, index) in poolLeaderboard.leaderboard.slice(0, 4)"
                                     :key="entry.participant_id">
                                     <td>{{ index + 1 }}</td>
-                                    <td :title="getParticipantName(tournamentStore.participants.find(p => p.id ===
-                                        entry.participant_id) ?? null)">
-                                        {{getParticipantDisplayNickname(tournamentStore.participants.find(p => p.id ===
+                                    <td>
+                                        {{getParticipantDisplayNickname(tournamentStore.participants.find(p => p.id
+                                            ===
                                             entry.participant_id) ?? null)}}</td>
                                     <td>{{ entry.wins }}</td>
                                     <td>{{ entry.total_manches }}</td>
@@ -140,25 +154,32 @@ const paddings = computed(() => {
             <div class="bracket-container">
                 <h3>Tableau Final</h3>
                 <div class="bracket">
-                    <div v-for="round in maxRounds" class="round" :key="round">
+                    <div v-for="round in displayMaxRounds" class="round" :key="round">
                         <h5>{{ getRoundName(round) }}</h5>
                         <div class="matches" :style="{
-                            gap: `${gaps[round]}em`,
-                            paddingTop: `${paddings[round]}em`,
-                            paddingBottom: `${paddings[round]}em`
+                            gap: (gaps[round] ?? 0) + 'em',
+                            paddingTop: (paddings[round] ?? paddings[maxRounds]) + 'em',
+                            paddingBottom: (paddings[round] ?? paddings[maxRounds]) + 'em'
                         }">
                             <div v-for="match in matchesByRound[round]" class="match" :key="match.id">
                                 <div class="match-cell">
                                     <div v-for="participant in match.participants" class="participant-slot"
-                                        :title="getParticipantName(participant)" :key="participant.participant_id">
+                                        :key="participant.participant_id">
                                         <span class="participant-name">
-                                            {{ participant.name }}
-                                            <span v-if="participant.users?.length > 1">
-                                                ({{participant.users.map(u => u.name).join(' & ')}})
-                                            </span>
+                                            {{ getParticipantDisplayNickname(participant) }}
                                         </span>
                                         <span v-if="typeof participant?.score === 'number'" class="score">({{
                                             participant.score }})</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-if="round === displayMaxRounds && winner && !matchesByRound[round]?.length"
+                                class="match winner-match">
+                                <div class="match-cell">
+                                    <div class="participant-slot winner-slot">
+                                        <span class="participant-name">
+                                            {{ getParticipantDisplayNickname(winner) }}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -341,6 +362,7 @@ const paddings = computed(() => {
     font-size: 0.8em;
     font-weight: bold;
     color: var(--color-link);
+    padding-left: 15px;
 }
 
 .centered-block {
@@ -356,5 +378,15 @@ const paddings = computed(() => {
 .centered-block p {
     font-size: 1em;
     color: var(--color-fg);
+}
+
+.winner-slot {
+    font-weight: bold;
+    justify-content: center;
+    color: green;
+}
+
+.winner-match {
+    margin-top: 1em;
 }
 </style>
