@@ -3,8 +3,8 @@
         <div v-if="loading" class="loading">Chargement...</div>
 
         <h2>Tournois</h2>
-        <div v-if="tournaments.length" class="tournament-grid">
-            <div v-for="tournament in tournaments" class="tournament-card"
+        <div v-if="regularTournaments.length" class="tournament-grid">
+            <div v-for="tournament in regularTournaments" class="tournament-card"
                 :class="{ 'selected': selectedTournament?.id === tournament.id }" @click="selectTournament(tournament)">
                 <div class="card-content">
                     <h3>{{ tournament.name }}</h3>
@@ -12,7 +12,7 @@
                         <span>{{ getStatusLabel(tournament.status) }}</span>
                     </div>
                     <p class="info">📅 {{ formatDate(tournament.start_date) }}</p>
-                    <p class="info">🎮 {{ tournament.mode || 'Non défini' }}</p>
+                    <p class="info">{{ tournament.description || '' }}</p>
                 </div>
                 <img :src="getTournamentImage(tournament.id)" alt="Affiche du tournoi" class="tournament-image"
                     :key="tournament.id">
@@ -93,6 +93,48 @@
         </div>
     </div>
 
+    <div v-if="authStore.isAuthenticated" class="module">
+        <div v-if="loading" class="loading">Chargement...</div>
+
+        <h2>Tournois du Comité Méridional et de la Ligue Sud Est</h2>
+        <div v-if="officialTournaments.length" class="tournament-grid">
+            <div v-for="tournament in officialTournaments" class="tournament-card"
+                :class="{ 'selected': selectedOfficialTournament?.id === tournament.id }"
+                @click="selectOfficialTournament(tournament)">
+                <div class="card-content">
+                    <h3>{{ tournament.name }}</h3>
+                    <p class="info">{{ tournament.description || '' }}</p>
+                    <p class="info">📅 {{ formatDate(tournament.start_date) }}</p>
+                    <div class="status open">
+                        <span>Inscription : mhdartsclub@gmail.com</span>
+                    </div>
+                </div>
+                <img :src="getTournamentImage(tournament.id)" alt="Affiche du tournoi" class="tournament-image"
+                    :key="tournament.id">
+            </div>
+        </div>
+
+        <div v-else class="no-tournaments">
+            <p>Aucun tournoi disponible.</p>
+        </div>
+
+        <!-- Modal pour les détails du tournoi -->
+        <div v-if="selectedOfficialTournament" class="tournament-modal" @click.self="selectedOfficialTournament = null">
+            <div class="modal-content">
+                <h3>{{ selectedOfficialTournament.name }}</h3>
+                <img :src="getTournamentImage(selectedOfficialTournament.id)" alt="Affiche du tournoi"
+                    class="modal-image" :key="selectedOfficialTournament.id">
+                <div>
+                    <button v-if="isEditor"
+                        @click="router.push({ name: 'TournamentManagement', params: { tournamentId: selectedOfficialTournament.id } })">
+                        Gérer
+                    </button>
+                    <button @click="selectedOfficialTournament = null">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div v-else class="centered-block">
         <h2>🔒 Connexion requise</h2>
         <p>Veuillez vous connecter pour voir les tournois.</p>
@@ -124,6 +166,7 @@ const tournamentStore = useTournamentStore();
 
 const tournaments = ref<Tournament[]>([]);
 const selectedTournament = ref<Tournament | null>(null);
+const selectedOfficialTournament = ref<Tournament | null>(null);
 const loading = ref(false);
 const showCreateTournament = ref(false);
 const newTournamentName = ref('');
@@ -131,6 +174,16 @@ const newTournamentDescription = ref('');
 const newTournamentStartDate = ref('');
 const newTournamentMode = ref<'single' | 'double'>('single');
 const registrationStatus = ref<{ [key: number]: boolean }>({});
+
+const isOfficialTournament = (name: string): boolean => {
+    return (
+        name.includes('Comité') || name.includes('Ligue')
+    );
+}
+
+const officialTournaments = computed(() => tournaments.value.filter(t => isOfficialTournament(t.name)));
+
+const regularTournaments = computed(() => tournaments.value.filter(t => !isOfficialTournament(t.name)));
 
 const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
 
@@ -250,6 +303,12 @@ const selectTournament = async (tournament: Tournament) => {
     registrationStatus.value[tournament.id] = await checkIfUserRegistered(tournament.id);
 };
 
+const selectOfficialTournament = async (tournament: Tournament) => {
+    selectedOfficialTournament.value = tournament;
+    await tournamentStore.fetchParticipants(tournament.id);
+    registrationStatus.value[tournament.id] = await checkIfUserRegistered(tournament.id);
+};
+
 watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
     if (isAuthenticated) fetchTournaments();
 }, { immediate: true });
@@ -269,7 +328,7 @@ const openProjection = () => {
 
 .tournament-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(3, minmax(250px, 1fr));
     gap: 0.75rem;
 }
 
@@ -355,6 +414,12 @@ const openProjection = () => {
     border-radius: var(--radius);
 }
 
+.modal-image {
+    width: 350px;
+    height: 100%;
+    border-radius: var(--radius);
+}
+
 .tournament-modal,
 .create-modal {
     position: fixed;
@@ -422,5 +487,13 @@ const openProjection = () => {
 .centered-block {
     text-align: center;
     padding: 2rem;
+}
+
+@media (max-width: 768px) {
+    .tournament-grid {
+        display: grid;
+        grid-template-columns: repeat(1, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
 }
 </style>

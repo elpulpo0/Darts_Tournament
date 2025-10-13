@@ -233,6 +233,11 @@ p {
         padding: 1rem;
     }
 
+    .logo-footer {
+        max-width: 70px;
+        height: auto;
+    }
+
     .hero {
         padding: 2rem 1rem;
     }

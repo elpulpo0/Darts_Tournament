@@ -4,7 +4,9 @@ import Database from '@/pages/Database.vue'
 import Logs from '@/pages/Logs.vue'
 import TournamentManagement from '@/pages/TournamentManagement.vue';
 import TournamentsListing from '@/pages/TournamentsListing.vue';
-import Leaderboard from '@/pages/Leaderboard.vue';
+import LeaderboardClub from '@/pages/LeaderboardClub.vue';
+import LeaderboardLigue from '@/pages/LeaderboardLigue.vue';
+import LeaderboardComite from '@/pages/LeaderboardComite.vue';
 import TournamentProjection from '@/pages/TournamentProjection.vue';
 import HomePage from '@/pages/HomePage.vue';
 
@@ -39,9 +41,19 @@ const routes = [
     component: Logs
   },
   {
-    path: '/leaderboard',
-    name: 'Leaderboard',
-    component: Leaderboard
+    path: '/leaderboard/club',
+    name: 'Leaderboardclub',
+    component: LeaderboardClub
+  },
+  {
+    path: '/leaderboard/ligue',
+    name: 'LeaderboardLigue',
+    component: LeaderboardLigue
+  },
+  {
+    path: '/leaderboard/comite',
+    name: 'LeaderboardComite',
+    component: LeaderboardComite
   },
   {
     path: '/tournaments/:tournamentId/projection',

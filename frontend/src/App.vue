@@ -2,6 +2,17 @@
 import Auth from './components/Auth.vue';
 import Footer from './components/Footer.vue';
 import { useAuthStore } from './stores/useAuthStore';
+import { ref } from 'vue';
+
+const showDropdown = ref(false);
+
+const toggleDropdown = () => {
+  showDropdown.value = !showDropdown.value;
+};
+
+const closeDropdown = () => {
+  showDropdown.value = false;
+};
 
 const authStore = useAuthStore();
 </script>
@@ -19,8 +30,23 @@ const authStore = useAuthStore();
           <li v-if="authStore.isAuthenticated">
             <router-link to="/tournaments" class="nav-link">Tournois</router-link>
           </li>
-          <li v-if="authStore.isAuthenticated">
-            <router-link to="/leaderboard" class="nav-link">Classement</router-link>
+          <!-- Dropdown pour Classement -->
+          <li v-if="authStore.isAuthenticated" class="dropdown">
+            <a href="#" class="nav-link dropdown-toggle" @click.prevent="toggleDropdown">Classement</a>
+            <ul v-show="showDropdown" class="dropdown-menu">
+              <li>
+                <router-link to="/leaderboard/club" class="dropdown-item" @click="closeDropdown">Classement des
+                  tournois locaux</router-link>
+              </li>
+              <li>
+                <router-link to="/leaderboard/ligue" class="dropdown-item" @click="closeDropdown">Classement de la
+                  Ligue</router-link>
+              </li>
+              <li>
+                <router-link to="/leaderboard/comite" class="dropdown-item" @click="closeDropdown">Classement du
+                  Comité</router-link>
+              </li>
+            </ul>
           </li>
           <!-- Liens réservés aux admins -->
           <li v-if="authStore.scopes.includes('admin')">
@@ -81,6 +107,55 @@ const authStore = useAuthStore();
 
 .nav-link:hover {
   color: var(--color-success);
+}
+
+/* Dropdown styles */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-toggle {
+  cursor: pointer;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--color-bg);
+  /* Adaptez à votre thème */
+  border: 1px solid var(--color-light-shadow);
+  border-radius: var(--radius);
+  list-style: none;
+  padding: 10px 0;
+  margin: 0;
+  min-width: 200px;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item {
+  display: block;
+  padding: 10px 20px;
+  text-decoration: none;
+  color: var(--color-fg);
+  transition: background 0.3s;
+}
+
+.dropdown-item:hover {
+  background: var(--color-success);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .dropdown-menu {
+    position: static;
+    /* Pour un affichage stacké sur mobile */
+    border: none;
+    box-shadow: none;
+    padding-left: 20px;
+    /* Indentation pour sous-menus */
+  }
 }
 
 /* Mobile responsiveness */

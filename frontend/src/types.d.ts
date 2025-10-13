@@ -93,3 +93,44 @@ type MatchParticipantSchema = {
   users: User[];
   score: number | null;
 };
+
+type LSEFCategory = {
+  category: string;
+  entries: LSEFEntry[];
+}
+
+type CMERCategory = {
+  category: string;
+  entries: CMEREntry[];
+}
+
+type LSEFEntry = {
+  joueur: string;
+  ol1: string;
+  ol2: string;
+  ol3: string;
+  cl: string;
+  ol4: string;
+  e1: string;
+  e2: string;
+  empty1: string;
+  master: string;
+  pts_com: string;
+  empty2: string;
+  pts: string;
+  clt: string;
+}
+
+type CMEREntry = {
+  joueur: string;
+  oc1: string;
+  cc: string;
+  oc2: string;
+  oc3: string;
+  oc4: string;
+  oc5: string;
+  e1: string;
+  e2: string;
+  pts: string;
+  clt: string;
+}

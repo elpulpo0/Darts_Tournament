@@ -5,7 +5,7 @@ from modules.api.tournaments.models import Match, MatchPlayer, Participant, Tour
 from modules.api.tournaments.schemas import MatchCreate, MatchUpdate, MatchResponse
 from typing import List
 
-matches_router = APIRouter(prefix="/tournaments", tags=["matches"])
+matches_router = APIRouter(prefix="/tournaments", tags=["Matches"])
 
 
 @matches_router.post("/matches/", response_model=MatchResponse)

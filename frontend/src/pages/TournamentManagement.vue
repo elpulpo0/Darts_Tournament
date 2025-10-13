@@ -18,7 +18,7 @@
                 </div>
 
                 <!-- Formulaire de modification du tournoi -->
-                <div v-if="isEditing" class="tournament-edit-form">
+                <div v-if="isEditing" class="tournament-edit-form module">
                     <h3>Modifier le tournoi</h3>
                     <label>Nom :
                         <input v-model="editForm.name" class="form-input" />
@@ -27,7 +27,7 @@
                         <textarea v-model="editForm.description" class="form-input" />
                     </label>
                     <label>Date de début :
-                        <input v-model="editForm.start_date" type="date" class="form-input" />
+                        <input v-model="editForm.start_date" type="datetime-local" class="form-input" />
                     </label>
                     <label>Mode :
                         <select v-model="editForm.mode" class="form-input">
@@ -36,7 +36,7 @@
                         </select>
                     </label>
                     <button @click="updateTournament">Mettre à jour le tournoi</button>
-                    <button @click="cancelEditing">Annuler</button>
+                    <button @click="cancelEditing">Fermer</button>
                 </div>
 
                 <button v-if="tournament.status === 'open'" @click="closeRegistrations(tournament.id)">

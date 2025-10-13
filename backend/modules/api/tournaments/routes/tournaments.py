@@ -31,7 +31,7 @@ from datetime import datetime, UTC
 from modules.api.users.telegram import notify_telegram, NotifyUserRegistration
 import os
 
-tournaments_router = APIRouter(prefix="/tournaments", tags=["tournaments"])
+tournaments_router = APIRouter(prefix="/tournaments", tags=["Tournaments"])
 
 
 @tournaments_router.post(

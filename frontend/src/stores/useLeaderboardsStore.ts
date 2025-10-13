@@ -15,6 +15,14 @@ export const useLeaderboardsStore = defineStore('leaderboards', () => {
     const poolsLeaderboardLoading = ref(false);
     const poolsLeaderboardError = ref('');
 
+    const lsefLeaderboard = ref<LSEFCategory[]>([]);
+    const lsefLoading = ref(false);
+    const lsefError = ref('');
+
+    const cmerLeaderboard = ref<CMERCategory[]>([]);
+    const cmerLoading = ref(false);
+    const cmerError = ref('');
+
     const fetchSeasonLeaderboard = async (year: number, token: string) => {
         loading.value = true;
         error.value = '';
@@ -64,6 +72,34 @@ export const useLeaderboardsStore = defineStore('leaderboards', () => {
         }
     };
 
+    const fetchLsefLeaderboard = async () => {
+        lsefLoading.value = true;
+        lsefError.value = '';
+        try {
+            const { data } = await backendApi.get('/leaderboard/lsef');
+            lsefLeaderboard.value = data.leaderboard;
+        } catch (err) {
+            handleError(err, 'fetching LSEF leaderboard');
+            lsefError.value = 'Échec du chargement du classement LSEF.';
+        } finally {
+            lsefLoading.value = false;
+        }
+    };
+
+    const fetchCmerLeaderboard = async () => {
+        cmerLoading.value = true;
+        cmerError.value = '';
+        try {
+            const { data } = await backendApi.get('/leaderboard/cmer');
+            cmerLeaderboard.value = data.leaderboard;
+        } catch (err) {
+            handleError(err, 'fetching CMER leaderboard');
+            cmerError.value = 'Échec du chargement du classement CMER.';
+        } finally {
+            cmerLoading.value = false;
+        }
+    };
+
     return {
         seasonLeaderboard,
         currentSeason,
@@ -78,5 +114,13 @@ export const useLeaderboardsStore = defineStore('leaderboards', () => {
         poolsLeaderboardLoading,
         poolsLeaderboardError,
         fetchPoolsLeaderboard,
+        lsefLeaderboard,
+        lsefLoading,
+        lsefError,
+        fetchLsefLeaderboard,
+        cmerLeaderboard,
+        cmerLoading,
+        cmerError,
+        fetchCmerLeaderboard
     };
 });

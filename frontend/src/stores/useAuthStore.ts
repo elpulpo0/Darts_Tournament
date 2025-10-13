@@ -17,7 +17,7 @@ export const useAuthStore = defineStore('auth', () => {
   const email = useStorage<string>('email', '');
   const name = useStorage<string>('name', '');
   const nickname = useStorage<string>('nickname', '');
-  const discord = useStorage<string>('name', '');
+  const discord = useStorage<string>('discord', '');
   const userId = useStorage<number | null>('userId', null, localStorage, {
     serializer: {
       read: (v) => (v ? JSON.parse(v) : null),

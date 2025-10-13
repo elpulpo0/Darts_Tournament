@@ -20,7 +20,7 @@ from modules.api.tournaments.schemas import (
 from modules.api.users.models import User
 from typing import List
 
-leaderboards_router = APIRouter(prefix="/tournaments", tags=["leaderboards"])
+leaderboards_router = APIRouter(prefix="/tournaments", tags=["Leaderboards"])
 
 
 @leaderboards_router.get(

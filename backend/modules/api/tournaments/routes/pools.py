@@ -12,7 +12,7 @@ from modules.api.tournaments.schemas import (
 )
 from typing import List
 
-pools_router = APIRouter(prefix="/tournaments", tags=["pools"])
+pools_router = APIRouter(prefix="/tournaments", tags=["Pools"])
 
 
 @pools_router.post("/{tournament_id}/pools", response_model=PoolResponse)
