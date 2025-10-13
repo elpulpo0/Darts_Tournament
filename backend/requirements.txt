@@ -16,3 +16,4 @@ typing_extensions>=4.0.0
 requests==2.32.4
 tqdm==4.67.1
 APScheduler==3.11.0
+pdfplumber==0.11.7
