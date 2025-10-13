@@ -800,6 +800,11 @@ def delete_participant(
             status_code=400,
             detail="Cannot delete participants from a tournament that is not open",
         )
+    if tournament.mode != "double":
+        raise HTTPException(
+            status_code=400,
+            detail="Participant deletion is only allowed in double mode",
+        )
 
     # Verify participant exists
     participant = (

@@ -96,7 +96,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="user in unregisteredTeamUsers" :key="user.id">
+                                <tr v-for="user in tournamentStore.registeredUsers" :key="user.id">
                                     <td>{{ user.name ? user.nickname + ' (' + user.name + ')' : user.nickname }}</td>
                                     <td>
                                         <button title="Désinscrire ce joueur" class="delete-btn"
@@ -115,7 +115,7 @@
                                 <tr>
                                     <th>Nom</th>
                                     <th v-if="tournament.mode === 'double'">Membres</th>
-                                    <th>Actions</th>
+                                    <th v-if="tournament.mode === 'double'">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -125,7 +125,7 @@
                                         :title="participant.users.map(u => u.name || u.nickname || 'Inconnu').join(' & ')">
                                         {{participant.users.map(u => u.nickname).join(' & ')}}
                                     </td>
-                                    <td>
+                                    <td v-if="tournament.mode === 'double'">
                                         <button title="Supprimer ce participant" class="delete-btn"
                                             @click="deleteParticipant(participant.id, tournament.id)">✖️</button>
                                     </td>
@@ -187,7 +187,7 @@
                 <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
                 <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
                     leaderboardsStore.poolsLeaderboardError
-                }}</div>
+                    }}</div>
                 <div v-if="leaderboardsStore.poolsLeaderboard.length">
                     <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
                         <h5>{{ poolLeaderboard.pool_name }}</h5>
@@ -536,16 +536,16 @@ const isCurrentRoundFinished = computed(() => {
     }
 });
 
-const unregisteredTeamUsers = computed(() => {
-    // Filter users who are not in any participant (team)
-    const usersNotInTeam = tournamentStore.registeredUsers.filter(user =>
-        !tournamentStore.participants.some(p => p.users.some(u => u.id === user.id))
-    );
+// const unregisteredTeamUsers = computed(() => {
+//     // Filter users who are not in any participant (team)
+//     const usersNotInTeam = tournamentStore.registeredUsers.filter(user =>
+//         !tournamentStore.participants.some(p => p.users.some(u => u.id === user.id))
+//     );
 
-    return usersNotInTeam.sort((a, b) => {
-        return new Date(a.id).getTime() - new Date(b.id).getTime();
-    });
-});
+//     return usersNotInTeam.sort((a, b) => {
+//         return new Date(a.id).getTime() - new Date(b.id).getTime();
+//     });
+// });
 
 const selectableUsers = computed(() => {
     const alreadyRegisteredIds = new Set(tournamentStore.registeredUsers.map(user => user.id));
