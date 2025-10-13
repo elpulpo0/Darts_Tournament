@@ -19,7 +19,7 @@
                 </label>
             </div>
 
-            <h2>Classement Ligue Sud Est</h2>
+            <h2>Classement Ligue Sud Est 2025</h2>
             <div v-for="category in filteredCategories" :key="category.category">
                 <h3>{{ formatCategory(category.category) }}</h3>
                 <table v-if="category.entries.length">

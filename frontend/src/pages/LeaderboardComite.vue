@@ -19,7 +19,7 @@
                 </label>
             </div>
 
-            <h2>Classement Comité Méridional</h2>
+            <h2>Classement Comité Méridional 2024</h2>
             <div v-for="category in filteredCategories" :key="category.category">
                 <h3>{{ formatCategory(category.category) }}</h3>
                 <table v-if="category.entries.length">
