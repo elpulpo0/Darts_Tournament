@@ -76,7 +76,7 @@ export const useLeaderboardsStore = defineStore('leaderboards', () => {
         lsefLoading.value = true;
         lsefError.value = '';
         try {
-            const { data } = await backendApi.get('/leaderboard/lsef');
+            const { data } = await backendApi.get('/leaderboard/lsef/');
             lsefLeaderboard.value = data.leaderboard;
         } catch (err) {
             handleError(err, 'fetching LSEF leaderboard');
@@ -90,7 +90,7 @@ export const useLeaderboardsStore = defineStore('leaderboards', () => {
         cmerLoading.value = true;
         cmerError.value = '';
         try {
-            const { data } = await backendApi.get('/leaderboard/cmer');
+            const { data } = await backendApi.get('/leaderboard/cmer/');
             cmerLeaderboard.value = data.leaderboard;
         } catch (err) {
             handleError(err, 'fetching CMER leaderboard');
