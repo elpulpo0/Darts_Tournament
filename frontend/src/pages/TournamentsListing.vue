@@ -3,8 +3,8 @@
         <div v-if="loading" class="loading">Chargement...</div>
 
         <h2>Tournois</h2>
-        <div v-if="regularTournaments.length" class="tournament-grid">
-            <div v-for="tournament in regularTournaments" class="tournament-card"
+        <div v-if="tournamentStore.tournaments.length" class="tournament-grid">
+            <div v-for="tournament in tournamentStore.tournaments" class="tournament-card"
                 :class="{ 'selected': selectedTournament?.id === tournament.id }" @click="selectTournament(tournament)">
                 <div class="card-content">
                     <h3>{{ tournament.name }}</h3>
@@ -29,7 +29,7 @@
                 <h3>{{ selectedTournament.name }}</h3>
                 <p>{{ selectedTournament.description || 'Aucune description' }}</p>
                 <p><strong>Date :</strong> {{ formatDate(selectedTournament.start_date) }}</p>
-                <p><strong>Mode :</strong> {{ selectedTournament.mode || 'Non défini' }}</p>
+                <p><strong>Mode :</strong> {{ getModeLabel(selectedTournament.mode) }}</p>
 
                 <div v-if="selectedTournament.status === 'open'">
                     <button v-if="!registrationStatus[selectedTournament.id]"
@@ -42,8 +42,8 @@
                             désinscrire</button>
                     </div>
                 </div>
-                <p v-else-if="selectedTournament.status === 'closed'">Inscriptions closes.</p>
-                <p v-else-if="selectedTournament.status === 'finished'">Tournoi terminé.</p>
+                <p v-else-if="selectedTournament.status === 'closed' || selectedTournament.status === 'finished'">{{
+                    getStatusLabel(selectedTournament.status) }}</p>
 
                 <div v-if="selectedTournament.status === 'open'" class="participants">
                     <h4>Participants ({{ tournamentStore.participants?.length || 0 }})</h4>
@@ -122,14 +122,6 @@ const newTournamentStartDate = ref('');
 const newTournamentMode = ref<'single' | 'double'>('single');
 const registrationStatus = ref<{ [key: number]: boolean }>({});
 
-const isOfficialTournament = (name: string): boolean => {
-    return (
-        name.includes('Comité') || name.includes('Ligue')
-    );
-}
-
-const regularTournaments = computed(() => tournamentStore.tournaments.filter(t => !isOfficialTournament(t.name)));
-
 const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
 
 const getTournamentImage = (tournamentId: number) => {
@@ -140,10 +132,21 @@ const getStatusLabel = (status: Tournament['status']) => {
     const labels: Record<Tournament['status'], string> = {
         open: 'Inscriptions ouvertes',
         closed: 'Inscriptions fermées',
-        finished: 'Terminé',
-        running: 'En cours',
+        finished: 'Tournoi terminé',
+        running: 'Tournoi en cours',
     };
     return labels[status] || '';
+};
+
+const getModeLabel = (mode: Tournament['mode']) => {
+    const labels: Record<NonNullable<Tournament['mode']>, string> = {
+        single: 'Individuel',
+        double: 'Double',
+    };
+    if (mode === null) {
+        return '';
+    }
+    return labels[mode] || '';
 };
 
 const formatDate = (date: string) => new Date(date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
