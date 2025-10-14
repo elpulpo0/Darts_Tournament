@@ -19,5 +19,7 @@ COPY . .
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
+RUN chown -R appuser:appuser /app
+
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["python", "run.py"]
