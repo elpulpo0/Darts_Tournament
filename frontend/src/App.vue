@@ -35,7 +35,7 @@ const authStore = useAuthStore();
           </li>
           <!-- Dropdown pour Classement -->
           <li v-if="authStore.isAuthenticated" class="dropdown">
-            <a href="#" class="nav-link dropdown-toggle" @click.prevent="toggleDropdown">Classement</a>
+            <a href="#" class="nav-link dropdown-toggle" @click.prevent="toggleDropdown">Classements</a>
             <ul v-show="showDropdown" class="dropdown-menu">
               <li>
                 <router-link to="/leaderboard/club" class="dropdown-item" @click="closeDropdown">Classement des
