@@ -194,7 +194,8 @@ const organiserLinks: Record<string, string> = {
     "les dartistes du pays de fayence": "https://www.facebook.com/les.dartistes.du.pays.de.fayence",
     "pouss'in the darts - la fléchette sanfloraine": "https://www.facebook.com/LaFlechetteSanfloraine",
     "droit aux bulls": "https://www.instagram.com/droitobullsclub",
-    "drap darts": "https://www.facebook.com/groups/1024078255149460"
+    "drap darts": "https://www.facebook.com/groups/1024078255149460",
+    "La fléchette de Salm": "https://www.facebook.com/LaFlechetteDeSalm88"
 };
 
 const getOrganiserLink = (organiser: string | undefined | null): string | undefined => {
