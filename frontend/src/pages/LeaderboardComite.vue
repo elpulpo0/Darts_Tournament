@@ -64,9 +64,7 @@
                             <td class="hideonmobile">{{ entry.e2 }}</td>
                         </tr>
                     </tbody>
-                    <tbody v-else>
-                        <p>Aucune entrée dans cette catégorie.</p>
-                    </tbody>
+                    <p v-else>Aucune entrée dans cette catégorie.</p>
                 </table>
             </div>
         </div>

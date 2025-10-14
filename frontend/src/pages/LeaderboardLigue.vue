@@ -70,9 +70,7 @@
                             <td class="hideonmobile">{{ entry.pts_com }}</td>
                         </tr>
                     </tbody>
-                    <tbody v-else>
-                        <p>Aucune entrée dans cette catégorie.</p>
-                    </tbody>
+                    <p v-else>Aucune entrée dans cette catégorie.</p>
                 </table>
             </div>
         </div>

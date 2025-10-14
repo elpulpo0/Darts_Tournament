@@ -131,7 +131,7 @@ const getEventImage = (eventId: number) => {
 };
 
 const getFallbackImage = () => {
-    return new URL(`../assets/404.jpg`, import.meta.url).href;
+    return new URL(`../assets/404.png`, import.meta.url).href;
 };
 
 const onImageError = (event: Event) => {
@@ -394,7 +394,7 @@ interface OfficialEvent {
 }
 
 .modal-image {
-    width: 350px;
+    width: 300px;
     height: auto;
     border-radius: var(--radius);
     margin-bottom: 1rem;
