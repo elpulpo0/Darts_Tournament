@@ -3,6 +3,7 @@
         <div v-if="leaderboardsStore.loading">Chargement du classement CMER...</div>
         <div v-if="leaderboardsStore.error" class="error">{{ leaderboardsStore.error }}</div>
         <div class="module">
+            <h2>Classement Comité Méridional 2024</h2>
             <div class="filters">
                 <label for="category-select">Catégorie :</label>
                 <select id="category-select" v-model="selectedCategory">
@@ -19,10 +20,9 @@
                 </label>
             </div>
 
-            <h2>Classement Comité Méridional 2024</h2>
             <div v-for="category in filteredCategories" :key="category.category">
                 <h3>{{ formatCategory(category.category) }}</h3>
-                <table v-if="category.entries.length">
+                <table v-if="category.entries.length" class="leaderboardtable">
                     <thead>
                         <tr>
                             <th></th>
@@ -121,16 +121,3 @@ onMounted(() => {
     }
 });
 </script>
-
-<style>
-.current-user {
-    color: var(--color-error);
-    font-weight: bold;
-}
-
-@media screen and (max-width: 600px) {
-    .hideonmobile {
-        display: none;
-    }
-}
-</style>

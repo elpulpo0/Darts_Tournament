@@ -12,7 +12,7 @@
                         gagné (par joueur).</li>
                 </ul>
             </div>
-            <table v-if="leaderboardsStore.seasonLeaderboard.length">
+            <table v-if="leaderboardsStore.seasonLeaderboard.length" class="leaderboardtable">
                 <thead>
                     <tr>
                         <th></th>
