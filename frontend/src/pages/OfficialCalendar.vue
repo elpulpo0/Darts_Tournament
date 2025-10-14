@@ -35,13 +35,20 @@
                 <img v-if="!editMode" :src="getEventImage(selectedEvent.id)" alt="Affiche du tournoi"
                     class="modal-image" @error="onImageError" :key="selectedEvent.id">
 
-                <div v-if="!editMode">
-                    <p class="info"><span class="icon">📝</span> {{ selectedEvent.description || '' }}</p>
-                    <p class="info"><span class="icon">👥</span> Organisé par {{ selectedEvent.organiser || '' }}</p>
-                    <p class="info"><span class="icon">📍</span> {{ selectedEvent.place || '' }}</p>
-                    <p class="info"><span class="icon">📅</span> {{ selectedEvent.date || '' }}</p>
+                <div v-if="!editMode" class="event-details">
+                    <p v-if="selectedEvent.description"><strong>Description :</strong> {{ selectedEvent.description }}
+                    </p>
+                    <p v-if="selectedEvent.organiser">
+                        <strong>Organisateur : </strong>{{ selectedEvent.organiser }}
+                        <a v-if="getOrganiserLink(selectedEvent.organiser)"
+                            :href="getOrganiserLink(selectedEvent.organiser)" target="_blank"
+                            rel="noopener noreferrer">(Plus d'info)</a>
+                    </p>
+                    <p v-if="selectedEvent.place"><strong>Lieu :</strong> {{ selectedEvent.place }}</p>
+                    <p v-if="selectedEvent.date"><strong>Date :</strong> {{ selectedEvent.date }}</p>
                 </div>
-                <div v-else>
+
+                <div v-if="editMode">
                     <input v-model="editDescription" placeholder="Description" class="form-input" />
                     <input v-model="editOrganiser" placeholder="Organisateur" class="form-input" />
                     <input v-model="editPlace" placeholder="Lieu" class="form-input" />
@@ -178,6 +185,24 @@ const groupedEvents = computed(() => {
     return groups;
 });
 
+const organiserLinks: Record<string, string> = {
+    "hérault darts club": "https://badarts.fr",
+    "un 20 cible": "https://www.facebook.com/p/UN-20-CIBLE-100063697832214",
+    "olympic darts albertville": "https://www.facebook.com/p/Olympic-Darts-Albertville-61559336854314",
+    "lyon darts academy": "https://www.lyondartsacademy.fr/",
+    "perno li darts": "https://www.facebook.com/pernolidarts",
+    "les dartistes du pays de fayence": "https://www.facebook.com/les.dartistes.du.pays.de.fayence",
+    "pouss'in the darts - la fléchette sanfloraine": "https://www.facebook.com/LaFlechetteSanfloraine",
+    "droit aux bulls": "https://www.instagram.com/droitobullsclub",
+    "drap darts": "https://www.facebook.com/groups/1024078255149460"
+};
+
+const getOrganiserLink = (organiser: string | undefined | null): string | undefined => {
+    if (!organiser) return undefined;
+    const lowerOrganiser = organiser.toLowerCase().trim();
+    return organiserLinks[lowerOrganiser] || undefined;
+};
+
 const toggleCreateEventForm = () => {
     showCreateEvent.value = !showCreateEvent.value;
     if (!showCreateEvent.value) {
@@ -269,6 +294,15 @@ const updateEvent = async () => {
 watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
     if (isAuthenticated) eventStore.fetchEvents();
 }, { immediate: true });
+
+interface OfficialEvent {
+    id: number;
+    name: string;
+    description?: string | null;
+    organiser?: string | null;
+    place?: string | null;
+    date: string;
+}
 
 </script>
 
@@ -363,6 +397,21 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
     height: auto;
     border-radius: var(--radius);
     margin-bottom: 1rem;
+}
+
+.event-details {
+    margin-bottom: 1rem;
+}
+
+.event-details p {
+    margin: 0.5rem 0;
+    font-size: 1rem;
+}
+
+.event-details a {
+    color: var(--color-accent);
+    text-decoration: underline;
+    margin-left: 0.5rem;
 }
 
 .event-modal,
