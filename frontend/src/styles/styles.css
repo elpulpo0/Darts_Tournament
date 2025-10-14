@@ -16,7 +16,7 @@ body {
   padding: 15px;
   margin: 15px;
   background-color: var(--color-bg);
-  border: 1px solid var(--color-fg);
+  /* border: 1px solid var(--color-fg); */
   border-radius: var(--radius);
   flex-wrap: wrap;
   gap: 30px;

@@ -2,7 +2,7 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
-# from modules.api.users.create_db import init_users_db
+from modules.api.users.create_db import init_users_db
 from modules.api.users.routes import users_router
 from modules.api.auth.routes import auth_router
 from modules.api.notifs.routes import notifs_router
@@ -11,7 +11,7 @@ from modules.api.tournaments.routes.leaderboards import leaderboards_router
 from modules.api.tournaments.routes.matches import matches_router
 from modules.api.tournaments.routes.pools import pools_router
 from modules.api.tournaments.routes.tournaments import tournaments_router
-
+from modules.api.calendar.routes import calendar_router
 from modules.api.official_leaderboards.lsef import leaderboards_lsef_router
 from modules.api.official_leaderboards.cmer import leaderboards_cmer_router
 from scheduler import start_scheduler
@@ -56,6 +56,7 @@ def create_app() -> FastAPI:
     router.include_router(matches_router)
     router.include_router(leaderboards_lsef_router)
     router.include_router(leaderboards_cmer_router)
+    router.include_router(calendar_router)
 
     router.include_router(admin_router)
 
@@ -66,7 +67,7 @@ def create_app() -> FastAPI:
         return RedirectResponse(url="/docs")
 
     # Initialisation safe de la DB
-    # init_users_db()
+    init_users_db()
 
     start_scheduler()
 

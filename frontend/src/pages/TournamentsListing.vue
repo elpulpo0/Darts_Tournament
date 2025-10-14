@@ -93,48 +93,6 @@
         </div>
     </div>
 
-    <div v-if="authStore.isAuthenticated" class="module">
-        <div v-if="loading" class="loading">Chargement...</div>
-
-        <h2>Tournois du Comité Méridional et de la Ligue Sud Est</h2>
-        <div v-if="officialTournaments.length" class="tournament-grid">
-            <div v-for="tournament in officialTournaments" class="tournament-card"
-                :class="{ 'selected': selectedOfficialTournament?.id === tournament.id }"
-                @click="selectOfficialTournament(tournament)">
-                <div class="card-content">
-                    <h3>{{ tournament.name }}</h3>
-                    <p class="info">{{ tournament.description || '' }}</p>
-                    <p class="info">📅 {{ formatDate(tournament.start_date) }}</p>
-                    <div class="status open">
-                        <span>Inscription : mhdartsclub@gmail.com</span>
-                    </div>
-                </div>
-                <img :src="getTournamentImage(tournament.id)" alt="Affiche du tournoi" class="tournament-image"
-                    :key="tournament.id">
-            </div>
-        </div>
-
-        <div v-else class="no-tournaments">
-            <p>Aucun tournoi disponible.</p>
-        </div>
-
-        <!-- Modal pour les détails du tournoi -->
-        <div v-if="selectedOfficialTournament" class="tournament-modal" @click.self="selectedOfficialTournament = null">
-            <div class="modal-content">
-                <h3>{{ selectedOfficialTournament.name }}</h3>
-                <img :src="getTournamentImage(selectedOfficialTournament.id)" alt="Affiche du tournoi"
-                    class="modal-image" :key="selectedOfficialTournament.id">
-                <div>
-                    <button v-if="isEditor"
-                        @click="router.push({ name: 'TournamentManagement', params: { tournamentId: selectedOfficialTournament.id } })">
-                        Gérer
-                    </button>
-                    <button @click="selectedOfficialTournament = null">Fermer</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div v-else class="centered-block">
         <h2>🔒 Connexion requise</h2>
         <p>Veuillez vous connecter pour voir les tournois.</p>
@@ -150,23 +108,12 @@ import { useRouter } from 'vue-router';
 import { handleError } from '../functions/utils';
 import { useTournamentStore } from '../stores/useTournamentStore';
 
-interface Tournament {
-    id: number;
-    name: string;
-    status: 'open' | 'closed' | 'finished' | 'running';
-    start_date: string;
-    mode?: string;
-    description?: string;
-}
-
 const authStore = useAuthStore();
 const toast = useToast();
 const router = useRouter();
 const tournamentStore = useTournamentStore();
 
-const tournaments = ref<Tournament[]>([]);
 const selectedTournament = ref<Tournament | null>(null);
-const selectedOfficialTournament = ref<Tournament | null>(null);
 const loading = ref(false);
 const showCreateTournament = ref(false);
 const newTournamentName = ref('');
@@ -181,9 +128,7 @@ const isOfficialTournament = (name: string): boolean => {
     );
 }
 
-const officialTournaments = computed(() => tournaments.value.filter(t => isOfficialTournament(t.name)));
-
-const regularTournaments = computed(() => tournaments.value.filter(t => !isOfficialTournament(t.name)));
+const regularTournaments = computed(() => tournamentStore.tournaments.filter(t => !isOfficialTournament(t.name)));
 
 const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
 
@@ -233,24 +178,10 @@ const createTournament = async () => {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
         toast.success('Tournoi créé.');
-        fetchTournaments();
+        tournamentStore.fetchTournaments();
         toggleCreateTournamentForm();
     } catch (err) {
         handleError(err, 'création du tournoi');
-    }
-};
-
-const fetchTournaments = async () => {
-    loading.value = true;
-    try {
-        const { data } = await backendApi.get('/tournaments/', {
-            headers: { Authorization: `Bearer ${authStore.token}` },
-        });
-        tournaments.value = data;
-    } catch (err) {
-        handleError(err, 'récupération des tournois');
-    } finally {
-        loading.value = false;
     }
 };
 
@@ -303,14 +234,8 @@ const selectTournament = async (tournament: Tournament) => {
     registrationStatus.value[tournament.id] = await checkIfUserRegistered(tournament.id);
 };
 
-const selectOfficialTournament = async (tournament: Tournament) => {
-    selectedOfficialTournament.value = tournament;
-    await tournamentStore.fetchParticipants(tournament.id);
-    registrationStatus.value[tournament.id] = await checkIfUserRegistered(tournament.id);
-};
-
 watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
-    if (isAuthenticated) fetchTournaments();
+    if (isAuthenticated) tournamentStore.fetchTournaments();
 }, { immediate: true });
 
 const openProjection = () => {

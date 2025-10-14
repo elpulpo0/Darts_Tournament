@@ -4,6 +4,7 @@ import Database from '@/pages/Database.vue'
 import Logs from '@/pages/Logs.vue'
 import TournamentManagement from '@/pages/TournamentManagement.vue';
 import TournamentsListing from '@/pages/TournamentsListing.vue';
+import OfficialCalendar from '../pages/OfficialCalendar.vue';
 import LeaderboardClub from '@/pages/LeaderboardClub.vue';
 import LeaderboardLigue from '@/pages/LeaderboardLigue.vue';
 import LeaderboardComite from '@/pages/LeaderboardComite.vue';
@@ -29,6 +30,11 @@ const routes = [
     path: '/tournaments',
     name: 'TournamentsListing',
     component: TournamentsListing,
+  },
+  {
+    path: '/calendar',
+    name: 'OfficialCalendar',
+    component: OfficialCalendar,
   },
   {
     path: '/database',

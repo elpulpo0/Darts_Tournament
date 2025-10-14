@@ -26,7 +26,9 @@ def init_users_db():
         UsersBase.metadata.create_all(bind=users_engine)
         logger.info("The 'users' database was successfully created.")
 
-    sync_users_from_yaml()
+    UsersBase.metadata.create_all(bind=users_engine)
+
+    # sync_users_from_yaml()
 
 
 def load_initial_users_config():

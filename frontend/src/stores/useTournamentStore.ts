@@ -6,10 +6,26 @@ import { handleError } from '../functions/utils';
 
 export const useTournamentStore = defineStore('tournament', () => {
     const tournament = ref<Tournament | null>(null);
+    const tournaments = ref<Tournament[]>([]);
     const tournamentDetail = ref<TournamentFullDetailSchema | null>(null);
     const registeredUsers = ref<User[]>([]);
     const participants = ref<Participant[]>([]);
     const loading = ref(false);
+
+    const fetchTournaments = async () => {
+        const authStore = useAuthStore();
+        loading.value = true;
+        try {
+            const { data } = await backendApi.get('/tournaments/', {
+                headers: { Authorization: `Bearer ${authStore.token}` },
+            });
+            tournaments.value = data;
+        } catch (err) {
+            handleError(err, 'récupération des tournois');
+        } finally {
+            loading.value = false;
+        }
+    };
 
     // Fetch tournament details
     const fetchTournamentDetail = async (tournamentId: number) => {
@@ -67,10 +83,12 @@ export const useTournamentStore = defineStore('tournament', () => {
 
     return {
         tournament,
+        tournaments,
         tournamentDetail,
         registeredUsers,
         participants,
         loading,
+        fetchTournaments,
         fetchTournamentDetail,
         fetchRegisteredUsers,
         fetchParticipants,

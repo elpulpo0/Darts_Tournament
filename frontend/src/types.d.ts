@@ -134,3 +134,12 @@ type CMEREntry = {
   pts: string;
   clt: string;
 }
+
+type OfficialEvent = {
+  id: number;
+  name: string;
+  description: string | null;
+  organiser: string | null;
+  place: string | null;
+  date: string;
+}
