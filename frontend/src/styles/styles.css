@@ -312,3 +312,13 @@ input, select {
     background-color: var(--color-bg);
     color: var(--color-fg);
 }
+
+.city {
+    font-size: 0.6em;
+    padding: 0;
+}
+
+.ptsdetails {
+    font-size: 0.8em;
+    padding: 0;
+}

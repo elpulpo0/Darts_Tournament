@@ -22,24 +22,38 @@
 
             <div v-for="category in filteredCategories" :key="category.category">
                 <h3>{{ formatCategory(category.category) }}</h3>
-                <table v-if="category.entries.length" class="leaderboardtable">
+                <table class="leaderboardtable">
                     <thead>
                         <tr>
                             <th></th>
                             <th>Joueur</th>
                             <th>PTS</th>
-                            <th class="hideonmobile">OL1</th>
-                            <th class="hideonmobile">OL2</th>
-                            <th class="hideonmobile">OL3</th>
-                            <th class="hideonmobile">CL</th>
-                            <th class="hideonmobile">OL4</th>
-                            <th class="hideonmobile">E1</th>
-                            <th class="hideonmobile">E2</th>
-                            <th class="hideonmobile">Master</th>
-                            <th class="hideonmobile">Pts Com</th>
+                            <th class="hideonmobile ptsdetails">Open de <br>Ligue #1</th>
+                            <th class="hideonmobile ptsdetails">Open de <br>Ligue #2</th>
+                            <th class="hideonmobile ptsdetails">Open de <br>Ligue #3</th>
+                            <th class="hideonmobile ptsdetails">Coupe de <br>la Ligue</th>
+                            <th class="hideonmobile ptsdetails">Hors <br>Comité #1</th>
+                            <th class="hideonmobile ptsdetails">Hors <br>Ligue #1</th>
+                            <th class="hideonmobile ptsdetails">Hors <br>Ligue #2</th>
+                            <th class="hideonmobile ptsdetails">Master <br>Régionnaux</th>
+                            <th class="hideonmobile ptsdetails">Points <br>Comité</th>
+                        </tr>
+                        <tr class="hideonmobile">
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th class="city">Cournon (63)</th>
+                            <th class="city">Albertville (73)</th>
+                            <th class="city">Ecully (69)</th>
+                            <th class="city">Saint-Flour (15)</th>
+                            <th class="city">Pernes-les-Fontaines (84)</th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody v-if="category.entries.length">
                         <tr v-for="(entry, index) in category.entries"
                             :class="{ 'current-user': isCurrentUser(entry.joueur) }" :key="index">
                             <td>{{ entry.clt }}</td>
@@ -56,8 +70,10 @@
                             <td class="hideonmobile">{{ entry.pts_com }}</td>
                         </tr>
                     </tbody>
+                    <tbody v-else>
+                        <p>Aucune entrée dans cette catégorie.</p>
+                    </tbody>
                 </table>
-                <p v-else>Aucune entrée dans cette catégorie.</p>
             </div>
         </div>
     </div>

@@ -3,7 +3,7 @@
         <div v-if="leaderboardsStore.loading">Chargement du classement CMER...</div>
         <div v-if="leaderboardsStore.error" class="error">{{ leaderboardsStore.error }}</div>
         <div class="module">
-            <h2>Classement Comité Méridional 2024</h2>
+            <h2>Classement Comité Méridional 2025</h2>
             <div class="filters">
                 <label for="category-select">Catégorie :</label>
                 <select id="category-select" v-model="selectedCategory">
@@ -22,40 +22,52 @@
 
             <div v-for="category in filteredCategories" :key="category.category">
                 <h3>{{ formatCategory(category.category) }}</h3>
-                <table v-if="category.entries.length" class="leaderboardtable">
+                <table class="leaderboardtable">
                     <thead>
                         <tr>
                             <th></th>
                             <th>Joueur</th>
                             <th>PTS</th>
-                            <th class="hideonmobile">OC1</th>
-                            <th class="hideonmobile">CC</th>
-                            <th class="hideonmobile">OC2</th>
-                            <th class="hideonmobile">OC3</th>
-                            <th class="hideonmobile">OC4</th>
-                            <th class="hideonmobile">OC5</th>
-                            <th class="hideonmobile">E1</th>
-                            <th class="hideonmobile">E2</th>
+                            <th class="hideonmobile ptsdetails">Coupe du <br>Comité</th>
+                            <th class="hideonmobile ptsdetails">Open de <br>Comité #1</th>
+                            <th class="hideonmobile ptsdetails">Open de <br>Comité #2</th>
+                            <th class="hideonmobile ptsdetails">Open de <br>Comité #3</th>
+                            <th class="hideonmobile ptsdetails">Open de <br>Comité #4</th>
+                            <th class="hideonmobile ptsdetails">Hors <br>Comité #1</th>
+                            <th class="hideonmobile ptsdetails">Hors <br>Comité #2</th>
+                        </tr>
+                        <tr class="hideonmobile">
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                            <th class="city">Villeveyrac (34)</th>
+                            <th class="city">Fayence (83)</th>
+                            <th class="city">Drap (06)</th>
+                            <th class="city">La Ciotat (13)</th>
+                            <th class="city">Villeveyrac (34)</th>
+                            <th></th>
+                            <th></th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody v-if="category.entries.length">
                         <tr v-for="(entry, index) in category.entries"
                             :class="{ 'current-user': isCurrentUser(entry.joueur) }" :key="index">
                             <td>{{ entry.clt }}</td>
                             <td>{{ entry.joueur }}</td>
                             <td>{{ entry.pts }}</td>
-                            <td class="hideonmobile">{{ entry.oc1 }}</td>
                             <td class="hideonmobile">{{ entry.cc }}</td>
+                            <td class="hideonmobile">{{ entry.oc1 }}</td>
                             <td class="hideonmobile">{{ entry.oc2 }}</td>
                             <td class="hideonmobile">{{ entry.oc3 }}</td>
                             <td class="hideonmobile">{{ entry.oc4 }}</td>
-                            <td class="hideonmobile">{{ entry.oc5 }}</td>
                             <td class="hideonmobile">{{ entry.e1 }}</td>
                             <td class="hideonmobile">{{ entry.e2 }}</td>
                         </tr>
                     </tbody>
+                    <tbody v-else>
+                        <p>Aucune entrée dans cette catégorie.</p>
+                    </tbody>
                 </table>
-                <p v-else>Aucune entrée dans cette catégorie.</p>
             </div>
         </div>
     </div>
