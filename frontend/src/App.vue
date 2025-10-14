@@ -25,7 +25,7 @@ const authStore = useAuthStore();
         <ul class="nav-links">
           <!-- Liens accessibles à tous les utilisateurs authentifiés -->
           <li v-if="authStore.isAuthenticated">
-            <router-link to="/home" class="nav-link">Acceuil</router-link>
+            <router-link to="/home" class="nav-link">Accueil</router-link>
           </li>
           <li v-if="authStore.isAuthenticated">
             <router-link to="/tournaments" class="nav-link">Tournois Badarts</router-link>
