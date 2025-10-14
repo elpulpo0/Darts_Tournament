@@ -476,11 +476,12 @@ interface OfficialEvent {
 
 @media (max-width: 768px) {
     .event-grid {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(1, minmax(200px, 1fr));
     }
 
     .event-image {
-        width: 100px;
+        width: auto;
+        height: 150px;
     }
 }
 </style>
