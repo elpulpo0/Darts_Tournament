@@ -8,7 +8,8 @@ services:
     volumes:
       - ./backend/database:/app/database
       - ./backend/logs:/app/logs
-      - /mnt/backups:/app/backups
+      - ./backend/backups:/app/backups
+      - ./backend/official_leaderboards:/app/official_leaderboards
     env_file:
       - .env
     environment:
