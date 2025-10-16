@@ -9,7 +9,7 @@ services:
       - ./backend/database:/app/database
       - ./backend/logs:/app/logs
       - ./backend/backups:/app/backups
-      - ./backend/official_leaderboards:/app/official_leaderboards
+      - ./backend/leaderboards:/app/leaderboards
     env_file:
       - .env
     environment:
