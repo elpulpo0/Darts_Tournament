@@ -49,6 +49,7 @@ __init__.py
 # Generated Data
 backend/database/*
 backend/logs/*
+backend/leaderboards/*
 database/*
 logs/*
 backend/backups/

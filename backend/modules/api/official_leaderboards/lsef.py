@@ -13,7 +13,7 @@ from modules.api.users.models import User
 leaderboards_lsef_router = APIRouter(prefix="/leaderboard/lsef", tags=["LSEF"])
 
 # Path to store the parsed JSON
-JSON_PATH = "official_leaderboards/lsef_leaderboard.json"
+JSON_PATH = "leaderboards/lsef_leaderboard.json"
 
 
 class LSEFEntry(BaseModel):

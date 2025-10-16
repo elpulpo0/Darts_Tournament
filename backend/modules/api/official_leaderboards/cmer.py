@@ -13,7 +13,7 @@ from modules.api.users.models import User
 leaderboards_cmer_router = APIRouter(prefix="/leaderboard/cmer", tags=["CMER"])
 
 # Path to store the parsed JSON
-JSON_PATH = "official_leaderboards/cmer_leaderboard.json"
+JSON_PATH = "leaderboards/cmer_leaderboard.json"
 
 
 class CMEREntry(BaseModel):
