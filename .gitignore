@@ -56,3 +56,4 @@ backend/backups/
 backend/scripts/
 backend/modules/api/users/initial_users.yaml
 monitoring/uptime-kuma/*
+backend/modules/api/official_leaderboards/lsef _temp.py

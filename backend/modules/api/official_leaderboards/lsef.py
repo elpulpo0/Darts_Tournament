@@ -5,6 +5,7 @@ import json
 import os
 from typing import List
 from pydantic import BaseModel
+from collections import defaultdict
 from modules.database.dependencies import get_users_db
 from modules.api.users.functions import get_current_user
 from sqlalchemy.orm import Session
@@ -40,6 +41,100 @@ class LSEFLeaderboardResponse(BaseModel):
     leaderboard: List[LSEFCategory]
 
 
+def extract_table(page):
+    words = page.extract_words(keep_blank_chars=True, x_tolerance=2, y_tolerance=2)
+
+    # Group words by approximate row (using top as key, rounded for tolerance)
+    rows = defaultdict(list)
+    for w in words:
+        row_key = round(w["top"], 0)  # Group by approximate y-position
+        rows[row_key].append(w)
+
+    # Sort rows by y-position
+    sorted_row_keys = sorted(rows.keys())
+
+    # Find the header row containing 'Joueur'
+    header_row = None
+    header_y = None
+    for y in sorted_row_keys:
+        row_words = sorted(rows[y], key=lambda w: w["x0"])  # Sort by x-position
+        texts = [w["text"] for w in row_words]
+        if "Joueur" in texts:
+            header_row = row_words
+            header_y = y
+            break
+
+    if not header_row:
+        return None
+
+    # Define column positions based on header words' x0
+    column_starts = sorted([w["x0"] for w in header_row])
+    column_ends = column_starts[1:] + [page.width]
+
+    # Header texts (including ',' for empty columns)
+    header_texts = [
+        w["text"].lower() for w in sorted(header_row, key=lambda w: w["x0"])
+    ]
+
+    # Map ',' to 'empty' for column names
+    column_names = []
+    empty_count = 0
+    for h in header_texts:
+        if h == "," or h == "" or h == ",,":
+            empty_count += 1
+            column_names.append(f"empty{empty_count}")
+        else:
+            column_names.append(h.replace(" ", "_"))  # e.g., 'pts_com'
+
+    # Extract data rows (rows below header, ignoring footer)
+    data = []
+    page_height = page.height
+    footer_threshold = page_height * 0.9  # Ignore lines in the bottom 10% of the page
+
+    for y in sorted_row_keys:
+        if y <= header_y or y >= footer_threshold:  # Skip header and footer
+            continue
+
+        row_words = rows[y]
+        row_data = dict.fromkeys(column_names, "")
+
+        for w in row_words:
+            mid = (w["x0"] + w["x1"]) / 2
+            for i, start in enumerate(column_starts):
+                end = column_ends[i]
+                if start <= mid < end:
+                    row_data[column_names[i]] = w["text"]
+                    break
+
+        joueur = row_data.get("joueur", "").strip()
+        if joueur and joueur != "Total Licencié":
+            # Adjust for CLT > 99 shifting to PTS
+            values = [
+                row_data.get(col, "")
+                for col in column_names
+                if col not in ["joueur", "empty1", "empty2"]
+            ]
+            if (
+                len(values) >= 3
+                and values[-1].isdigit()
+                and int(values[-1]) > 99
+                and not values[-2].isdigit()
+            ):
+                # Shift CLT back to its correct position
+                clt = values[-1]
+                pts = values[-2] if values[-2] else "0"
+                row_data["pts"] = pts
+                row_data["clt"] = clt
+            data.append(row_data)
+
+    df = pd.DataFrame(data)
+    # Drop empty columns
+    df = df.drop(columns=[col for col in df.columns if "empty" in col], errors="ignore")
+    df = df.fillna("")
+
+    return df
+
+
 def parse_pdf(file_path: str) -> dict:
     categories = {}
     current_category = None
@@ -64,6 +159,8 @@ def parse_pdf(file_path: str) -> dict:
                         current_category = "individuel_feminin"
                     elif "vétéran" in category_name:
                         current_category = "individuel_veteran"
+                    elif "junior" in category_name:
+                        current_category = "individuel_junior"
                     elif "mixte" in category_name and "double" in category_name:
                         current_category = "double_mixte"
                     elif "féminin" in category_name and "double" in category_name:
@@ -74,46 +171,15 @@ def parse_pdf(file_path: str) -> dict:
             if current_category is None:
                 continue  # Skip page if no category is currently active
 
-            # Extraire les tableaux
-            tables = page.extract_tables()
-            if tables:
-                table = tables[0]  # Suppose un seul tableau par page
-                df = pd.DataFrame(table[1:], columns=table[0])
-
-                # Nettoyage
-                df = df.dropna(subset=[df.columns[0]])
-                df = df[df[df.columns[0]].str.strip() != ""]
-
-                if len(df.columns) >= 12:  # Par sécurité (au cas où entêtes manquants)
-                    df.columns = [
-                        "joueur",
-                        "ol1",
-                        "ol2",
-                        "ol3",
-                        "cl",
-                        "ol4",
-                        "e1",
-                        "e2",
-                        "empty1",
-                        "master",
-                        "pts_com",
-                        "empty2",
-                        "pts",
-                        "clt",
-                    ][: len(df.columns)]  # Adapter dynamiquement si colonnes en moins
-                    df = df.fillna("")
-
-                    # Supprimer les colonnes inutiles si elles existent
-                    df = df.drop(columns=["empty1", "empty2"], errors="ignore")
-
-                    df = df[~df["joueur"].str.contains("Total Licencié", na=False)]
-
-                    if current_category in categories:
-                        categories[current_category] = pd.concat(
-                            [categories[current_category], df], ignore_index=True
-                        )
-                    else:
-                        categories[current_category] = df
+            # Extract table using position-based method
+            df = extract_table(page)
+            if df is not None and not df.empty:
+                if current_category in categories:
+                    categories[current_category] = pd.concat(
+                        [categories[current_category], df], ignore_index=True
+                    )
+                else:
+                    categories[current_category] = df
 
     # Préparation de la réponse
     leaderboard = []
