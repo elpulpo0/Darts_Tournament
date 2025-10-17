@@ -114,6 +114,7 @@ const login = async () => {
       });
 
       await fetchUser();
+      await fetchLicence();
       resetMessages();
     } else {
       throw new Error("Token manquant ou statut inattendu");
@@ -266,6 +267,7 @@ const updateProfile = async () => {
     newPassword.value = '';
     confirmPassword.value = '';
     await fetchUser();
+    await fetchLicence();
   } catch (error) {
     console.error('Update profile error:', error);
     if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -341,7 +343,6 @@ const fetchUser = async () => {
       discord: response.data.discord,
       role: response.data.role
     };
-    await fetchLicence();
   } catch (error) {
     console.error('Fetch user error:', error);
     errorMessage.value = "Session expirée";
@@ -359,6 +360,7 @@ const handleLogout = () => {
 
 onMounted(() => {
   checkToken();
+  fetchLicence();
 });
 
 onUnmounted(() => {
@@ -372,6 +374,7 @@ onUnmounted(() => {
 watch(() => route.path, async () => {
   if (authStore.token && !isFetchingUser) {
     await fetchUser();
+    await fetchLicence();
   }
   if (authStore.token && tokenCheckInterval.value) {
     clearInterval(tokenCheckInterval.value);
@@ -389,8 +392,10 @@ watch(() => authStore.token, async (newToken) => {
     handleLogout();
   } else if (isTokenExpired(newToken) && authStore.refreshToken) {
     await fetchUser();
+    await fetchLicence();
   } else {
     await fetchUser();
+    await fetchLicence();
   }
 }, { immediate: true });
 </script>
