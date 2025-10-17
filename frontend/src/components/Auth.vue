@@ -726,4 +726,17 @@ a:hover {
   background: none !important;
   transform: scale(1.1);
 }
+
+@media screen and (max-width: 600px) {
+  .print-btn {
+    display: none;
+  }
+
+  .modal-overlay {
+    padding: 10px;
+    /* Padding global pour éviter collage aux bords */
+    box-sizing: border-box;
+    /* Assure que padding s'applique correctement */
+  }
+}
 </style>

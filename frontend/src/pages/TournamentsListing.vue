@@ -423,5 +423,12 @@ const openProjection = () => {
         grid-template-columns: repeat(1, minmax(150px, 1fr));
         gap: 0.75rem;
     }
+
+    .tournament-modal {
+        padding: 10px;
+        /* Padding global pour éviter collage aux bords */
+        box-sizing: border-box;
+        /* Assure que padding s'applique correctement */
+    }
 }
 </style>
