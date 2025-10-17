@@ -21,6 +21,19 @@ interface User {
   role: string;
 }
 
+interface Licence {
+  id: number;
+  ligue: string;
+  comite: string;
+  club_number: number;
+  club_name: string;
+  name: string;
+  surname: string;
+  category: string;
+  licence_number: number;
+  user_id: number;
+}
+
 const email = ref('');
 const name = ref('');
 const nickname = ref('');
@@ -37,8 +50,10 @@ const newNickname = ref('');
 const newDiscord = ref('');
 const newEmail = ref('');
 const newPassword = ref('');
-
-let isFetchingUser = false;
+const licence = ref<Licence | null>(null);
+const isFetchingUser = ref(false);
+const isFetchingLicence = ref(false);
+const showLicenceModal = ref(false);
 
 function isTokenExpired(token: string): boolean {
   return !authStore.isTokenValid(token);
@@ -273,11 +288,35 @@ const updateProfile = async () => {
   }
 };
 
-const fetchUser = async () => {
-  if (isFetchingUser || !authStore.isAuthenticated) {
+const fetchLicence = async () => {
+  if (isFetchingLicence.value || !authStore.isAuthenticated) {
     return;
   }
-  isFetchingUser = true;
+  isFetchingLicence.value = true;
+  try {
+    const response = await backendApi.get('/licences/me', {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    });
+    licence.value = response.data;
+    console.log('Licence fetched:', licence.value);
+  } catch (error: any) {
+    console.error('Fetch licence error:', error);
+    if (error.response?.status === 404) {
+      console.warn('No licence found for this user');
+      licence.value = null;
+    } else {
+      errorMessage.value = 'Erreur lors du chargement de la licence';
+    }
+  } finally {
+    isFetchingLicence.value = false;
+  }
+};
+
+const fetchUser = async () => {
+  if (isFetchingUser.value || !authStore.isAuthenticated) {
+    return;
+  }
+  isFetchingUser.value = true;
   try {
     const response = await backendApi.get(`/users/users/me`, {
       headers: { Authorization: `Bearer ${authStore.token}` }
@@ -302,12 +341,13 @@ const fetchUser = async () => {
       discord: response.data.discord,
       role: response.data.role
     };
+    await fetchLicence();
   } catch (error) {
     console.error('Fetch user error:', error);
     errorMessage.value = "Session expirée";
     handleLogout();
   } finally {
-    isFetchingUser = false;
+    isFetchingUser.value = false;
   }
 };
 
@@ -393,6 +433,11 @@ watch(() => authStore.token, async (newToken) => {
         {{ showEditForm ? 'Annuler' : 'Voir / Modifier mon profil' }}
       </button>
 
+      <!-- Bouton Voir ma licence si licence existe -->
+      <button v-if="licence" style="margin-top: 10px;" @click="showLicenceModal = true">
+        Voir ma licence
+      </button>
+
       <div v-if="showEditForm" class="edit-form">
         <div class="user-details">
           <p><strong>{{ user?.nickname }}</strong></p>
@@ -430,6 +475,28 @@ watch(() => authStore.token, async (newToken) => {
         </div>
       </div>
       <button @click="handleLogout">Se déconnecter</button>
+    </div>
+
+    <!-- Modal pour la carte de licence -->
+    <div v-if="licence && showLicenceModal" class="modal-overlay" @click="showLicenceModal = false">
+      <div class="licence-card" @click.stop>
+        <div class="card-header">
+          <img src="../assets/ffd.png" alt="FFD Logo" class="logo" />
+          <div class="header-text">
+            <h1>Fédération Française de Darts</h1>
+            <p>Affiliée à la World Darts Federation</p>
+            <p class="season">Saison: 2025 - 2026</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <p class="holder-name"><strong>{{ licence.name }} {{ licence.surname }}</strong></p>
+          <p><strong>Licence N°:</strong> {{ licence.licence_number }}</p>
+          <p><strong>Catégorie:</strong> {{ licence.category }}</p>
+          <p><strong>Ligue:</strong> {{ licence.ligue }}</p>
+          <p><strong>Comité:</strong> {{ licence.comite }}</p>
+          <p><strong>Club:</strong> {{ licence.club_name }} ({{ licence.club_number }})</p>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -551,5 +618,93 @@ a:hover {
   justify-content: space-between;
   gap: 24px;
   background-color: var(--color-bg);
+}
+
+/* Styles pour le modal et la carte de licence */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.licence-card {
+  position: relative;
+  background-color: white;
+  color: black;
+  padding: 20px;
+  border-radius: 10px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  font-family: Arial, sans-serif;
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #aaa;
+}
+
+.close-btn:hover {
+  color: black;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid #ccc;
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+.logo {
+  width: 80px;
+  height: auto;
+  margin-right: 15px;
+}
+
+.header-text {
+  text-align: left;
+}
+
+.header-text h1 {
+  margin: 0;
+  font-size: 18px;
+  color: #0056b3;
+}
+
+.header-text p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.season {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.card-body p {
+  margin: 8px 0;
+  font-size: 14px;
+  text-align: left;
+}
+
+.holder-name {
+  font-size: 18px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 10px;
 }
 </style>
