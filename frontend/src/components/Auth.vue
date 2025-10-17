@@ -5,6 +5,7 @@ import backendApi from '../axios/backendApi';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../stores/useAuthStore';
+import { mapLigue, mapComite, mapCategory, licence, fetchLicence } from '../functions/licences';
 
 const authStore = useAuthStore();
 const toast = useToast();
@@ -19,19 +20,6 @@ interface User {
   discord: string;
   password: string;
   role: string;
-}
-
-interface Licence {
-  id: number;
-  ligue: string;
-  comite: string;
-  club_number: number;
-  club_name: string;
-  name: string;
-  surname: string;
-  category: string;
-  licence_number: number;
-  user_id: number;
 }
 
 const email = ref('');
@@ -50,9 +38,7 @@ const newNickname = ref('');
 const newDiscord = ref('');
 const newEmail = ref('');
 const newPassword = ref('');
-const licence = ref<Licence | null>(null);
 const isFetchingUser = ref(false);
-const isFetchingLicence = ref(false);
 const showLicenceModal = ref(false);
 
 function isTokenExpired(token: string): boolean {
@@ -290,30 +276,6 @@ const updateProfile = async () => {
   }
 };
 
-const fetchLicence = async () => {
-  if (isFetchingLicence.value || !authStore.isAuthenticated) {
-    return;
-  }
-  isFetchingLicence.value = true;
-  try {
-    const response = await backendApi.get('/licences/me', {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    });
-    licence.value = response.data;
-    console.log('Licence fetched:', licence.value);
-  } catch (error: any) {
-    console.error('Fetch licence error:', error);
-    if (error.response?.status === 404) {
-      console.warn('No licence found for this user');
-      licence.value = null;
-    } else {
-      errorMessage.value = 'Erreur lors du chargement de la licence';
-    }
-  } finally {
-    isFetchingLicence.value = false;
-  }
-};
-
 const fetchUser = async () => {
   if (isFetchingUser.value || !authStore.isAuthenticated) {
     return;
@@ -496,10 +458,22 @@ watch(() => authStore.token, async (newToken) => {
         <div class="card-body">
           <p class="holder-name"><strong>{{ licence.name }} {{ licence.surname }}</strong></p>
           <p><strong>Licence N°:</strong> {{ licence.licence_number }}</p>
-          <p><strong>Catégorie:</strong> {{ licence.category }}</p>
-          <p><strong>Ligue:</strong> {{ licence.ligue }}</p>
-          <p><strong>Comité:</strong> {{ licence.comite }}</p>
-          <p><strong>Club:</strong> {{ licence.club_name }} ({{ licence.club_number }})</p>
+
+          <!-- Grille 2x2 pour Catégorie, Ligue, Comité, Club -->
+          <div class="info-grid">
+            <div>
+              <strong>{{ licence.club_name }}</strong>
+            </div>
+            <div>
+              <strong>Catégorie</strong> {{ mapCategory(licence.category) }}
+            </div>
+            <div>
+              <strong>Ligue</strong> {{ mapLigue(licence.ligue) + ' (' + (licence.ligue) + ')' }}
+            </div>
+            <div>
+              <strong>Comité</strong> {{ mapComite(licence.comite) + ' (' + (licence.comite) + ')' }}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -645,7 +619,7 @@ a:hover {
   color: black;
   padding: 20px;
   border-radius: 10px;
-  width: 400px;
+  width: 450px;
   max-width: 90%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   font-family: Arial, sans-serif;
@@ -711,5 +685,12 @@ a:hover {
   font-weight: bold;
   text-transform: uppercase;
   margin-bottom: 10px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 20px;
+  margin-top: 15px;
 }
 </style>
