@@ -5,7 +5,7 @@ import backendApi from '../axios/backendApi';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../stores/useAuthStore';
-import { mapLigue, mapComite, mapCategory, licence, fetchLicence } from '../functions/licences';
+import { mapLigue, mapComite, mapCategory, licence, fetchLicence, printLicence } from '../functions/licences';
 
 const authStore = useAuthStore();
 const toast = useToast();
@@ -447,6 +447,9 @@ watch(() => authStore.token, async (newToken) => {
     <!-- Modal pour la carte de licence -->
     <div v-if="licence && showLicenceModal" class="modal-overlay" @click="showLicenceModal = false">
       <div class="licence-card" @click.stop>
+        <button class="print-btn" title="Imprimer la carte" @click.stop="printLicence">
+          🖨️
+        </button>
         <div class="card-header">
           <img src="../assets/ffd.png" alt="FFD Logo" class="logo" />
           <div class="header-text">
@@ -692,5 +695,35 @@ a:hover {
   grid-template-columns: 1fr 1fr;
   gap: 10px 20px;
   margin-top: 15px;
+}
+
+.print-btn {
+  all: unset;
+  /* Reset tous les styles hérités */
+  position: absolute;
+  top: 10px;
+  right: 30px;
+  font-size: 20px;
+  cursor: pointer;
+  color: #555 !important;
+  /* Force la couleur */
+  background: none !important;
+  /* Force pas de fond */
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  text-align: center;
+  box-shadow: none !important;
+  /* Si ombre globale */
+  outline: none !important;
+}
+
+.print-btn:hover {
+  color: #000 !important;
+  /* Hover sans fond */
+  background: none !important;
+  transform: scale(1.1);
 }
 </style>
