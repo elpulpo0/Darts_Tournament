@@ -47,8 +47,8 @@
                     <p v-if="selectedEvent.place"><strong>Lieu :</strong> {{ selectedEvent.place }}</p>
                     <p v-if="selectedEvent.date"><strong>Date :</strong> {{ selectedEvent.date }}</p>
                     <div v-if="hasInscriptionsForDate(selectedEvent.date)" class="inscription-link">
-                        <router-link :to="`/inscriptions?date=${encodeURIComponent(selectedEvent.date)}`"
-                            class="inscription-btn">
+                        <router-link
+                            :to="`/inscriptions?tournament=${selectedEvent.name}&date=${encodeURIComponent(selectedEvent.date)}&place=${encodeURIComponent(selectedEvent.place || '')}`">
                             📋 Voir les inscriptions
                         </router-link>
                     </div>

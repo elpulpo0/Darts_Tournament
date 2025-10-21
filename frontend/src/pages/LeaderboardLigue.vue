@@ -22,6 +22,9 @@
 
             <div v-for="category in filteredCategories" :key="category.category">
                 <h3>{{ formatCategory(category.category) }}</h3>
+                <div class="mobile-rotate-notice hideonmobile-off">
+                    <span>📱</span> Tourne ton téléphone pour voir toutes les colonnes
+                </div>
                 <table class="leaderboardtable">
                     <thead>
                         <tr>

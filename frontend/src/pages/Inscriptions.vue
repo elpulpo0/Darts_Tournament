@@ -5,7 +5,10 @@
 
         <div class="module">
             <h2>
-                Inscriptions - {{ getTournamentName() }} ({{ route.query.date }})
+                Inscriptions - {{ route.query.tournament }}
+                <span>
+                    ({{ route.query.date }} - {{ route.query.place }})
+                </span>
             </h2>
 
             <!-- GROUPÉ PAR DATE -->
@@ -49,13 +52,11 @@
 import { computed, onMounted, ref } from 'vue';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useInscriptionsStore } from '../stores/useInscriptionsStore';
-import { useEventStore } from '../stores/useEventStore';
 import { useRoute } from 'vue-router';
 
 const route = useRoute();
 const authStore = useAuthStore();
 const inscriptionsStore = useInscriptionsStore();
-const eventStore = useEventStore();
 
 const selectedDate = ref('');
 const onlyCurrentUser = ref(false);
@@ -77,13 +78,6 @@ const categoryMapping: Record<string, string> = {
     'M': 'Mixte',
     'F': 'Féminine',
     'J': 'Junior'
-};
-
-// NOM DU TOURNOI
-const getTournamentName = () => {
-    const date = route.query.date as string;
-    const tournament = eventStore.events.find(e => e.date === date);
-    return tournament?.name || date;
 };
 
 // GROUPÉ PAR DATE
@@ -170,33 +164,3 @@ onMounted(() => {
     }
 });
 </script>
-
-<style scoped>
-.mobile-rotate-notice {
-    display: none;
-    background: linear-gradient(135deg, #db7734, #012238);
-    color: white;
-    text-align: center;
-    padding: 12px;
-    margin-bottom: 15px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 14px;
-    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
-}
-
-.mobile-rotate-notice span {
-    margin-right: 8px;
-    font-size: 16px;
-}
-
-@media (max-width: 768px) {
-    .mobile-rotate-notice {
-        display: block;
-    }
-
-    .hideonmobile {
-        display: none;
-    }
-}
-</style>
