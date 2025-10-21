@@ -10,6 +10,9 @@
 
             <!-- GROUPÉ PAR DATE -->
             <div v-for="dateGroup in filteredInscriptionsByDate" :key="dateGroup.date">
+                <div class="mobile-rotate-notice hideonmobile-off">
+                    <span>📱</span> Tourne ton téléphone pour voir toutes les colonnes
+                </div>
                 <table class="leaderboardtable">
                     <thead>
                         <tr>
@@ -17,7 +20,7 @@
                             <th>Club</th>
                             <th class="hideonmobile">Simple</th>
                             <th class="hideonmobile">Double</th>
-                            <th>Doublette</th>
+                            <th class="hideonmobile">Doublette</th>
                         </tr>
                     </thead>
                     <tbody v-if="dateGroup.inscriptions.length">
@@ -27,7 +30,7 @@
                             <td class="club">{{ getClubName(inscription.club) }}</td>
                             <td class="hideonmobile">{{ formatCategory(inscription.category_simple) }}</td>
                             <td class="hideonmobile">{{ formatCategory(inscription.category_double) }}</td>
-                            <td>{{ getDoubletteDisplay(inscription) }}</td>
+                            <td class="hideonmobile">{{ getDoubletteDisplay(inscription) }}</td>
                         </tr>
                     </tbody>
                     <p v-else class="no-entries">Aucune inscription pour cette date.</p>
@@ -167,3 +170,33 @@ onMounted(() => {
     }
 });
 </script>
+
+<style scoped>
+.mobile-rotate-notice {
+    display: none;
+    background: linear-gradient(135deg, #db7734, #012238);
+    color: white;
+    text-align: center;
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+}
+
+.mobile-rotate-notice span {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+@media (max-width: 768px) {
+    .mobile-rotate-notice {
+        display: block;
+    }
+
+    .hideonmobile {
+        display: none;
+    }
+}
+</style>
