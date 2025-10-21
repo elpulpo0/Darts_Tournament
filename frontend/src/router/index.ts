@@ -10,6 +10,7 @@ import LeaderboardLigue from '@/pages/LeaderboardLigue.vue';
 import LeaderboardComite from '@/pages/LeaderboardComite.vue';
 import TournamentProjection from '@/pages/TournamentProjection.vue';
 import HomePage from '@/pages/HomePage.vue';
+import Inscriptions from '../pages/Inscriptions.vue';
 
 const routes = [
   {
@@ -71,6 +72,12 @@ const routes = [
     name: 'HomePage',
     component: HomePage,
   },
+  {
+    path: '/inscriptions',
+    name: 'Inscriptions',
+    component: Inscriptions,
+    props: true
+  }
 ]
 
 const router = createRouter({

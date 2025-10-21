@@ -15,6 +15,7 @@ from modules.api.calendar.routes import calendar_router
 from modules.api.official_leaderboards.lsef import leaderboards_lsef_router
 from modules.api.official_leaderboards.cmer import leaderboards_cmer_router
 from modules.api.licences.routes import licence_router
+from modules.api.inscriptions.routes import inscription_router
 from scheduler import start_scheduler
 
 
@@ -59,6 +60,7 @@ def create_app() -> FastAPI:
     router.include_router(leaderboards_cmer_router)
     router.include_router(calendar_router)
     router.include_router(licence_router)
+    router.include_router(inscription_router)
 
     router.include_router(admin_router)
 

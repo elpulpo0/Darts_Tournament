@@ -46,6 +46,12 @@
                     </p>
                     <p v-if="selectedEvent.place"><strong>Lieu :</strong> {{ selectedEvent.place }}</p>
                     <p v-if="selectedEvent.date"><strong>Date :</strong> {{ selectedEvent.date }}</p>
+                    <div v-if="hasInscriptionsForDate(selectedEvent.date)" class="inscription-link">
+                        <router-link :to="`/inscriptions?date=${encodeURIComponent(selectedEvent.date)}`"
+                            class="inscription-btn">
+                            📋 Voir les inscriptions
+                        </router-link>
+                    </div>
                 </div>
 
                 <div v-if="editMode">
@@ -97,12 +103,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import backendApi from '../axios/backendApi';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../stores/useAuthStore';
 import { handleError } from '../functions/utils';
 import { useEventStore } from '../stores/useEventStore';
+import { useInscriptionsStore } from '../stores/useInscriptionsStore'
 
 const authStore = useAuthStore();
 const toast = useToast();
@@ -124,7 +131,15 @@ const editDate = ref('');
 const editPlace = ref('');
 const editOrganiser = ref('');
 
+const inscriptionsStore = useInscriptionsStore()
+
 const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
+
+const hasInscriptionsForDate = (eventDate: string) => {
+    return inscriptionsStore.activeInscriptions.some(
+        inscription => inscription.date === eventDate
+    )
+}
 
 const getEventImage = (eventId: number) => {
     return new URL(`../assets/affiche_event_${eventId}.jpg`, import.meta.url).href;
@@ -186,7 +201,6 @@ const groupedEvents = computed(() => {
 });
 
 const organiserLinks: Record<string, string> = {
-    "hérault darts club": "https://badarts.fr",
     "un 20 cible": "https://www.facebook.com/p/UN-20-CIBLE-100063697832214",
     "olympic darts albertville": "https://www.facebook.com/p/Olympic-Darts-Albertville-61559336854314",
     "lyon darts academy": "https://www.lyondartsacademy.fr/",
@@ -242,7 +256,10 @@ const createEvent = async () => {
 
 const selectEvent = async (event: OfficialEvent) => {
     selectedEvent.value = event;
-};
+    if (authStore.token) {
+        await inscriptionsStore.fetchActiveInscriptions(authStore.token)
+    }
+}
 
 const startEdit = () => {
     if (selectedEvent.value) {
@@ -296,15 +313,15 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
     if (isAuthenticated) eventStore.fetchEvents();
 }, { immediate: true });
 
-interface OfficialEvent {
-    id: number;
-    name: string;
-    description?: string | null;
-    organiser?: string | null;
-    place?: string | null;
-    date: string;
-}
-
+onMounted(async () => {
+    if (authStore.isAuthenticated) {
+        await eventStore.fetchEvents();
+        // ✅ CHARGER LES INSCRIPTIONS AU DÉMARRAGE
+        if (authStore.token) {
+            await inscriptionsStore.fetchActiveInscriptions(authStore.token)
+        }
+    }
+})
 </script>
 
 <style scoped>

@@ -143,3 +143,14 @@ type OfficialEvent = {
   place: string | null;
   date: string;
 }
+
+type InscriptionResponse = {
+  id: number
+  date: string
+  name: string
+  surname: string
+  club: string
+  category_simple: string | null
+  category_double: string | null
+  doublette: number | null
+}

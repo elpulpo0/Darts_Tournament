@@ -11,7 +11,7 @@ from io import BytesIO
 from fuzzywuzzy import fuzz, process
 from sqlalchemy.exc import IntegrityError
 
-licence_router = APIRouter(prefix="/licences", tags=["licences"])
+licence_router = APIRouter(prefix="/licences", tags=["Licences"])
 
 
 # Fonction de dépendance pour vérifier le rôle admin (réutilisable)
