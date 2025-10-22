@@ -11,12 +11,27 @@
                 </span>
             </h2>
 
+            <div class="filters">
+                <label for="club-select">Club :</label>
+                <select id="club-select" v-model="selectedClub">
+                    <option value="">Tous les clubs</option>
+                    <option v-for="club in uniqueClubs" :value="club" :key="club">
+                        {{ getClubName(club) }}
+                    </option>
+                </select>
+
+                <label>
+                    <input v-model="onlyCurrentUser" type="checkbox" class="styled-checkbox" />
+                    Mon inscription uniquement
+                </label>
+            </div>
+
             <div class="mobile-rotate-notice hideonmobile-off">
                 <span>📱</span> Tourne ton téléphone pour voir toutes les colonnes
             </div>
 
             <!-- GROUPÉ PAR DATE -->
-            <div v-for="dateGroup in filteredInscriptionsByDate" :key="dateGroup.date">
+            <div v-for="dateGroup in filteredInscriptions" :key="dateGroup.date">
                 <table class="leaderboardtable">
                     <thead>
                         <tr>
@@ -59,7 +74,6 @@ const route = useRoute();
 const authStore = useAuthStore();
 const inscriptionsStore = useInscriptionsStore();
 
-const selectedDate = ref('');
 const onlyCurrentUser = ref(false);
 
 // MAPPING CLUBS
@@ -73,21 +87,21 @@ const clubMapping: Record<string, string> = {
     'DKN': "Darts Knights de la Crau"
 };
 
-// MAPPING CATÉGORIES
-const categoryMapping: Record<string, string> = {
-    'V': 'Vétéran',
-    'M': 'Mixte',
-    'F': 'Féminine',
-    'J': 'Junior'
-};
+// CLUBS UNIQUES
+const uniqueClubs = computed(() => {
+    return [...new Set(inscriptionsStore.activeInscriptions.map(i => i.club))].sort();
+});
 
-// GROUPÉ PAR DATE
-const filteredInscriptionsByDate = computed(() => {
+// FILTRE PAR CLUB
+const selectedClub = ref('');
+
+// GROUPÉ PAR CLUB
+const filteredInscriptions = computed(() => {
     let filtered = inscriptionsStore.activeInscriptions;
 
-    // Filtre par date sélectionnée
-    if (selectedDate.value) {
-        filtered = filtered.filter(i => i.date === selectedDate.value);
+    // Filtre par club sélectionné
+    if (selectedClub.value) {
+        filtered = filtered.filter(i => i.club === selectedClub.value);
     }
 
     // Filtre utilisateur actuel
@@ -109,6 +123,14 @@ const filteredInscriptionsByDate = computed(() => {
 
     return grouped;
 });
+
+// MAPPING CATÉGORIES
+const categoryMapping: Record<string, string> = {
+    'V': 'Vétéran',
+    'M': 'Mixte',
+    'F': 'Féminine',
+    'J': 'Junior'
+};
 
 const currentUserName = computed(() => (authStore.name || '').trim());
 
