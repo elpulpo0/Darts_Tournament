@@ -12,9 +12,11 @@
                         gagné (par joueur).</li>
                 </ul>
             </div>
+
             <div class="mobile-rotate-notice hideonmobile-off">
                 <span>📱</span> Tourne ton téléphone pour voir toutes les colonnes
             </div>
+
             <table v-if="leaderboardsStore.seasonLeaderboard.length" class="leaderboardtable">
                 <thead>
                     <tr>

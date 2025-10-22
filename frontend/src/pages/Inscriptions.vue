@@ -11,11 +11,12 @@
                 </span>
             </h2>
 
+            <div class="mobile-rotate-notice hideonmobile-off">
+                <span>📱</span> Tourne ton téléphone pour voir toutes les colonnes
+            </div>
+
             <!-- GROUPÉ PAR DATE -->
             <div v-for="dateGroup in filteredInscriptionsByDate" :key="dateGroup.date">
-                <div class="mobile-rotate-notice hideonmobile-off">
-                    <span>📱</span> Tourne ton téléphone pour voir toutes les colonnes
-                </div>
                 <table class="leaderboardtable">
                     <thead>
                         <tr>
