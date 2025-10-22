@@ -46,12 +46,6 @@
                     </p>
                     <p v-if="selectedEvent.place"><strong>Lieu :</strong> {{ selectedEvent.place }}</p>
                     <p v-if="selectedEvent.date"><strong>Date :</strong> {{ selectedEvent.date }}</p>
-                    <div v-if="hasInscriptionsForDate(selectedEvent.date)" class="inscription-link">
-                        <router-link
-                            :to="`/inscriptions?tournament=${selectedEvent.name}&date=${encodeURIComponent(selectedEvent.date)}&place=${encodeURIComponent(selectedEvent.place || '')}`">
-                            📋 Voir les inscriptions
-                        </router-link>
-                    </div>
                 </div>
 
                 <div v-if="editMode">
@@ -69,6 +63,11 @@
                         <button @click="updateEvent">Sauvegarder</button>
                         <button @click="cancelEdit">Annuler</button>
                     </template>
+                    <router-link
+                        :to="`/inscriptions?tournament=${selectedEvent.name}&date=${encodeURIComponent(selectedEvent.date)}&place=${encodeURIComponent(selectedEvent.place || '')}`"
+                        class="btn-inscription">
+                        <button>Voir les inscriptions</button>
+                    </router-link>
                     <button @click="selectedEvent = null">Fermer</button>
                 </div>
             </div>
@@ -134,12 +133,6 @@ const editOrganiser = ref('');
 const inscriptionsStore = useInscriptionsStore()
 
 const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
-
-const hasInscriptionsForDate = (eventDate: string) => {
-    return inscriptionsStore.activeInscriptions.some(
-        inscription => inscription.date === eventDate
-    )
-}
 
 const getEventImage = (eventId: number) => {
     return new URL(`../assets/affiche_event_${eventId}.jpg`, import.meta.url).href;
@@ -316,7 +309,6 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
 onMounted(async () => {
     if (authStore.isAuthenticated) {
         await eventStore.fetchEvents();
-        // ✅ CHARGER LES INSCRIPTIONS AU DÉMARRAGE
         if (authStore.token) {
             await inscriptionsStore.fetchActiveInscriptions(authStore.token)
         }
