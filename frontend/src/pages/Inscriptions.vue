@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div v-if="authStore.isAuthenticated">
         <div v-if="inscriptionsStore.loading">Chargement des inscriptions...</div>
         <div v-if="inscriptionsStore.error" class="error">{{ inscriptionsStore.error }}</div>
 
@@ -57,6 +57,11 @@
             </div>
         </div>
     </div>
+
+    <div v-else class="centered-block">
+        <h2>🔒 Connexion requise</h2>
+        <p>Veuillez vous connecter pour accéder aux inscriptions.</p>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -79,8 +84,7 @@ const clubMapping: Record<string, string> = {
     'DOB': "Droit Aux Bulls",
     'DPF': "Les Dartistes du Pays de Fayence",
     'PDC': "Crau'Darts",
-    'DKN': "Darts Knights de la Crau",
-    'PLD': "Perno Li Darts"
+    'DKN': "Darts Knights de la Crau"
 };
 
 // CLUBS UNIQUES
