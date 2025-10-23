@@ -84,7 +84,8 @@ const clubMapping: Record<string, string> = {
     'DOB': "Droit Aux Bulls",
     'DPF': "Les Dartistes du Pays de Fayence",
     'PDC': "Crau'Darts",
-    'DKN': "Darts Knights de la Crau"
+    'DKN': "Darts Knights de la Crau",
+    'PLD': "Perno Li Darts",
 };
 
 // CLUBS UNIQUES
