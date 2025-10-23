@@ -57,11 +57,6 @@
             </div>
         </div>
     </div>
-
-    <div v-else class="centered-block">
-        <h2>🔒 Connexion requise</h2>
-        <p>Veuillez vous connecter pour accéder aux inscriptions.</p>
-    </div>
 </template>
 
 <script setup lang="ts">
