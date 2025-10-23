@@ -89,7 +89,11 @@ def login_for_access_token(
     hashed_token = hash_token(refresh_token)
     store_refresh_token(db, user_data["user_id"], hashed_token, refresh_expiry)
 
-    if not os.getenv("TEST_MODE") and os.getenv("ENV") != "dev":
+    if (
+        not os.getenv("TEST_MODE")
+        and os.getenv("ENV") != "dev"
+        and user_data["role"] != "admin"
+    ):
         notify_user = NotifyUserLogin(
             name=user_data["name"], role=user_data["role"], scopes=scopes, type="login"
         )
