@@ -378,9 +378,7 @@ def delete_all_inscriptions(
 
 
 @inscription_router.get("/active", response_model=List[InscriptionResponse])
-def list_active_inscriptions(
-    db: Session = Depends(get_users_db),
-):
+def list_active_inscriptions():
     active_inscriptions = (
         db.query(Inscription)
         .filter(
