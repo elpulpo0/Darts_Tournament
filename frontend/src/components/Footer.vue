@@ -1,9 +1,9 @@
 <template>
   <footer class="footer">
     <p class="copyright">
-      © {{ new Date().getFullYear() }} Hérault Darts Club — Tous droits réservés.
+      © {{ new Date().getFullYear() }} Hérault Darts Club (Badarts) — Tous droits réservés.
     </p>
-    <p class="copyright">Fais par El Pulpo entre 2 parties de 🎯</p>
+    <p class="copyright">Développé par El Pulpo entre deux parties de 🎯</p>
     <p v-if="authStore.scopes.includes('admin')" class="copyright">
       <a href="#" class="footer-link"
         @click.prevent="setTheme(themeStore.currentTheme === 'geek' ? 'badarts' : 'geek')">
