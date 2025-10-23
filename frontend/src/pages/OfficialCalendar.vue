@@ -97,7 +97,7 @@
 
     <div v-else class="centered-block">
         <h2>🔒 Connexion requise</h2>
-        <p>Veuillez vous connecter pour voir les tournois.</p>
+        <p>Veuillez vous connecter pour voir le calendrier.</p>
     </div>
 </template>
 
