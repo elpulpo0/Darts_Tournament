@@ -27,15 +27,6 @@ export default defineConfig(({ mode }) => {
   return {
     server: {
       port: parseInt(env.VITE_PORT) || 5173,
-      proxy: {
-      // Proxy pour Printful : /api/printful/* -> https://api.printful.com/*
-      '/api/printful': {
-        target: 'https://api.printful.com',
-        changeOrigin: true,  // Change l'origine pour matcher Printful
-        secure: true,  // HTTPS
-        rewrite: (path) => path.replace(/^\/api\/printful/, '')  // Enlève /api/printful du path
-      }
-    }
     },
     plugins: [vue()],
     resolve: {
@@ -45,12 +36,6 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       sourcemap: true,
-    },
-    define: {
-      'import.meta.env.VITE_APP_VERSION': JSON.stringify(packageJson.version),
-      'import.meta.env.VITE_APP_BUILD_DATE': JSON.stringify(formattedDate),
-      'import.meta.env.VITE_APP_LAST_COMMIT_HASH': JSON.stringify(buildMeta.hash),
-      'import.meta.env.VITE_APP_LAST_COMMIT_MESSAGE': JSON.stringify(buildMeta.message),
     },
     base: '/',
   }

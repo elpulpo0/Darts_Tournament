@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import backendApi from '../axios/backendApi'  // Import comme dans l'exemple (adapte le chemin si besoin)
 
 const products = ref<any[]>([])
 const cart = ref<any[]>([])
@@ -65,8 +65,7 @@ const error = ref('')
 const showCheckout = ref(false)
 const orderForm = ref({ name: '', email: '', address: '' })
 
-// Token depuis .env
-const PRINTFUL = import.meta.env.VITE_PRINTFUL
+// Plus besoin de VITE_PRINTFUL – géré server-side
 
 // Placeholder image base64
 const placeholderImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk1lcmNoIEJhZGFydHM8L3RleHQ+PC9zdmc+'
@@ -82,18 +81,8 @@ const colorMap: Record<string, string> = {
 }
 
 onMounted(async () => {
-  if (!PRINTFUL) {
-    error.value = 'Token Printful manquant dans .env'
-    loading.value = false
-    return
-  }
   try {
-    const summaryResponse = await axios.get('/api/printful/store/products', {
-      headers: { 
-        Authorization: `Bearer ${PRINTFUL}`,
-        'X-PF-Store-Id': 'badarts'
-      }
-    })
+    const summaryResponse = await backendApi.get('/api/printful/store/products')
     const summaries = summaryResponse.data.result.slice(0, 3)
 
     if (summaries.length === 0) {
@@ -104,12 +93,7 @@ onMounted(async () => {
 
     const fullProducts = await Promise.all(
       summaries.map(async (summary: any) => {
-        const detailResponse = await axios.get(`/api/printful/store/products/${summary.id}`, {
-          headers: { 
-            Authorization: `Bearer ${PRINTFUL}`,
-            'X-PF-Store-Id': 'badarts'
-          }
-        })
+        const detailResponse = await backendApi.get(`/api/printful/store/products/${summary.id}`)
         return detailResponse.data.result
       })
     )
@@ -119,7 +103,8 @@ onMounted(async () => {
     loading.value = false
   } catch (err: any) {
     console.error('Erreur détaillée :', err)
-    error.value = 'Erreur API Printful : ' + (err.response?.data?.message || 'Vérifie token/scopes ou proxy')
+    // Optionnel : utilise handleError si dispo, sinon garde ça
+    error.value = 'Erreur API Printful : ' + (err.response?.data?.detail || err.message || 'Vérifie backend')
     loading.value = false
   }
 })
@@ -196,13 +181,7 @@ const submitOrder = async () => {
         { sync_variant_id: item.selectedVariant.id, quantity: item.quantity }
       ])
     }
-    const response = await axios.post('/api/printful/orders', orderData, {
-      headers: { 
-        Authorization: `Bearer ${PRINTFUL}`,
-        'Content-Type': 'application/json',
-        'X-PF-Store-Id': 'badarts'
-      }
-    })
+    const response = await backendApi.post('/api/printful/orders', orderData)
     if (response.data.result.id) {
       alert(`Commande créée ! ID: ${response.data.result.id}. Tu recevras un email de Printful.`)
       cart.value = []
@@ -211,7 +190,8 @@ const submitOrder = async () => {
     }
   } catch (err: any) {
     console.error('Erreur commande :', err)
-    alert('Erreur commande : ' + (err.response?.data?.error?.message || 'Réessaie'))
+    // Optionnel : utilise handleError si dispo
+    alert('Erreur commande : ' + (err.response?.data?.detail || err.message || 'Réessaie'))
   }
 }
 </script>
