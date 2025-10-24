@@ -8,46 +8,63 @@
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else-if="products.length === 0" class="no-products">Aucun produit disponible</div>
     <div v-else class="products-grid">
-      <div v-for="(product, index) in products" :key="product.id" class="product-card">
-        <img :src="getMainImage(product, selectedVariants[index])" :alt="product.name" loading="lazy" />
+      <div v-for="(product, index) in products" class="product-card" :key="product.id">
+        <img :src="getMainImage(product, selectedVariants[index])" :alt="product.name" loading="lazy"
+          class="product-image" />
         <h3>{{ product.name }}</h3>
-        <p v-if="hasVariants(product)">Prix : {{ getCurrentPrice(product, selectedVariants[index]) }}€</p>
+        <p class="price">Prix : {{ getCurrentPrice(product, selectedVariants[index]) }}€</p>
         <div v-if="hasVariants(product)" class="variants-selector">
-          <ul class="variants">
-            <li
-              v-for="variant in product.sync_variants"
-              :key="`v-${variant.id}`"
-              @click="selectVariant(index, variant)"
-              :class="{ selected: selectedVariants[index]?.id === variant.id }"
-              class="variant-color"
-              :style="{ backgroundColor: getColorForVariant(variant.name) }"
-              :title="variant.name"
-            >
-              <!-- Petit carré vide, couleur en background -->
-            </li>
-          </ul>
+          <!-- Caps: Show color circles -->
+          <div v-if="product.name.includes('Casquette')" class="color-selector">
+            <span class="variant-label">Couleur :</span>
+            <ul class="variants">
+              <li v-for="variant in product.sync_variants"
+                :class="{ selected: selectedVariants[index]?.id === variant.id }" class="variant-color"
+                :style="{ backgroundColor: getColorForVariant(variant.color) }" :title="variant.color"
+                @click="selectVariant(index, variant)" :key="`v-${variant.id}`"></li>
+            </ul>
+          </div>
+          <!-- T-shirts: Show size selector -->
+          <div v-else class="size-selector">
+            <span class="variant-label">Taille :</span>
+            <select v-model="selectedVariants[index]" @change="selectVariant(index, selectedVariants[index])">
+              <option v-for="variant in product.sync_variants" :value="variant" :key="`v-${variant.id}`">
+                {{ variant.size }}
+              </option>
+            </select>
+          </div>
         </div>
-        <p v-else class="no-variants">Variantes non configurées (contacte-nous !)</p>
-        <button @click="addToCart(product, selectedVariants[index])" class="btn-buy" :disabled="!hasVariants(product) || !selectedVariants[index]">
+        <p v-else class="no-variants">Variantes non configurées (contactez-nous !)</p>
+        <button :disabled="!hasVariants(product)" @click="addToCart(product, selectedVariants[index])">
           Ajouter au panier
         </button>
       </div>
     </div>
-    <!-- Panier simple -->
     <div v-if="cart.length" class="cart-summary">
       <h3>Panier ({{ cart.length }} produit{{ cart.length > 1 ? 's' : '' }})</h3>
-      <button @click="openCheckoutForm" class="btn-checkout">Valider</button>
+      <div class="cart-items">
+        <div v-for="(item, index) in cart" class="cart-item" :key="`cart-${index}`">
+          <div class="cart-item-header">
+            <span v-if="item.name.includes('Casquette')" class="cart-item-name">{{ item.name }} {{
+              item.selectedVariant.color }}</span>
+            <span v-else class="cart-item-name">{{ item.name }} (Taille {{ item.selectedVariant.size }})</span>
+            <button class="remove-button" @click="removeFromCart(index)">&times;</button>
+          </div>
+        </div>
+      </div>
+      <button @click="openCheckoutForm">Passer la commande</button>
     </div>
-    <!-- Formulaire checkout -->
     <div v-if="showCheckout" class="checkout-form">
-      <h3>Infos livraison</h3>
+      <h3>Informations de livraison</h3>
       <form @submit.prevent="submitOrder">
-        <input v-model="orderForm.name" placeholder="Nom complet" required />
-        <input v-model="orderForm.email" type="email" placeholder="Email" required />
-        <input v-model="orderForm.address" placeholder="Adresse complète (Hérault prioritaire)" required />
-        <button type="submit" class="btn-buy">Confirmer commande</button>
+        <input v-model="orderForm.name" placeholder="Nom complet" required class="input-field" />
+        <input v-model="orderForm.email" type="email" placeholder="Email" required class="input-field" />
+        <input v-model="orderForm.address" placeholder="Adresse complète" required class="input-field" />
+        <div class="form-buttons">
+          <button type="submit">Confirmer la commande</button>
+          <button type="button" @click="showCheckout = false">Annuler</button>
+        </div>
       </form>
-      <button @click="showCheckout = false">Annuler</button>
     </div>
     <router-link to="/home" class="back-link">← Retour à l'accueil</router-link>
   </div>
@@ -55,20 +72,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import backendApi from '../axios/backendApi'  // Import comme dans l'exemple (adapte le chemin si besoin)
+import backendApi from '../axios/backendApi'
 
 const products = ref<any[]>([])
 const cart = ref<any[]>([])
-const selectedVariants = ref<any[]>([])  // Un par produit
+const selectedVariants = ref<any[]>([])
 const loading = ref(true)
 const error = ref('')
 const showCheckout = ref(false)
 const orderForm = ref({ name: '', email: '', address: '' })
 
-// Plus besoin de VITE_PRINTFUL – géré server-side
-
-// Placeholder image base64
-const placeholderImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk1lcmNoIEJhZGFydHM8L3RleHQ+PC9zdmc+'
+const placeholderImage = '/images/placeholder.svg'
 
 const colorMap: Record<string, string> = {
   'Black': '#262626',
@@ -86,7 +100,7 @@ onMounted(async () => {
     const summaries = summaryResponse.data.result.slice(0, 3)
 
     if (summaries.length === 0) {
-      error.value = 'Aucun produit trouvé sur Printful'
+      error.value = 'Aucun produit trouvé'
       loading.value = false
       return
     }
@@ -94,20 +108,29 @@ onMounted(async () => {
     const fullProducts = await Promise.all(
       summaries.map(async (summary: any) => {
         const detailResponse = await backendApi.get(`/api/printful/store/products/${summary.id}`)
-        return detailResponse.data.result
+        return {
+          ...detailResponse.data.result,
+          id: summary.id,
+          name: summary.name,
+          thumbnail_url: summary.thumbnail_url,
+        }
       })
     )
 
     products.value = fullProducts
-    selectedVariants.value = fullProducts.map(() => null)
+    // Initialize selectedVariants with the first variant of each product
+    selectedVariants.value = fullProducts.map(product => product.sync_variants[0] || null)
     loading.value = false
   } catch (err: any) {
-    console.error('Erreur détaillée :', err)
-    // Optionnel : utilise handleError si dispo, sinon garde ça
-    error.value = 'Erreur API Printful : ' + (err.response?.data?.detail || err.message || 'Vérifie backend')
+    console.error('Erreur :', err)
+    error.value = 'Erreur de chargement des produits'
     loading.value = false
   }
 })
+
+const removeFromCart = (index: number) => {
+  cart.value.splice(index, 1)
+}
 
 const hasVariants = (product: any) => {
   return product.sync_variants && Array.isArray(product.sync_variants) && product.sync_variants.length > 0
@@ -117,22 +140,16 @@ const selectVariant = (productIndex: number, variant: any) => {
   selectedVariants.value[productIndex] = variant
 }
 
-const getColorForVariant = (name: string) => {
-  const colorPart = name.split('/')[1]?.trim() || name.trim()
-  const normalizedColor = colorPart === 'Grey' ? 'Gray' : colorPart
-  const color = colorMap[normalizedColor] || '#CCCCCC'
-  return color
+const getColorForVariant = (color: string) => {
+  return colorMap[color] || '#CCCCCC'
 }
 
 const getMainImage = (product: any, selectedVariant: any = null) => {
-  if (selectedVariant?.files?.[0]?.url) {
-    return selectedVariant.files[0].url
+  if (selectedVariant && product.name.includes('Casquette')) {
+    const previewFile = selectedVariant.files.find((file: any) => file.type === 'preview')
+    return previewFile?.preview_url || product.thumbnail_url || placeholderImage
   }
-  if (product.sync_product?.thumbnail_url) {
-    return product.sync_product.thumbnail_url
-  }
-  // Fallback
-  return placeholderImage
+  return product.thumbnail_url || placeholderImage
 }
 
 const getCurrentPrice = (product: any, selectedVariant: any = null) => {
@@ -148,11 +165,9 @@ const getCurrentPrice = (product: any, selectedVariant: any = null) => {
 
 const addToCart = (product: any, selectedVariant: any = null) => {
   if (!hasVariants(product) || !selectedVariant) {
-    alert('Sélectionne une variante !')
     return
   }
   cart.value.push({ ...product, selectedVariant, quantity: 1 })
-  alert('Ajouté au panier !')
 }
 
 const openCheckoutForm = () => {
@@ -161,12 +176,10 @@ const openCheckoutForm = () => {
 
 const submitOrder = async () => {
   if (!orderForm.value.name || !orderForm.value.email || !orderForm.value.address) {
-    alert('Remplis tous les champs')
     return
   }
   const validCartItems = cart.value.filter(item => item.selectedVariant)
   if (validCartItems.length === 0) {
-    alert('Panier vide ou sans variantes sélectionnées')
     return
   }
   try {
@@ -183,76 +196,232 @@ const submitOrder = async () => {
     }
     const response = await backendApi.post('/api/printful/orders', orderData)
     if (response.data.result.id) {
-      alert(`Commande créée ! ID: ${response.data.result.id}. Tu recevras un email de Printful.`)
       cart.value = []
       showCheckout.value = false
       orderForm.value = { name: '', email: '', address: '' }
     }
   } catch (err: any) {
     console.error('Erreur commande :', err)
-    // Optionnel : utilise handleError si dispo
-    alert('Erreur commande : ' + (err.response?.data?.detail || err.message || 'Réessaie'))
   }
 }
 </script>
 
 <style scoped>
-.shop-page { max-width: 1200px; margin: 0 auto; padding: 2rem; text-align: center; }
-.shop-header { margin-bottom: 2rem; }
-.shop-header h1 { font-size: 2.5rem; color: var(--color-mascot); }
-.products-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; }
-.product-card { border: 1px solid var(--color-light-shadow); padding: 1rem; border-radius: var(--radius); }
-.product-card img { max-width: 100%; height: 200px; object-fit: cover; border-radius: var(--radius); }
-.variants-selector { margin: 1rem 0; text-align: left; }
-.variants-selector label { display: block; font-weight: bold; margin-bottom: 0.5rem; }
-.variants { list-style: none; padding: 0; display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
-.variant-color { 
-  width: 30px; 
-  height: 30px; 
-  border-radius: 50%;  /* Carré arrondi pour cap */
-  cursor: pointer; 
-  transition: all 0.3s; 
-  border: 2px solid transparent;
-  position: relative;
+.shop-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
 }
-.variant-color:hover, .variant-color.selected { 
-  transform: scale(1.1); 
-  border-color: var(--color-accent); 
+
+.shop-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
 }
-.variant-color::after {  /* Tooltip nom couleur */
-  content: attr(title);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--color-bg);
-  color: var(--color-fg);
-  padding: 0.25rem 0.5rem;
+
+.shop-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+}
+
+.shop-header p {
+  font-size: 1.1rem;
+  color: var(--color-text);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.product-card {
+  background: wheat;
   border-radius: var(--radius);
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s;
-  z-index: 10;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px var(--color-shadow);
+  transition: transform 0.3s ease;
 }
-.variant-color:hover::after {
-  opacity: 1;
-  visibility: visible;
+
+.product-image {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
 }
-.no-variants, .no-products { font-style: italic; color: var(--color-accent); margin: 1rem 0; }
-.btn-buy:disabled { background: var(--color-light-shadow); cursor: not-allowed; }
-.btn-buy, .btn-checkout { background: var(--color-mascot); color: white; padding: 0.75rem 1.5rem; border: none; border-radius: var(--radius); cursor: pointer; margin: 0.5rem; }
-.btn-buy:hover:not(:disabled), .btn-checkout:hover { background: var(--color-success); }
-.cart-summary { margin-top: 2rem; padding: 1rem; background: var(--color-bg-secondary); border-radius: var(--radius); }
-.checkout-form { margin-top: 1rem; padding: 1rem; background: var(--color-light-shadow); border-radius: var(--radius); text-align: left; max-width: 400px; margin: 1rem auto; }
-.checkout-form input { display: block; width: 100%; margin: 0.5rem 0; padding: 0.5rem; border: 1px solid var(--color-accent); border-radius: var(--radius); }
-.back-link { display: inline-block; margin-top: 2rem; padding: 0.5rem 1rem; background: var(--color-accent); color: var(--color-bg); text-decoration: none; border-radius: var(--radius); }
-.loading, .error { padding: 2rem; font-size: 1.2rem; color: var(--color-accent); }
-@media (max-width: 768px) { 
-  .products-grid { grid-template-columns: 1fr; } 
-  .shop-header h1 { font-size: 2rem; } 
-  .checkout-form { max-width: 100%; }
-  .variants { gap: 0.25rem; }
-  .variant-color { width: 25px; height: 25px; }
+
+.product-card h3 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin: 0.5rem 0;
+}
+
+.price {
+  font-size: 1.2rem;
+  color: var(--color-secondary);
+  margin: 0.5rem 0;
+}
+
+.variants-selector {
+  margin: 1rem 0;
+}
+
+.color-selector,
+.size-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.variant-label {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.variants {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.variant-color {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.variant-color:hover,
+.variant-color.selected {
+  border-color: var(--color-accent);
+  transform: scale(1.15);
+}
+
+.size-selector select {
+  padding: 0.5rem;
+  border: 1px solid var(--color-shadow);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.no-variants,
+.no-products {
+  font-style: italic;
+  color: var(--color-accent);
+  margin: 1rem 0;
+}
+
+.cart-summary {
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background: wheat;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px var(--color-shadow);
+  max-width: 500px;
+}
+
+.remove-button {
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.3s ease;
+}
+
+.checkout-form {
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background: wheat;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px var(--color-shadow);
+  max-width: 500px;
+}
+
+.checkout-form h3 {
+  font-size: 1.4rem;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.8rem;
+  margin: 0.5rem 0;
+  border: 1px solid var(--color-shadow);
+  border-radius: var(--radius);
+  font-size: 1rem;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 2rem;
+  padding: 0.5rem 1rem;
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.back-link:hover {
+  color: var(--color-primary);
+}
+
+.loading,
+.error {
+  padding: 2rem;
+  font-size: 1.2rem;
+  color: var(--color-accent);
+  text-align: center;
+}
+
+.cart-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .shop-page {
+    padding: 1rem;
+  }
+
+  .shop-header h1 {
+    font-size: 2rem;
+  }
+
+  .products-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .product-image {
+    max-height: 200px;
+  }
+
+  .variant-color {
+    width: 24px;
+    height: 24px;
+  }
+
+  .cart-summary {
+    flex-direction: column;
+    gap: 1rem;
+  }
 }
 </style>
