@@ -39,6 +39,7 @@ services:
           VITE_APP_NAME: ${APP_NAME}
           VITE_PORT_BACK: ${PORT_BACK}
           VITE_ENV: ${ENV}
+          VITE_PRINTFUL: ${PRINTFUL}
     restart: always
     env_file:
       - .env

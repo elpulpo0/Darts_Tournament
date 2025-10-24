@@ -77,6 +77,15 @@ const routes = [
     name: 'Inscriptions',
     component: Inscriptions,
     props: true
+  },
+  {
+    path: '/shop',
+    name: 'Shop',
+    component: () => import('../pages/Shop.vue'),
+    meta: {
+      title: 'Boutique Badarts',
+      description: 'Découvrez le merch officiel Badarts !'
+    }
   }
 ]
 
