@@ -130,7 +130,8 @@
   transition: background 0.3s ease;
 }
 
-.checkout-form {
+.checkout-form,
+.payment-section {
   margin: 2rem auto;
   padding: 1.5rem;
   background: wheat;
@@ -139,7 +140,8 @@
   max-width: 500px;
 }
 
-.checkout-form h3 {
+.checkout-form h3,
+.payment-section h3 {
   font-size: 1.4rem;
   color: var(--color-primary);
   margin-bottom: 1rem;
@@ -154,10 +156,35 @@
   font-size: 1rem;
 }
 
+.cost-breakdown {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #f9f9f9;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-shadow);
+}
+
+.cost-breakdown p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.cost-breakdown .cart-total {
+  font-weight: bold;
+  font-size: 1.2em;
+  color: var(--color-primary);
+}
+
 .form-buttons {
   display: flex;
   gap: 1rem;
   margin-top: 1rem;
+}
+
+.form-buttons button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
 .back-link {
@@ -188,6 +215,49 @@
   gap: 0.5rem;
 }
 
+.order-confirmation {
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background: wheat;
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px var(--color-shadow);
+  max-width: 500px;
+  text-align: center;
+}
+
+.order-confirmation h3 {
+  font-size: 1.4rem;
+  color: var(--color-primary);
+  margin-bottom: 1rem;
+}
+
+.order-confirmation p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.order-confirmation button {
+  margin-top: 1rem;
+  padding: 0.8rem 1.5rem;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.order-confirmation button:hover {
+  background-color: var(--color-accent);
+}
+
+.paypal-button {
+  width: 150px;
+  /* Réduire la taille du bouton PayPal */
+  height: auto;
+}
+
 @media (max-width: 768px) {
   .shop-page {
     padding: 1rem;
@@ -213,5 +283,10 @@
   .cart-summary {
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .paypal-button {
+    width: 120px;
+    /* Taille encore plus petite sur mobile */
   }
 }
