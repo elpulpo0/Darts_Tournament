@@ -86,9 +86,7 @@
       <h3>Commande confirmée !</h3>
       <p>Numéro de commande : {{ orderDetails.id }}</p>
       <p>Total payé : {{ orderDetails.total }} {{ orderDetails.currency }}</p>
-      <p>Merci pour votre paiement ! Votre transaction est terminée et finalisée. Vous recevrez un e-mail avec les
-        détails de votre achat. Connectez-vous à votre compte PayPal pour consulter les informations complètes.</p>
-      <button @click="orderDetails = {}">Retour à la boutique</button>
+      <p>Merci pour votre paiement ! Votre transaction est terminée et finalisée.</p>
     </div>
     <router-link to="/home" class="back-link">← Retour à l'accueil</router-link>
   </div>
@@ -253,7 +251,7 @@ const initPaypalButtons = async () => {
                   tax_total: { value: parseFloat(costBreakdown.value.vat).toFixed(2), currency_code: 'EUR' }
                 }
               },
-              custom_id: JSON.stringify({ orderId: draftOrderId.value })
+              custom_id: 'PF' + draftOrderId.value
             }]
           })
         } catch (err) {
@@ -276,13 +274,20 @@ const initPaypalButtons = async () => {
             total: costBreakdown.value.total,
             currency: 'EUR'
           }
-          toast.success('Paiement reçu ! Votre commande est en cours de traitement. Vous recevrez un e-mail avec les détails.')
+          toast.success('Paiement reçu ! Votre commande est en cours de traitement.')
+          // Reset state after successful payment
+          error.value = ''
+          cart.value = []
+          costBreakdown.value = { subtotal: '0.00', shipping: '0.00', vat: '0.00', total: '0.00' }
+          cartTotal.value = '0.00'
+          shippingCost.value = '0.00'
           paymentLoading.value = false
           draftOrderId.value = null
           showPayment.value = false
-        } catch (err) {
+          showCheckout.value = false
+        } catch (err: any) {
           console.error('PayPal capture error:', err)
-          error.value = 'Erreur lors de la capture du paiement. Veuillez réessayer.'
+          error.value = 'Erreur lors de la capture du paiement: ' + (err.message || 'Erreur inconnue.')
           paymentLoading.value = false
         }
       },
