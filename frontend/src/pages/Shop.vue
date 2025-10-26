@@ -59,9 +59,12 @@
       <form @submit.prevent="submitOrder">
         <input v-model="orderForm.name" placeholder="Nom complet" required class="input-field" />
         <input v-model="orderForm.email" type="email" placeholder="Email" required class="input-field" />
-        <input v-model="orderForm.address" placeholder="Adresse complète" required class="input-field" />
+        <input v-model="orderForm.address" placeholder="Adresse (rue, numéro)" required class="input-field" />
+        <input v-model="orderForm.city" placeholder="Ville" required class="input-field" />
+        <input v-model="orderForm.zip" placeholder="Code postal" required class="input-field" />
+        <input v-model="orderForm.phone" placeholder="Téléphone (optionnel)" class="input-field" />
         <div class="form-buttons">
-          <button type="submit">Confirmer la commande</button>
+          <!-- <button type="submit">Confirmer la commande</button> -->
           <button type="button" @click="showCheckout = false">Annuler</button>
         </div>
       </form>
@@ -73,6 +76,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import backendApi from '../axios/backendApi'
+import { useToast } from 'vue-toastification'
+import { useAuthStore } from '../stores/useAuthStore'
+
+const authStore = useAuthStore();
+const toast = useToast()
 
 const products = ref<any[]>([])
 const cart = ref<any[]>([])
@@ -80,7 +88,15 @@ const selectedVariants = ref<any[]>([])
 const loading = ref(true)
 const error = ref('')
 const showCheckout = ref(false)
-const orderForm = ref({ name: '', email: '', address: '' })
+
+const orderForm = ref({
+  name: '',
+  email: '',
+  address: '',
+  city: '',
+  zip: '',
+  phone: ''
+})
 
 const placeholderImage = '/images/placeholder.svg'
 
@@ -95,6 +111,12 @@ const colorMap: Record<string, string> = {
 }
 
 onMounted(async () => {
+  if (authStore.name) {
+    orderForm.value.name = authStore.name;
+  }
+  if (authStore.email) {
+    orderForm.value.email = authStore.email;
+  }
   try {
     const summaryResponse = await backendApi.get('/api/printful/store/products')
     const summaries = summaryResponse.data.result.slice(0, 3)
@@ -175,253 +197,51 @@ const openCheckoutForm = () => {
 }
 
 const submitOrder = async () => {
-  if (!orderForm.value.name || !orderForm.value.email || !orderForm.value.address) {
+  // Validate form fields
+  if (!orderForm.value.name || !orderForm.value.email || !orderForm.value.address ||
+    !orderForm.value.city || !orderForm.value.zip) {
+    error.value = 'Veuillez remplir tous les champs obligatoires.'
     return
   }
+
   const validCartItems = cart.value.filter(item => item.selectedVariant)
   if (validCartItems.length === 0) {
+    error.value = 'Le panier est vide ou contient des articles invalides.'
     return
   }
+
   try {
     const orderData = {
       recipient: {
         name: orderForm.value.name,
         email: orderForm.value.email,
         address1: orderForm.value.address,
+        city: orderForm.value.city,
+        zip: orderForm.value.zip,
         country_code: 'FR',
+        phone: orderForm.value.phone || undefined // Include phone if provided
       },
-      items: validCartItems.flatMap((item: any) => [
-        { sync_variant_id: item.selectedVariant.id, quantity: item.quantity }
-      ])
+      items: validCartItems.map((item: any) => ({
+        sync_variant_id: item.selectedVariant.id,
+        quantity: item.quantity
+      }))
     }
+
     const response = await backendApi.post('/api/printful/orders', orderData)
     if (response.data.result.id) {
       cart.value = []
       showCheckout.value = false
-      orderForm.value = { name: '', email: '', address: '' }
+      orderForm.value = { name: '', email: '', address: '', city: '', zip: '', phone: '' }
+      error.value = '' // Clear any previous errors
+      toast.success('Commande passée avec succès');
     }
   } catch (err: any) {
     console.error('Erreur commande :', err)
+    // Extract detailed error message from Printful API response
+    const errorMessage = err.response?.data?.result || 'Erreur lors de la commande. Veuillez réessayer.'
+    error.value = errorMessage
   }
 }
 </script>
 
-<style scoped>
-.shop-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.shop-header {
-  text-align: center;
-  margin-bottom: 2.5rem;
-}
-
-.shop-header h1 {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--color-primary);
-  margin-bottom: 0.5rem;
-}
-
-.shop-header p {
-  font-size: 1.1rem;
-  color: var(--color-text);
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.products-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-.product-card {
-  background: wheat;
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px var(--color-shadow);
-  transition: transform 0.3s ease;
-}
-
-.product-image {
-  width: 100%;
-  max-height: 300px;
-  object-fit: contain;
-  border-radius: var(--radius);
-  margin-bottom: 1rem;
-}
-
-.product-card h3 {
-  font-size: 1.4rem;
-  font-weight: 600;
-  color: var(--color-primary);
-  margin: 0.5rem 0;
-}
-
-.price {
-  font-size: 1.2rem;
-  color: var(--color-secondary);
-  margin: 0.5rem 0;
-}
-
-.variants-selector {
-  margin: 1rem 0;
-}
-
-.color-selector,
-.size-selector {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.variant-label {
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-.variants {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  gap: 0.5rem;
-}
-
-.variant-color {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.3s ease;
-}
-
-.variant-color:hover,
-.variant-color.selected {
-  border-color: var(--color-accent);
-  transform: scale(1.15);
-}
-
-.size-selector select {
-  padding: 0.5rem;
-  border: 1px solid var(--color-shadow);
-  border-radius: var(--radius);
-  font-size: 1rem;
-  cursor: pointer;
-}
-
-.no-variants,
-.no-products {
-  font-style: italic;
-  color: var(--color-accent);
-  margin: 1rem 0;
-}
-
-.cart-summary {
-  margin: 2rem auto;
-  padding: 1.5rem;
-  background: wheat;
-  border-radius: var(--radius);
-  box-shadow: 0 2px 8px var(--color-shadow);
-  max-width: 500px;
-}
-
-.remove-button {
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background 0.3s ease;
-}
-
-.checkout-form {
-  margin: 2rem auto;
-  padding: 1.5rem;
-  background: wheat;
-  border-radius: var(--radius);
-  box-shadow: 0 2px 8px var(--color-shadow);
-  max-width: 500px;
-}
-
-.checkout-form h3 {
-  font-size: 1.4rem;
-  color: var(--color-primary);
-  margin-bottom: 1rem;
-}
-
-.input-field {
-  width: 100%;
-  padding: 0.8rem;
-  margin: 0.5rem 0;
-  border: 1px solid var(--color-shadow);
-  border-radius: var(--radius);
-  font-size: 1rem;
-}
-
-.form-buttons {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.back-link {
-  display: inline-block;
-  margin-top: 2rem;
-  padding: 0.5rem 1rem;
-  color: var(--color-accent);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.3s ease;
-}
-
-.back-link:hover {
-  color: var(--color-primary);
-}
-
-.loading,
-.error {
-  padding: 2rem;
-  font-size: 1.2rem;
-  color: var(--color-accent);
-  text-align: center;
-}
-
-.cart-item-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-@media (max-width: 768px) {
-  .shop-page {
-    padding: 1rem;
-  }
-
-  .shop-header h1 {
-    font-size: 2rem;
-  }
-
-  .products-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .product-image {
-    max-height: 200px;
-  }
-
-  .variant-color {
-    width: 24px;
-    height: 24px;
-  }
-
-  .cart-summary {
-    flex-direction: column;
-    gap: 1rem;
-  }
-}
-</style>
+<style scoped></style>
