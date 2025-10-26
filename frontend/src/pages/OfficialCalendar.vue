@@ -63,7 +63,7 @@
                         <button @click="updateEvent">Sauvegarder</button>
                         <button @click="cancelEdit">Annuler</button>
                     </template>
-                    <router-link
+                    <router-link v-if="selectedEvent && hasInscriptions(selectedEvent)"
                         :to="`/inscriptions?tournament=${selectedEvent.name}&date=${encodeURIComponent(selectedEvent.date)}&place=${encodeURIComponent(selectedEvent.place || '')}`"
                         class="btn-inscription">
                         <button>Voir les inscriptions</button>
@@ -253,6 +253,13 @@ const selectEvent = async (event: OfficialEvent) => {
         await inscriptionsStore.fetchActiveInscriptions(authStore.token)
     }
 }
+
+const hasInscriptions = (event: OfficialEvent) => {
+    if (!inscriptionsStore.activeInscriptions) return false;
+    return inscriptionsStore.activeInscriptions.some((inscription) => {
+        return inscription.date === event.date;
+    });
+};
 
 const startEdit = () => {
     if (selectedEvent.value) {
