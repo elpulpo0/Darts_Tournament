@@ -1,8 +1,9 @@
 <template>
-  <div class="shop-page">
+  <div v-if="authStore.isAuthenticated" class="module shop-page">
     <header class="shop-header">
       <h1>Boutique Badarts</h1>
-      <p>Nos t-shirts, maillots et casquettes personnalisés. Fabriqués sur demande – commande et soutiens le club !</p>
+      <p>Nos t-shirts, maillots et casquettes personnalisés. Fabriqués sur demande – commande et soutiens le club !
+      </p>
     </header>
     <div v-if="loading" class="loading">Chargement des produits...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
@@ -91,11 +92,15 @@
       <h3>Commande confirmée !</h3>
       <p>Numéro de commande : {{ orderDetails.id }}</p>
       <p>Total payé TTC : {{ orderDetails.total }} {{ orderDetails.currency }}</p>
-      <p>Merci pour votre paiement ! Votre transaction est terminée et finalisée. Vous recevrez un e-mail avec les
-        détails de votre achat. Connectez-vous à votre compte PayPal pour consulter les informations complètes.</p>
-      <button @click="resetOrder">Retour à la boutique</button>
+      <p>Merci pour votre paiement ! Votre transaction est terminée et votre commande sera traitée dans les plus brefs
+        délais.</p>
     </div>
     <router-link to="/home" class="back-link">← Retour à l'accueil</router-link>
+  </div>
+
+  <div v-else class="centered-block">
+    <h2>🔒 Connexion requise</h2>
+    <p>Veuillez vous connecter pour accéder à la boutique.</p>
   </div>
 </template>
 
@@ -337,18 +342,6 @@ const initPaypalButtons = async () => {
   }
 }
 
-// Reset order state when clicking "Retour à la boutique"
-const resetOrder = () => {
-  orderDetails.value = {}
-  error.value = ''
-  cart.value = []
-  costBreakdown.value = { subtotal: '0.00', shipping: '0.00', total: '0.00' }
-  cartTotal.value = '0.00'
-  shippingCost.value = '0.00'
-  showCheckout.value = false
-  showPayment.value = false
-}
-
 onMounted(async () => {
   if (authStore.name) orderForm.value.name = authStore.name
   if (authStore.email) orderForm.value.email = authStore.email
@@ -475,7 +468,7 @@ const fetchOrderCosts = async () => {
         shipping: shipping.toFixed(2),
         total: (itemTotal + shipping).toFixed(2)
       }
-      cartTotal.value = costBreakdown.value.total
+      // Ne pas mettre à jour cartTotal ici pour exclure les frais de port
       shippingCost.value = costBreakdown.value.shipping
     } catch (err: any) {
       console.error('Erreur calcul des frais:', err.response?.data || err)
