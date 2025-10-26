@@ -12,7 +12,7 @@
         <img :src="getMainImage(product, selectedVariants[index])" :alt="product.name" loading="lazy"
           class="product-image" />
         <h3>{{ product.name }}</h3>
-        <p class="price">Prix : {{ getCurrentPrice(product, selectedVariants[index]) }}€</p>
+        <p class="price">Prix TTC : {{ getCurrentPrice(product, selectedVariants[index]) }}€</p>
         <div v-if="hasVariants(product)" class="variants-selector">
           <div v-if="product.name.includes('Casquette')" class="color-selector">
             <span class="variant-label">Couleur :</span>
@@ -50,7 +50,7 @@
           </div>
         </div>
       </div>
-      <p class="cart-total">Total estimé : {{ cartTotal }} EUR</p>
+      <p class="cart-total">Total TTC : {{ cartTotal }} EUR</p>
       <button :disabled="costLoading" @click="openCheckoutForm">Valider le panier</button>
     </div>
     <div v-if="showCheckout" class="checkout-form">
@@ -74,19 +74,26 @@
       <div v-if="costBreakdown.subtotal" class="cost-breakdown">
         <p>Sous-total : {{ costBreakdown.subtotal }} EUR</p>
         <p>Frais de livraison : {{ costBreakdown.shipping }} EUR</p>
-        <p v-if="costBreakdown.vat">TVA : {{ costBreakdown.vat }} EUR</p>
-        <p class="cart-total">Total à payer : {{ costBreakdown.total }} EUR</p>
+        <p class="cart-total">Total TTC : {{ costBreakdown.total }} EUR</p>
       </div>
       <p v-else-if="costLoading" class="loading">Calcul des frais en cours...</p>
       <p v-else class="error">Erreur lors du calcul des frais. Veuillez réessayer.</p>
       <div v-if="!costLoading && costBreakdown.total && draftOrderId" id="paypal-button-container"></div>
       <p v-if="paymentLoading" class="loading">Paiement en cours...</p>
+      <div class="form-buttons">
+        <button type="button" :disabled="paymentLoading || costLoading"
+          @click="showPayment = false; showCheckout = true">
+          Retour
+        </button>
+      </div>
     </div>
     <div v-if="orderDetails.id" class="order-confirmation">
       <h3>Commande confirmée !</h3>
       <p>Numéro de commande : {{ orderDetails.id }}</p>
-      <p>Total payé : {{ orderDetails.total }} {{ orderDetails.currency }}</p>
-      <p>Merci pour votre paiement ! Votre transaction est terminée et finalisée.</p>
+      <p>Total payé TTC : {{ orderDetails.total }} {{ orderDetails.currency }}</p>
+      <p>Merci pour votre paiement ! Votre transaction est terminée et finalisée. Vous recevrez un e-mail avec les
+        détails de votre achat. Connectez-vous à votre compte PayPal pour consulter les informations complètes.</p>
+      <button @click="resetOrder">Retour à la boutique</button>
     </div>
     <router-link to="/home" class="back-link">← Retour à l'accueil</router-link>
   </div>
@@ -110,7 +117,6 @@ interface PayPalOrder {
           breakdown?: {
             item_total?: { value: string; currency_code: string }
             shipping?: { value: string; currency_code: string }
-            tax_total?: { value: string; currency_code: string }
           }
         }
         custom_id?: string
@@ -153,7 +159,6 @@ const draftOrderId = ref<number | null>(null)
 const costBreakdown = ref({
   subtotal: '0.00',
   shipping: '0.00',
-  vat: '0.00',
   total: '0.00'
 })
 
@@ -178,6 +183,9 @@ const colorMap: Record<string, string> = {
   Khaki: '#ffd096',
 }
 
+// Track if PayPal Buttons are already rendered to prevent duplicates
+const isPaypalButtonsRendered = ref(false)
+
 // Load PayPal SDK dynamically
 const loadPaypalSDK = () => {
   return new Promise<void>((resolve, reject) => {
@@ -189,14 +197,13 @@ const loadPaypalSDK = () => {
       return
     }
     if (window.paypal) {
-      resolve() // SDK already loaded
+      resolve()
       return
     }
     const script = document.createElement('script')
     script.src = `https://www.sandbox.paypal.com/sdk/js?client-id=${paypalClientId}&currency=EUR`
     script.async = true
     script.onload = () => {
-      console.log('PayPal SDK chargé')
       resolve()
     }
     script.onerror = () => {
@@ -210,6 +217,10 @@ const loadPaypalSDK = () => {
 
 // Initialize PayPal Buttons
 const initPaypalButtons = async () => {
+  if (isPaypalButtonsRendered.value) {
+    return
+  }
+
   try {
     await loadPaypalSDK() // Ensure SDK is loaded
     if (!window.paypal) {
@@ -233,30 +244,43 @@ const initPaypalButtons = async () => {
       return
     }
 
+    // Clear previous buttons if any
+    const container = document.getElementById('paypal-button-container')
+    if (container) {
+      container.innerHTML = ''
+    }
+
     window.paypal.Buttons({
       createOrder: async (_data, actions: PayPalOrder) => {
         try {
-          // Validate costBreakdown before creating order
-          if (!costBreakdown.value.total || parseFloat(costBreakdown.value.total) <= 0) {
-            throw new Error('Montant total invalide')
+          const total = parseFloat(costBreakdown.value.total)
+          const subtotal = parseFloat(costBreakdown.value.subtotal)
+          const shipping = parseFloat(costBreakdown.value.shipping)
+          if (isNaN(total) || total <= 0) {
+            throw new Error('Montant total invalide: ' + costBreakdown.value.total)
+          }
+          if (isNaN(subtotal) || subtotal < 0) {
+            throw new Error('Sous-total invalide: ' + costBreakdown.value.subtotal)
+          }
+          if (isNaN(shipping) || shipping < 0) {
+            throw new Error('Frais de livraison invalides: ' + costBreakdown.value.shipping)
           }
           return actions.order.create({
             purchase_units: [{
               amount: {
-                value: parseFloat(costBreakdown.value.total).toFixed(2),
+                value: total.toFixed(2),
                 currency_code: 'EUR',
                 breakdown: {
-                  item_total: { value: parseFloat(costBreakdown.value.subtotal).toFixed(2), currency_code: 'EUR' },
-                  shipping: { value: parseFloat(costBreakdown.value.shipping).toFixed(2), currency_code: 'EUR' },
-                  tax_total: { value: parseFloat(costBreakdown.value.vat).toFixed(2), currency_code: 'EUR' }
+                  item_total: { value: subtotal.toFixed(2), currency_code: 'EUR' },
+                  shipping: { value: shipping.toFixed(2), currency_code: 'EUR' }
                 }
               },
               custom_id: 'PF' + draftOrderId.value
             }]
           })
-        } catch (err) {
+        } catch (err: any) {
           console.error('Erreur dans createOrder:', err)
-          error.value = 'Erreur lors de la création du paiement. Veuillez réessayer.'
+          error.value = 'Erreur lors de la création du paiement: ' + (err.message || 'Erreur inconnue.')
           throw err
         }
       },
@@ -265,12 +289,12 @@ const initPaypalButtons = async () => {
         try {
           const order = await actions.order.capture()
           const customId = order.purchase_units[0].custom_id
-          if (!customId) {
-            throw new Error('custom_id manquant dans la réponse PayPal')
+          if (!customId || !customId.startsWith('PF')) {
+            throw new Error('custom_id invalide ou manquant: ' + customId)
           }
-          const parsedCustomId = JSON.parse(customId)
+          const orderId = customId.replace('PF', '')
           orderDetails.value = {
-            id: parsedCustomId.orderId,
+            id: orderId,
             total: costBreakdown.value.total,
             currency: 'EUR'
           }
@@ -278,13 +302,14 @@ const initPaypalButtons = async () => {
           // Reset state after successful payment
           error.value = ''
           cart.value = []
-          costBreakdown.value = { subtotal: '0.00', shipping: '0.00', vat: '0.00', total: '0.00' }
+          costBreakdown.value = { subtotal: '0.00', shipping: '0.00', total: '0.00' }
           cartTotal.value = '0.00'
           shippingCost.value = '0.00'
           paymentLoading.value = false
           draftOrderId.value = null
           showPayment.value = false
           showCheckout.value = false
+          isPaypalButtonsRendered.value = false
         } catch (err: any) {
           console.error('PayPal capture error:', err)
           error.value = 'Erreur lors de la capture du paiement: ' + (err.message || 'Erreur inconnue.')
@@ -294,19 +319,34 @@ const initPaypalButtons = async () => {
       onCancel: () => {
         error.value = 'Paiement annulé. Veuillez réessayer.'
         paymentLoading.value = false
+        isPaypalButtonsRendered.value = false
       },
       onError: (err: any) => {
         console.error('PayPal error:', err)
         error.value = err.message?.includes('EWP_SETTINGS')
           ? 'Erreur de configuration PayPal. Contactez le support.'
-          : 'Erreur lors du paiement. Veuillez réessayer.'
+          : 'Erreur lors du paiement: ' + (err.message || 'Erreur inconnue.')
         paymentLoading.value = false
+        isPaypalButtonsRendered.value = false
       }
     }).render('#paypal-button-container')
-  } catch (err) {
+    isPaypalButtonsRendered.value = true
+  } catch (err: any) {
     console.error('Erreur initPaypalButtons:', err)
-    error.value = 'Erreur de configuration du paiement PayPal.'
+    error.value = 'Erreur de configuration du paiement PayPal: ' + (err.message || 'Erreur inconnue.')
   }
+}
+
+// Reset order state when clicking "Retour à la boutique"
+const resetOrder = () => {
+  orderDetails.value = {}
+  error.value = ''
+  cart.value = []
+  costBreakdown.value = { subtotal: '0.00', shipping: '0.00', total: '0.00' }
+  cartTotal.value = '0.00'
+  shippingCost.value = '0.00'
+  showCheckout.value = false
+  showPayment.value = false
 }
 
 onMounted(async () => {
@@ -337,28 +377,50 @@ onMounted(async () => {
     products.value = fullProducts
     selectedVariants.value = fullProducts.map(product => product.sync_variants[0] || null)
     loading.value = false
-
-    // Load PayPal SDK on mount
-    await loadPaypalSDK()
   } catch (err: any) {
     console.error('Erreur chargement produits:', err)
     error.value = 'Erreur de chargement des produits'
     loading.value = false
   }
 
+  // Load PayPal SDK separately to avoid blocking product loading
+  try {
+    await loadPaypalSDK()
+  } catch (err: any) {
+    console.error('Erreur chargement SDK PayPal:', err)
+    error.value = 'Erreur de chargement du paiement PayPal.'
+  }
+
   // Handle PayPal redirect
   if (route.query.payment === 'success') {
-    const customData = route.query.custom ? JSON.parse(route.query.custom as string) : null
-    if (customData && route.query.txn_id && customData.orderId) {
-      paymentLoading.value = true
-      orderDetails.value = {
-        id: customData.orderId,
-        total: costBreakdown.value.total,
-        currency: 'EUR'
+    try {
+      const customData = route.query.custom as string
+      if (customData && route.query.txn_id && customData.startsWith('PF')) {
+        const orderId = customData.replace('PF', '')
+        paymentLoading.value = true
+        orderDetails.value = {
+          id: orderId,
+          total: costBreakdown.value.total,
+          currency: 'EUR'
+        }
+        toast.success('Paiement reçu ! Votre commande est en cours de traitement.')
+        // Reset state after successful redirect
+        error.value = ''
+        cart.value = []
+        costBreakdown.value = { subtotal: '0.00', shipping: '0.00', total: '0.00' }
+        cartTotal.value = '0.00'
+        shippingCost.value = '0.00'
+        paymentLoading.value = false
+        draftOrderId.value = null
+        showPayment.value = false
+        showCheckout.value = false
+      } else {
+        console.error('customData invalide ou manquant:', customData)
+        error.value = 'Erreur lors de la confirmation du paiement.'
       }
-      toast.success('Paiement reçu ! Votre commande est en cours de traitement. Vous recevrez un e-mail avec les détails.')
-      paymentLoading.value = false
-      draftOrderId.value = null
+    } catch (err: any) {
+      console.error('Erreur parsing custom_id redirect:', err)
+      error.value = 'Erreur lors de la confirmation du paiement: ' + (err.message || 'Erreur inconnue.')
     }
   } else if (route.query.payment === 'cancel') {
     error.value = 'Paiement annulé. Veuillez réessayer.'
@@ -373,10 +435,9 @@ const calculateCartTotal = () => {
   costBreakdown.value = {
     subtotal: itemTotal.toFixed(2),
     shipping: '0.00',
-    vat: '0.00',
     total: itemTotal.toFixed(2)
   }
-  cartTotal.value = itemTotal.toFixed(2)
+  cartTotal.value = costBreakdown.value.total
   shippingCost.value = '0.00'
 }
 
@@ -406,19 +467,20 @@ const fetchOrderCosts = async () => {
       const retailCosts = orderResponse.data.result.retail_costs
       const itemTotal = parseFloat(retailCosts.subtotal) || 0
       const shipping = parseFloat(retailCosts.shipping) || 0
-      const vat = parseFloat(retailCosts.vat) || parseFloat(orderResponse.data.result.costs.vat) || 0
+      if (itemTotal <= 0) {
+        throw new Error('Sous-total invalide reçu de Printful: ' + itemTotal)
+      }
       costBreakdown.value = {
         subtotal: itemTotal.toFixed(2),
         shipping: shipping.toFixed(2),
-        vat: vat.toFixed(2),
-        total: (itemTotal + shipping + (vat || 0)).toFixed(2)
+        total: (itemTotal + shipping).toFixed(2)
       }
       cartTotal.value = costBreakdown.value.total
       shippingCost.value = costBreakdown.value.shipping
     } catch (err: any) {
       console.error('Erreur calcul des frais:', err.response?.data || err)
       error.value = err.response?.data?.detail || 'Erreur lors du calcul des frais. Veuillez réessayer.'
-      costBreakdown.value = { subtotal: '0.00', shipping: '0.00', vat: '0.00', total: '0.00' }
+      costBreakdown.value = { subtotal: '0.00', shipping: '0.00', total: '0.00' }
       draftOrderId.value = null
     }
   } else {
@@ -454,11 +516,11 @@ const getMainImage = (product: any, selectedVariant: any = null) => {
 
 const getCurrentPrice = (product: any, selectedVariant: any = null) => {
   if (selectedVariant?.retail_price) {
-    return parseFloat(selectedVariant.retail_price).toFixed(2)
+    return parseFloat(selectedVariant.retail_price).toFixed(2) // Prix TTC
   }
   if (hasVariants(product)) {
     const prices = product.sync_variants.map((v: any) => parseFloat(v.retail_price || 0))
-    return Math.min(...prices).toFixed(2)
+    return Math.min(...prices).toFixed(2) // Prix TTC
   }
   return 'Prix à définir'
 }
@@ -495,6 +557,7 @@ const proceedToPayment = async () => {
     showPayment.value = true
     await initPaypalButtons()
   } else {
+    console.error('Échec préparation paiement:', { draftOrderId: draftOrderId.value, total: costBreakdown.value.total })
     error.value = 'Erreur lors de la préparation du paiement. Veuillez réessayer.'
   }
 }
