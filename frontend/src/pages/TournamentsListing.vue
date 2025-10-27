@@ -102,14 +102,13 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import backendApi from '../axios/backendApi';
-import { useToast } from 'vue-toastification';
+import { toast } from 'vue3-toastify'
 import { useAuthStore } from '../stores/useAuthStore';
 import { useRouter } from 'vue-router';
 import { handleError } from '../functions/utils';
 import { useTournamentStore } from '../stores/useTournamentStore';
 
 const authStore = useAuthStore();
-const toast = useToast();
 const router = useRouter();
 const tournamentStore = useTournamentStore();
 

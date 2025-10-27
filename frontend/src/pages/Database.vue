@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '../stores/useAuthStore'
-import { useToast } from 'vue-toastification'
+import { toast } from 'vue3-toastify'
 import backendApi from '../axios/backendApi'
-
-const toast = useToast()
 
 const authStore = useAuthStore();
 

@@ -107,7 +107,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useToast } from 'vue-toastification'
+import { toast } from 'vue3-toastify'
 import { useRoute } from 'vue-router'
 import backendApi from '../axios/backendApi'
 import { useAuthStore } from '../stores/useAuthStore'
@@ -168,7 +168,6 @@ declare global {
 }
 
 const authStore = useAuthStore()
-const toast = useToast()
 const route = useRoute()
 
 const products = ref<any[]>([])

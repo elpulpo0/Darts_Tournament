@@ -1,8 +1,6 @@
 import { isAxiosError } from 'axios';
 import { ref } from 'vue';
-import { useToast } from 'vue-toastification';
-
-const toast = useToast();
+import { toast } from 'vue3-toastify'
 
 const error = ref('');
 

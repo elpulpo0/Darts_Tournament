@@ -3,9 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { backend_url } from '../config/config'
 import { useAuthStore } from '../stores/useAuthStore'
-import { useToast } from 'vue-toastification'
-
-const toast = useToast()
+import { toast } from 'vue3-toastify'
 const authStore = useAuthStore()
 
 type LogFile = { filename: string; path: string; size_bytes: number }

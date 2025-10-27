@@ -104,14 +104,13 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
 import backendApi from '../axios/backendApi';
-import { useToast } from 'vue-toastification';
+import { toast } from 'vue3-toastify';
 import { useAuthStore } from '../stores/useAuthStore';
 import { handleError } from '../functions/utils';
 import { useEventStore } from '../stores/useEventStore';
 import { useInscriptionsStore } from '../stores/useInscriptionsStore'
 
 const authStore = useAuthStore();
-const toast = useToast();
 const eventStore = useEventStore();
 
 const selectedEvent = ref<OfficialEvent | null>(null);

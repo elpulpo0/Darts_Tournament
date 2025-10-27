@@ -2,10 +2,9 @@
 import { isAxiosError } from 'axios';
 import { ref, watch } from 'vue'
 import backendApi from '../axios/backendApi'
-import { useToast } from 'vue-toastification'
+import { toast } from 'vue3-toastify'
 import { useAuthStore } from '../stores/useAuthStore'
 const authStore = useAuthStore();
-const toast = useToast()
 
 type User = {
   id: number

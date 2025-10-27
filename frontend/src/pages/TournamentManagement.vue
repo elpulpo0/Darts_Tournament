@@ -384,7 +384,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import backendApi from '../axios/backendApi';
-import { useToast } from 'vue-toastification';
+import { toast } from 'vue3-toastify'
 import { useAuthStore } from '../stores/useAuthStore';
 import { createPools, generateEliminationMatches, getMatchWinner, participantToMatchParticipant } from '../functions/tournamentStructure';
 import { handleError } from '../functions/utils';
@@ -399,7 +399,6 @@ const router = useRouter();
 const tournamentId = computed(() => Number(route.params.tournamentId));
 
 const authStore = useAuthStore();
-const toast = useToast();
 const leaderboardsStore = useLeaderboardsStore();
 const tournamentStore = useTournamentStore();
 
