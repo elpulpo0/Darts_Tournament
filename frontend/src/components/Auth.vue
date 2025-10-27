@@ -3,12 +3,11 @@ import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import backendApi from '../axios/backendApi';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+import { toast } from 'vue3-toastify'
 import { useAuthStore } from '../stores/useAuthStore';
 import { mapLigue, mapComite, mapCategory, licence, fetchLicence, printLicence } from '../functions/licences';
 
 const authStore = useAuthStore();
-const toast = useToast();
 const route = useRoute();
 
 const tokenCheckInterval = ref<number | null>(null);
