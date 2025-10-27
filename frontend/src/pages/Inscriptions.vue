@@ -86,6 +86,7 @@ const clubMapping: Record<string, string> = {
     'PDC': "Crau'Darts",
     'DKN': "Darts Knights de la Crau",
     'PLD': "Perno Li Darts",
+    'LFM': "LI Tiraire Darts Club"
 };
 
 // CLUBS UNIQUES
