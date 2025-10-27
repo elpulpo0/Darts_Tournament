@@ -32,6 +32,12 @@
 
             <!-- GROUPÉ PAR DATE -->
             <div v-for="dateGroup in filteredInscriptions" :key="dateGroup.date">
+
+                <div v-if="dateGroup.inscriptions.length" class="totals">
+                    <p>Total d'inscrits en simple : {{ dateGroup.simpleTotal }}</p>
+                    <p>Nombre total d'équipes en double : {{ dateGroup.doubleTeams }}</p>
+                </div>
+                
                 <table class="leaderboardtable">
                     <thead>
                         <tr>
@@ -112,14 +118,34 @@ const filteredInscriptions = computed(() => {
     }
 
     // Grouper par date
-    const grouped: { date: string, inscriptions: InscriptionResponse[] }[] = [];
+    const grouped: { date: string, inscriptions: InscriptionResponse[], simpleTotal: number, doubleTeams: number }[] = [];
     const dates = [...new Set(filtered.map(i => i.date))].sort();
 
     dates.forEach(date => {
+        const inscriptions = filtered.filter(i => i.date === date)
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const simpleTotal = inscriptions.filter(i => i.category_simple).length;
+
+        const doubleTeams = (() => {
+            const pairs = new Set<string>();
+            inscriptions.forEach(i => {
+                if (i.category_double && i.doublette) {
+                    const partner = inscriptions.find(p => p.id === i.doublette);
+                    if (partner) {
+                        const pair = [Math.min(i.id, partner.id), Math.max(i.id, partner.id)].join('-');
+                        pairs.add(pair);
+                    }
+                }
+            });
+            return pairs.size;
+        })();
+
         grouped.push({
             date,
-            inscriptions: filtered.filter(i => i.date === date)
-                .sort((a, b) => a.name.localeCompare(b.name))
+            inscriptions,
+            simpleTotal,
+            doubleTeams
         });
     });
 
