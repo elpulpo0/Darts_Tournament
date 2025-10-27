@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite-ssg build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -35,7 +35,7 @@
     "semantic-release": "^24.2.5",
     "typescript": "^5.8.2",
     "vite": "^5.4.2",
-    "vite-ssg": "^28.2.2",
+    "vite-plugin-html": "^3.2.2",
     "vue-eslint-parser": "^10.1.3"
   }
 }

@@ -29,18 +29,6 @@ export default defineConfig(({ mode }) => {
       port: parseInt(env.VITE_PORT) || 5173,
     },
     plugins: [vue()],
-    ssgOptions: {
-      script: 'async',
-      formatting: 'minify',
-      includedRoutes(paths, routes) {
-        return ['/', '/home']
-      },
-      vite: {
-        ssr: {
-          external: ['@vue/devtools-kit', '@vue/devtools-api']
-        }
-      },
-    },
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),

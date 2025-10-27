@@ -67,8 +67,6 @@ const jsonLd = {
 }
 
 onMounted(() => {
-  document.dispatchEvent(new Event('render-event'))
-
   // Évite doublons : supprime si déjà présent
   const existingScript = document.getElementById('badarts-jsonld')
   if (existingScript) existingScript.remove()

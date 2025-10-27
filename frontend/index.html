@@ -20,11 +20,76 @@
   <meta name="twitter:description"
     content="Rejoins notre plateforme pour tout savoir sur le Hérault Darts club, participer à des tournois réguliers, suivre tes classements officiels (Ligue Sud Est et Comité Méridional) et plus encore.">
   <meta name="twitter:image" content="https://badarts.fr/banner.png">
-  <!-- Paypal Meta Tags -->
+  <!-- Permissions-Policy -->
   <meta http-equiv="Permissions-Policy" content="geolocation=(self)">
-  <!-- Other Tags-->
+  <!-- Canonical et robots -->
   <link rel="canonical" href="https://badarts.fr/">
   <meta name="robots" content="index, follow">
+  <!-- JSON-LD statique pour home -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SportsClub",
+      "name": "Badarts - Hérault Darts Club",
+      "url": "https://badarts.fr",
+      "description": "Association dédiée aux fléchettes traditionnelles dans l'Hérault. Tournois, entraînements et événements pour tous niveaux.",
+      "address": {
+        "@type": "PostalAddress",
+        "addressRegion": "Hérault",
+        "addressCountry": "FR"
+      },
+      "email": "mhdartsclub@gmail.com",
+      "sameAs": [
+        "https://www.facebook.com/HeraultDartsClub",
+        "https://www.instagram.com/heraultdartsclub"
+      ],
+      "openingHours": "We 18:00-23:00, Th 18:00-23:00, Su 10:00-14:00",
+      "sportsActivityLocation": [
+        {
+          "@type": "Place",
+          "name": "Les Bock'Ale",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "2 Rue de la République",
+            "addressLocality": "Montpellier",
+            "addressRegion": "Hérault",
+            "postalCode": "34000",
+            "addressCountry": "FR"
+          }
+        },
+        {
+          "@type": "Place",
+          "name": "Salle Tchoullouyan",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Rue des Oliviers",
+            "addressLocality": "Villeveyrac",
+            "addressRegion": "Hérault",
+            "postalCode": "34560",
+            "addressCountry": "FR"
+          }
+        },
+        {
+          "@type": "Place",
+          "name": "Brasserie des Sports",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "2 Avenue de la Gare",
+            "addressLocality": "Vendargues",
+            "addressRegion": "Hérault",
+            "postalCode": "34740",
+            "addressCountry": "FR"
+          }
+        }
+      ],
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Accueil" }
+        ]
+      }
+    }
+  </script>
 </head>
 
 <body>
