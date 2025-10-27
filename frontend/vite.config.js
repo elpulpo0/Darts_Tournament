@@ -2,7 +2,6 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
-import Prerender from 'vite-plugin-prerender'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
@@ -29,10 +28,14 @@ export default defineConfig(({ mode }) => {
     server: {
       port: parseInt(env.VITE_PORT) || 5173,
     },
-    plugins: [vue(), Prerender({
-      routes: ['/', '/home'],
-      renderAfterDocumentEvent: 'render-event'
-    })],
+    plugins: [vue()],
+    ssgOptions: {
+      script: 'async',
+      formatting: 'minify',
+      includedRoutes(paths, routes) {
+        return ['/', '/home']
+      },
+    },
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),

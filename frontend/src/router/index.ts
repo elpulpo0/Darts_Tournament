@@ -12,7 +12,7 @@ import TournamentProjection from '@/pages/TournamentProjection.vue';
 import HomePage from '@/pages/HomePage.vue';
 import Inscriptions from '../pages/Inscriptions.vue';
 
-const routes = [
+export const routes = [
   {
     path: '/',
     component: HomePage,
