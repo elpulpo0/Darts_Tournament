@@ -35,6 +35,11 @@ export default defineConfig(({ mode }) => {
       includedRoutes(paths, routes) {
         return ['/', '/home']
       },
+      vite: {
+        ssr: {
+          noExternal: ['vue-toastification']
+        }
+      },
     },
     resolve: {
       alias: {
