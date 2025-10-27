@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /users
+Disallow: /tournaments
+Disallow: /calendar
+Disallow: /leaderboard/
+Disallow: /tournament-management/
+Disallow: /database
+Disallow: /logs
+Disallow: /inscriptions
+Disallow: /shop
+Sitemap: https://badarts.fr/sitemap.xml

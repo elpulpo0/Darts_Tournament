@@ -75,8 +75,8 @@ onMounted(() => {
       <div class="hero-content">
         <h1>Badarts - Hérault Darts Club</h1>
         <p>Viens partager la passion des fléchettes traditionnelles dans l'Hérault ! Participe à nos tournois locaux à Montpellier et environs, suis tes classements en ligue LSEF/CMER et découvres une communauté dynamique.</p>
-        <router-link to="/tournaments" class="tournament-button">Voir les tournois locaux</router-link>
-        <router-link to="/calendar" class="tournament-button">Consulter le calendrier LSEF/CMER</router-link>
+        <router-link to="/tournaments" rel="nofollow" class="tournament-button">Voir les tournois locaux</router-link>
+        <router-link to="/calendar" rel="nofollow" class="tournament-button">Consulter le calendrier LSEF/CMER</router-link>
       </div>
       <img src="@/assets/mascotte.png" alt="Mascotte Badarts représentant le club de fléchettes Hérault" class="hero-image" loading="lazy" />
     </section>
@@ -95,12 +95,12 @@ onMounted(() => {
         <div class="affiliation-item">
           <img class="logo-affiliation" src="@/assets/lsef.png" alt="Logo Ligue Sud Est LSEF" loading="lazy" />
           <a href="https://lsef.fr/" target="_blank" class="social-link">Ligue Sud Est</a>
-          <p><router-link to="/leaderboard/ligue" class="cta-link">Classement officiel LSEF</router-link></p>
+          <p><router-link to="/leaderboard/ligue" rel="nofollow" class="cta-link">Classement officiel LSEF</router-link></p>
         </div>
         <div class="affiliation-item">
           <img class="logo-affiliation" src="@/assets/cmer.png" alt="Logo Comité Méridional CMER" loading="lazy" />
           <a href="https://www.facebook.com/comte.meridional.lsef/" target="_blank" class="social-link">Comité Méridional</a>
-          <p><router-link to="/leaderboard/comite" class="cta-link">Classement officiel CMER</router-link></p>
+          <p><router-link to="/leaderboard/comite" rel="nofollow" class="cta-link">Classement officiel CMER</router-link></p>
         </div>
       </div>
     </section>
@@ -134,8 +134,8 @@ onMounted(() => {
     <section class="section events">
       <h2>Événements à venir</h2>
       <p>Participe à nos tournois de fléchettes en simple ou double dans l'Hérault. Consulte la liste complète des tournois, inscris-toi dès maintenant et suis les classements en direct !</p>
-      <router-link to="/tournaments" class="cta-link">Découvrir les tournois</router-link>
-      <router-link to="/leaderboard/club" class="cta-link">Voir le classement des tournois locaux</router-link>
+      <router-link to="/tournaments" rel="nofollow" class="cta-link">Découvrir les tournois</router-link>
+      <router-link to="/leaderboard/club" rel="nofollow" class="cta-link">Voir le classement des tournois locaux</router-link>
     </section>
 
     <!-- Contact Section -->
