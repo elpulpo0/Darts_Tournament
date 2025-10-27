@@ -61,6 +61,7 @@
         <input v-model="orderForm.name" placeholder="Nom complet" required class="input-field" />
         <input v-model="orderForm.email" type="email" placeholder="Email" required class="input-field" />
         <input v-model="orderForm.address" placeholder="Adresse (rue, numéro)" required class="input-field" />
+        <input v-model="orderForm.address2" placeholder="Complément d'adresse (optionnel)" class="input-field" />
         <input v-model="orderForm.city" placeholder="Ville" required class="input-field" />
         <input v-model="orderForm.zip" placeholder="Code postal" required class="input-field" />
         <input v-model="orderForm.phone" placeholder="Téléphone (optionnel)" class="input-field" />
@@ -115,6 +116,18 @@ import { useAuthStore } from '../stores/useAuthStore'
 interface PayPalOrder {
   order: {
     create: (config: {
+      payer?: {
+        name?: { given_name: string; surname: string }
+        email_address?: string
+        phone?: { phone_number: { national_number: string }; country_code: string }
+        address?: {
+          address_line_1: string
+          address_line_2?: string
+          admin_area_2: string
+          postal_code: string
+          country_code: string
+        }
+      }
       purchase_units: Array<{
         amount: {
           value: string
@@ -125,9 +138,19 @@ interface PayPalOrder {
           }
         }
         custom_id?: string
+        shipping?: {
+          name?: { full_name: string }
+          address: {
+            address_line_1: string
+            address_line_2?: string
+            admin_area_2: string
+            postal_code: string
+            country_code: string
+          }
+        }
       }>
     }) => Promise<string>
-    capture: () => Promise<{ purchase_units: Array<{ custom_id: string }> }>
+    capture: () => Promise<{ purchase_units: Array<{ custom_id: string; shipping?: any }> }>
   }
 }
 
@@ -171,6 +194,7 @@ const orderForm = ref({
   name: '',
   email: '',
   address: '',
+  address2: '',
   city: '',
   zip: '',
   phone: ''
@@ -270,7 +294,39 @@ const initPaypalButtons = async () => {
           if (isNaN(shipping) || shipping < 0) {
             throw new Error('Frais de livraison invalides: ' + costBreakdown.value.shipping)
           }
+
+          // Préparer l'objet d'adresse pour PayPal (utilisé pour shipping ET billing via payer)
+          const payerAddress = {
+            address_line_1: orderForm.value.address,
+            address_line_2: orderForm.value.address2 || undefined,
+            admin_area_2: orderForm.value.city,
+            postal_code: orderForm.value.zip,
+            country_code: 'FR'
+          }
+
+          // Préparer l'objet payer, en incluant le téléphone uniquement si valide
+          const payer: any = {
+            name: {
+              given_name: orderForm.value.name.split(' ')[0] || 'Prénom', // Premier prénom
+              surname: orderForm.value.name.split(' ').slice(1).join(' ') || 'Nom' // Reste du nom
+            },
+            email_address: orderForm.value.email || 'email@example.com',
+            address: payerAddress // Adresse de facturation (préremplit le formulaire carte)
+          }
+
+          // Valider et formater le numéro de téléphone (si fourni)
+          const phoneNumber = orderForm.value.phone?.replace(/\D/g, '') // Nettoyer les caractères non numériques
+          if (phoneNumber && phoneNumber.length >= 9 && phoneNumber.length <= 15) {
+            payer.phone = {
+              phone_number: {
+                national_number: phoneNumber
+              },
+              country_code: '33' // Code pays France
+            }
+          }
+
           return actions.order.create({
+            payer, // Inclure l'objet payer avec ou sans téléphone
             purchase_units: [{
               amount: {
                 value: total.toFixed(2),
@@ -280,7 +336,13 @@ const initPaypalButtons = async () => {
                   shipping: { value: shipping.toFixed(2), currency_code: 'EUR' }
                 }
               },
-              custom_id: 'PF' + draftOrderId.value
+              custom_id: 'PF' + draftOrderId.value,
+              shipping: {
+                name: {
+                  full_name: orderForm.value.name || 'Test Name'
+                },
+                address: payerAddress // Réutiliser pour shipping (cohérent avec Printful)
+              }
             }]
           })
         } catch (err: any) {
@@ -445,6 +507,7 @@ const fetchOrderCosts = async () => {
           name: orderForm.value.name || 'Test Name',
           email: orderForm.value.email || 'test@example.com',
           address1: orderForm.value.address,
+          ddress2: orderForm.value.address2 || undefined,
           city: orderForm.value.city,
           zip: orderForm.value.zip,
           country_code: 'FR',
