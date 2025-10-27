@@ -28,7 +28,10 @@ export default defineConfig(({ mode }) => {
     server: {
       port: parseInt(env.VITE_PORT) || 5173,
     },
-    plugins: [vue()],
+    plugins: [vue(), Prerender({
+      routes: ['/', '/home'],
+      renderAfterDocumentEvent: 'render-event'
+    })],
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),
