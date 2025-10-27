@@ -35,9 +35,64 @@ const newPassword = ref('');
 const newRole = ref('');
 const showCreateUser = ref(false);
 
+const guestUsersCount = ref<number>(0);
+
 const toggleCreateUserForm = () => {
   showCreateUser.value = !showCreateUser.value;
 }
+
+const createGuestUsers = async () => {
+  try {
+    // Récupérer les utilisateurs existants pour vérifier les "Guest"
+    const { data } = await backendApi.get(`/users/users`, {
+      headers: {
+        Authorization: `Bearer ${authStore.token}`
+      }
+    });
+
+    let maxGuestNumber = 0;
+    if (Array.isArray(data)) {
+      // Trouver le numéro le plus élevé parmi les utilisateurs "Guest"
+      data.forEach((user: User) => {
+        if (typeof user.name === 'string' && user.name.startsWith('Guest ')) {
+          const number = parseInt(user.name.replace('Guest ', ''), 10);
+          if (!isNaN(number) && number > maxGuestNumber) {
+            maxGuestNumber = number;
+          }
+        }
+      });
+    }
+
+    // Créer les nouveaux utilisateurs invités en continuant le comptage
+    for (let i = 1; i <= guestUsersCount.value; i++) {
+      const guestNumber = maxGuestNumber + i;
+      const userData = {
+        nickname: `guest_${guestNumber}`,
+        name: `Guest ${guestNumber}`,
+        role: 'player',
+      };
+
+      await backendApi.post(`/users/users/`, userData, {
+        headers: {
+          Authorization: `Bearer ${authStore.token}`
+        }
+      });
+    }
+
+    toast.success(`${guestUsersCount.value} guest users created successfully.`, {
+      closeButton: true
+    });
+    await fetchUsers(); // Rafraîchir la liste (les invités seront filtrés)
+  } catch (err: any) {
+    console.error('Guest users creation error', err);
+    let errorMessage = 'An error occurred while creating guest users.';
+    if (isAxiosError(err) && err.response?.data?.detail) {
+      errorMessage = `🚫 ${err.response.data.detail}`;
+    }
+    error.value = errorMessage;
+    toast.error(errorMessage);
+  }
+};
 
 const fetchUsers = async () => {
   loading.value = true;
@@ -50,7 +105,8 @@ const fetchUsers = async () => {
     });
 
     if (Array.isArray(data)) {
-      users.value = data;
+      // Filtrer les utilisateurs pour exclure ceux dont le nom commence par "Guest"
+      users.value = data.filter((user: User) => typeof user.name !== 'string' || !user.name.startsWith('Guest '));
     } else {
       throw new Error('Invalid user data');
     }
@@ -78,7 +134,6 @@ const fetchUsers = async () => {
     });
   } catch (err: any) {
     console.error('Error while fetching users and tokens', err);
-
     if (isAxiosError(err)) {
       if (err.response?.status === 403) {
         error.value = '⛔ Access denied: you do not have permission to view the users.';
@@ -91,7 +146,7 @@ const fetchUsers = async () => {
         toast.error(error.value);
       }
     } else {
-      error.value = '	Unknown error.';
+      error.value = 'Unknown error.';
       toast.error(error.value);
     }
   } finally {
@@ -154,15 +209,15 @@ const deleteUser = async (userId: number) => {
       headers: {
         Authorization: `Bearer ${authStore.token}`
       }
-    })
-    fetchUsers()
+    });
+    fetchUsers();
     toast.success('User deleted successfully 🗑️');
   } catch (err) {
-    console.error('Error while deleting the user', err)
-    error.value = 'Error while deleting the user'
+    console.error('Error while deleting the user', err);
+    error.value = 'Error while deleting the user';
     toast.error(error.value);
   }
-}
+};
 
 const createUser = async () => {
   try {
@@ -281,6 +336,12 @@ watch(
     <button @click="toggleCreateUserForm">
       {{ showCreateUser ? 'Cancel' : 'Add User' }}
     </button>
+
+    <div class="input-group">
+      <input v-model.number="guestUsersCount" type="number" min="1" placeholder="Number of guest users"
+        class="form-input" />
+      <button class="generate-btn" @click="createGuestUsers">Generate Guest Users</button>
+    </div>
 
     <div v-if="showCreateUser" class="module">
       <h3>Add User</h3>

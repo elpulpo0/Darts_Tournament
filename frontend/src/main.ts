@@ -25,7 +25,7 @@ app.use(Vue3Toastify, {  // ← Plugin avec tes options
   draggablePercent: 0.6,
   showCloseButtonOnHover: false,
   hideProgressBar: false,
-  closeButton: 'button',
+  closeButton: true,
   icon: true,
   rtl: false,
 });

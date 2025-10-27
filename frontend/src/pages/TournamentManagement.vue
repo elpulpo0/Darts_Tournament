@@ -85,6 +85,70 @@
                     <button @click="cancelLaunchingTournament">Annuler</button>
                 </div>
 
+                <div v-if="tournament && ['open', 'closed'].includes(tournament.status)">
+                    <button @click="startManualDraw">Construire le tirage manuellement</button>
+                    <div v-if="isManualDraw" class="manual-draw-form module">
+                        <h4>Construire le tirage initial pour {{ tournament.name }}</h4>
+                        <label>Type de tournoi :
+                            <select v-model="manualDrawType" class="form-input">
+                                <option value="pool">Poule</option>
+                                <option value="elimination">Élimination</option>
+                            </select>
+                        </label>
+                        <label v-if="manualDrawType === 'pool'">Nombre de poules :
+                            <input v-model.number="manualNumPools" type="number" min="1" class="form-input" />
+                        </label>
+                        <!-- Section pour définir les poules manuellement -->
+                        <div v-if="manualDrawType === 'pool'" class="pools-section">
+                            <div v-for="(pool, index) in manualPools" class="pool" :key="index">
+                                <h5>Poule {{ index + 1 }}</h5>
+                                <label>Nom de la poule (optionnel) :
+                                    <input v-model="pool.name" class="form-input" placeholder="Nom de la poule" />
+                                </label>
+                                <label>Participants :
+                                    <select v-model="pool.participantIds" multiple
+                                        :size="selectableParticipants.length">
+                                        <option v-for="participant in selectableParticipants" :value="participant.id"
+                                            :key="participant.id">
+                                            {{ getParticipantDisplayNickname(participant) }}
+                                        </option>
+                                    </select>
+                                </label>
+                            </div>
+                            <button @click="addPool">Ajouter une poule</button>
+                        </div>
+                        <!-- Section pour définir les matchs d’élimination manuellement -->
+                        <div v-if="manualDrawType === 'elimination'" class="elimination-section">
+                            <h5>Matchs d’élimination</h5>
+                            <div v-for="(match, index) in manualMatches" class="match" :key="index">
+                                <h6>Match {{ index + 1 }}</h6>
+                                <label>Participant 1 :
+                                    <select v-model="match.participant1Id" class="form-input">
+                                        <option :value="null">-- Sélectionner --</option>
+                                        <option v-for="participant in selectableParticipantsForMatch(index)"
+                                            :value="participant.id" :key="participant.id">
+                                            {{ getParticipantDisplayNickname(participant) }}
+                                        </option>
+                                    </select>
+                                </label>
+                                <label>Participant 2 :
+                                    <select v-model="match.participant2Id" class="form-input">
+                                        <option :value="null">-- Sélectionner --</option>
+                                        <option v-for="participant in selectableParticipantsForMatch(index)"
+                                            :value="participant.id" :key="participant.id">
+                                            {{ getParticipantDisplayNickname(participant) }}
+                                        </option>
+                                    </select>
+                                </label>
+                                <button class="delete-btn" @click="removeMatch(index)">Supprimer ce match</button>
+                            </div>
+                            <button @click="addMatch">Ajouter un match</button>
+                        </div>
+                        <button @click="saveManualDraw">Enregistrer le tirage</button>
+                        <button @click="cancelManualDraw">Annuler</button>
+                    </div>
+                </div>
+
                 <div v-if="tournament.status === 'open' || tournament.status === 'closed'">
                     <div class="participants-section">
                         <h4>Joueurs inscrits ({{ registeredUsersCount }})</h4>
@@ -187,7 +251,7 @@
                 <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
                 <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
                     leaderboardsStore.poolsLeaderboardError
-                    }}</div>
+                }}</div>
                 <div v-if="leaderboardsStore.poolsLeaderboard.length">
                     <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
                         <h5>{{ poolLeaderboard.pool_name }}</h5>
@@ -216,7 +280,9 @@
                 <p>{{matches.filter(m => m.status === 'pending').length}} matchs en attente de validation.</p>
 
                 <div v-if="tournament.status === 'running' || tournament.status === 'finished'" class="matches-section">
-                    <h4>Matchs</h4>
+                    <h4>Matchs
+                        <span v-if="isManualMode" class="manual-badge" title="Bracket fixe (manuel)">🔧 Manuel</span>
+                    </h4>
                     <!-- Section Barrage -->
                     <div v-if="hasBarrage">
                         <h5>Barrage</h5>
@@ -420,6 +486,13 @@ const allUsers = ref<User[]>([]);
 const selectedUserId = ref<number | null>(null);
 const selectedTeamUsers = ref<number[]>([]);
 
+const isManualMode = ref(false);
+const isManualDraw = ref(false);
+const manualDrawType = ref<'pool' | 'elimination'>('pool');
+const manualNumPools = ref<number>(1);
+const manualPools = ref<{ name: string; participantIds: number[] }[]>([{ name: '', participantIds: [] }]);
+const manualMatches = ref<{ participant1Id: number | null; participant2Id: number | null }[]>([{ participant1Id: null, participant2Id: null }]);
+
 const registeredUsersCount = computed(() => tournamentStore.registeredUsers?.length || 0);
 const participantsCount = computed(() => tournamentStore.participants?.length || 0);
 
@@ -428,6 +501,139 @@ const hasBarrage = computed(() => {
     console.log('hasBarrage:', result, 'Matches with round 0 and pool_id null:', matches.value.filter(m => m.round === 0 && m.pool_id == null));
     return result;
 });
+
+const startManualDraw = () => {
+    isManualDraw.value = true;
+    manualDrawType.value = 'pool';
+    manualNumPools.value = 1;
+    manualPools.value = [{ name: '', participantIds: [] }];
+    manualMatches.value = [{ participant1Id: null, participant2Id: null }];
+    tournamentStore.fetchParticipants(tournamentId.value);
+};
+
+const cancelManualDraw = () => {
+    isManualDraw.value = false;
+    manualPools.value = [{ name: '', participantIds: [] }];
+    manualMatches.value = [{ participant1Id: null, participant2Id: null }];
+};
+
+const addPool = () => {
+    manualPools.value.push({ name: '', participantIds: [] });
+};
+
+const addMatch = () => {
+    manualMatches.value.push({ participant1Id: null, participant2Id: null });
+};
+
+const removeMatch = (index: number) => {
+    manualMatches.value.splice(index, 1);
+};
+
+const selectableParticipants = computed(() => {
+    return tournamentStore.participants || [];
+});
+
+const selectableParticipantsForMatch = (matchIndex: number) => {
+    const usedParticipantIds = manualMatches.value
+        .flatMap((m, idx) => idx !== matchIndex ? [m.participant1Id, m.participant2Id] : [])
+        .filter(id => id !== null) as number[];
+    return selectableParticipants.value.filter(p => !usedParticipantIds.includes(p.id));
+};
+
+const saveManualDraw = async () => {
+    if (!tournament.value) return;
+    loading.value = true;
+    try {
+        // Mettre à jour le statut et le type du tournoi
+        await backendApi.patch(`/tournaments/${tournamentId.value}`, {
+            type: manualDrawType.value,
+            status: 'running',
+        }, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+
+        if (manualDrawType.value === 'pool') {
+            // Valider que chaque poule a au moins 2 participants
+            for (const pool of manualPools.value) {
+                if (pool.participantIds.length < 2) {
+                    throw new Error(`La poule ${pool.name || pool.participantIds.join(', ')} doit avoir au moins 2 participants.`);
+                }
+            }
+            // Vérifier que tous les participants sont utilisés
+            const allParticipantIds = new Set(tournamentStore.participants.map(p => p.id));
+            const usedParticipantIds = new Set(manualPools.value.flatMap(p => p.participantIds));
+            if (usedParticipantIds.size !== allParticipantIds.size) {
+                throw new Error('Tous les participants doivent être assignés à une poule.');
+            }
+
+            // Créer les poules
+            const poolIdMap: Record<number, number> = {};
+            for (let i = 0; i < manualPools.value.length; i++) {
+                const pool = manualPools.value[i];
+                const { data: createdPool } = await backendApi.post(
+                    `/tournaments/${tournamentId.value}/pools`,
+                    {
+                        name: pool.name || `Poule ${i + 1}`,
+                        participant_ids: pool.participantIds,
+                    },
+                    { headers: { Authorization: `Bearer ${authStore.token}` } }
+                );
+                poolIdMap[i] = createdPool.id;
+            }
+
+            // Générer les matchs pour chaque poule
+            for (let i = 0; i < manualPools.value.length; i++) {
+                const pool = manualPools.value[i];
+                const poolSqlId = poolIdMap[i];
+                const poolParticipants: Participant[] = tournamentStore.participants.filter(p => pool.participantIds.includes(p.id));
+                // Pass poolParticipants directly to createPools
+                const poolMatches = createPools(poolParticipants, 1)[0].matches;
+                for (const match of poolMatches) {
+                    await createAndPersistMatch(match, poolSqlId);
+                }
+            }
+        } else {
+            // Valider les matchs d’élimination
+            for (const match of manualMatches.value) {
+                if (!match.participant1Id || !match.participant2Id) {
+                    throw new Error('Chaque match doit avoir deux participants.');
+                }
+            }
+            // Vérifier que tous les participants sont utilisés
+            const allParticipantIds = new Set(tournamentStore.participants.map(p => p.id));
+            const usedParticipantIds = new Set(manualMatches.value.flatMap(m => [m.participant1Id, m.participant2Id].filter(id => id !== null)) as number[]);
+            if (usedParticipantIds.size !== allParticipantIds.size) {
+                throw new Error('Tous les participants doivent être assignés à un match.');
+            }
+
+            // Créer les matchs d’élimination
+            for (const match of manualMatches.value) {
+                const payload = {
+                    tournament_id: tournamentId.value,
+                    participant_ids: [match.participant1Id, match.participant2Id],
+                    status: 'pending',
+                    round: 1,
+                };
+                await backendApi.post('/tournaments/matches/', payload, {
+                    headers: { Authorization: `Bearer ${authStore.token}` },
+                });
+            }
+        }
+
+        // Activer le mode manuel
+        isManualMode.value = true;
+
+        toast.success('Tirage manuel enregistré avec succès !');
+        await fetchTournament(tournamentId.value);
+        await fetchMatches();
+        await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
+        isManualDraw.value = false;
+    } catch (err) {
+        handleError(err, 'enregistrement du tirage manuel');
+    } finally {
+        loading.value = false;
+    }
+};
 
 const closeRegistrations = async (tournamentId: number) => {
     try {
@@ -1106,18 +1312,32 @@ async function generateFinalStage() {
                 await createAndPersistMatch(match);
             }
         } else {
-            // Phase élimination (inchangé)
-            const previousRoundMatches = matches.value.filter(
-                m => m.pool_id == null && m.round === currentRound.value
-            ).sort((a, b) => a.id - b.id);
+            // Phase élimination : NOUVELLE LOGIQUE AVEC BRACKET FIXE EN MODE MANUEL
+            const previousRoundMatches = matches.value
+                .filter(m => m.pool_id == null && m.round === currentRound.value && m.participants.length === 2)
+                .sort((a, b) => a.id - b.id); // TRI PAR ID POUR BRACKET FIXE
 
+            console.log(`Génération tour ${nextRound} - Mode manuel: ${isManualMode.value}, matchs précédents:`,
+                previousRoundMatches.map((m, idx) => `Match ${idx + 1} (ID ${m.id})`));
+
+            if (previousRoundMatches.length < 2) {
+                toast.error('Pas assez de matchs terminés dans le tour précédent');
+                return;
+            }
+
+            // Collecter les gagnants dans l'ordre des matchs triés par ID
             for (const match of previousRoundMatches) {
                 const winner = getMatchWinner(match);
                 if (winner) {
                     const participant = tournamentStore.participants.find(p => p.id === winner.participant_id);
                     if (participant) {
                         qualified.push(participant);
+                    } else {
+                        console.warn(`Gagnant non trouvé pour match ${match.id}:`, winner);
                     }
+                } else {
+                    toast.error(`Match ${match.id} non terminé ou sans gagnant clair`);
+                    return;
                 }
             }
 
@@ -1126,37 +1346,62 @@ async function generateFinalStage() {
                 return;
             }
 
-            const shuffledQualified = [...qualified].sort(() => Math.random() - 0.5);
-            const nextMatches: Match[] = [];
-            for (let i = 0; i < shuffledQualified.length; i += 2) {
-                const p1 = shuffledQualified[i];
-                const p2 = shuffledQualified[i + 1];
-                if (p1 && p2) {
-                    nextMatches.push({
-                        id: 0,
-                        tournament_id: tournamentId.value,
-                        match_date: null,
-                        participants: [
-                            participantToMatchParticipant(p1),
-                            participantToMatchParticipant(p2),
-                        ].filter((p): p is MatchParticipantSchema => p != null),
-                        status: 'pending',
-                        round: nextRound,
-                        pool_id: undefined,
-                    });
+            // EN MODE MANUEL : bracket fixe (gagnant match1 vs gagnant match2, etc.)
+            if (isManualMode.value) {
+                const nextMatches: Match[] = [];
+                // Pairer par paires consécutives : 0vs1, 2vs3, 4vs5, etc.
+                for (let i = 0; i < qualified.length; i += 2) {
+                    const p1 = qualified[i];
+                    const p2 = qualified[i + 1];
+                    if (p1 && p2) {
+                        nextMatches.push({
+                            id: 0,
+                            tournament_id: tournamentId.value,
+                            match_date: null,
+                            participants: [
+                                participantToMatchParticipant(p1),
+                                participantToMatchParticipant(p2),
+                            ].filter((p): p is MatchParticipantSchema => p != null),
+                            status: 'pending',
+                            round: nextRound,
+                            pool_id: undefined,
+                        });
+                    }
                 }
-            }
 
-            if (nextMatches.length === 0) {
-                toast.error('Aucun match ne peut être généré pour le tour suivant');
-                return;
-            }
+                if (nextMatches.length === 0) {
+                    toast.error('Aucun match ne peut être généré pour le tour suivant');
+                    return;
+                }
 
-            console.log('Qualifiés pour tour', nextRound, ':', qualified);
-            console.log('Matchs générés pour tour', nextRound, ':', nextMatches);
-
-            for (const match of nextMatches) {
-                await createAndPersistMatch(match);
+                for (const match of nextMatches) {
+                    await createAndPersistMatch(match);
+                }
+            } else {
+                // Mode automatique : shuffle aléatoire (logique existante)
+                const shuffledQualified = [...qualified].sort(() => Math.random() - 0.5);
+                const nextMatches: Match[] = [];
+                for (let i = 0; i < shuffledQualified.length; i += 2) {
+                    const p1 = shuffledQualified[i];
+                    const p2 = shuffledQualified[i + 1];
+                    if (p1 && p2) {
+                        nextMatches.push({
+                            id: 0,
+                            tournament_id: tournamentId.value,
+                            match_date: null,
+                            participants: [
+                                participantToMatchParticipant(p1),
+                                participantToMatchParticipant(p2),
+                            ].filter((p): p is MatchParticipantSchema => p != null),
+                            status: 'pending',
+                            round: nextRound,
+                            pool_id: undefined,
+                        });
+                    }
+                }
+                for (const match of nextMatches) {
+                    await createAndPersistMatch(match);
+                }
             }
         }
 
