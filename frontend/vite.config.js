@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
+import Prerender from 'vite-plugin-prerender'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
