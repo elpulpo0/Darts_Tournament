@@ -37,7 +37,7 @@ export default defineConfig(({ mode }) => {
       },
       vite: {
         ssr: {
-          noExternal: ['vue-toastification']
+          external: ['@vue/devtools-kit', '@vue/devtools-api']
         }
       },
     },
