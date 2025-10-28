@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { isAxiosError } from 'axios';
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import backendApi from '../axios/backendApi'
 import { toast } from 'vue3-toastify'
 import { useAuthStore } from '../stores/useAuthStore'
@@ -18,6 +18,8 @@ type User = {
 }
 
 const users = ref<User[]>([])
+const filteredUsers = computed(() => showGuests.value ? users.value : users.value.filter((user: User) => typeof user.name !== 'string' || !user.name.startsWith('Guest ')));
+const showGuests = ref(false);
 const loading = ref(false)
 const error = ref('')
 const editingUserId = ref<number | null>(null);
@@ -82,7 +84,7 @@ const createGuestUsers = async () => {
     toast.success(`${guestUsersCount.value} guest users created successfully.`, {
       closeButton: true
     });
-    await fetchUsers(); // Rafraîchir la liste (les invités seront filtrés)
+    await fetchUsers(); // Rafraîchir la liste (les invités seront filtrés si le toggle est désactivé)
   } catch (err: any) {
     console.error('Guest users creation error', err);
     let errorMessage = 'An error occurred while creating guest users.';
@@ -105,8 +107,7 @@ const fetchUsers = async () => {
     });
 
     if (Array.isArray(data)) {
-      // Filtrer les utilisateurs pour exclure ceux dont le nom commence par "Guest"
-      users.value = data.filter((user: User) => typeof user.name !== 'string' || !user.name.startsWith('Guest '));
+      users.value = data;
     } else {
       throw new Error('Invalid user data');
     }
@@ -275,6 +276,12 @@ watch(
     <div v-if="loading">Loading users...</div>
 
     <div v-if="users.length" class="module">
+      <div class="toggle-guests">
+        <label>
+          <input type="checkbox" v-model="showGuests" />
+          Afficher les Guests
+        </label>
+      </div>
       <h2>Users</h2>
       <table>
         <thead>
@@ -290,7 +297,7 @@ watch(
           </tr>
         </thead>
         <tbody>
-          <tr v-for="user in users" :key="user.id">
+          <tr v-for="user in filteredUsers" :key="user.id">
             <td data-label="Pseudo">{{ user.nickname.charAt(0).toUpperCase() + user.nickname.slice(1) }}</td>
             <td data-label="Nom">{{ user.name }}</td>
             <td data-label="Pseudo Discord">{{ user.discord }}</td>
@@ -379,6 +386,17 @@ watch(
   list-style: none;
   padding: 0;
   margin: 0;
+}
+
+.toggle-guests {
+  margin-bottom: 1rem;
+}
+
+.toggle-guests label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: bold;
 }
 
 table {
