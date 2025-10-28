@@ -251,7 +251,7 @@
                 <div v-if="leaderboardsStore.poolsLeaderboardLoading">Chargement des classements par poule...</div>
                 <div v-if="leaderboardsStore.poolsLeaderboardError" class="error">{{
                     leaderboardsStore.poolsLeaderboardError
-                }}</div>
+                    }}</div>
                 <div v-if="leaderboardsStore.poolsLeaderboard.length">
                     <div v-for="poolLeaderboard in leaderboardsStore.poolsLeaderboard" :key="poolLeaderboard.pool_id">
                         <h5>{{ poolLeaderboard.pool_name }}</h5>
@@ -1312,19 +1312,16 @@ async function generateFinalStage() {
                 await createAndPersistMatch(match);
             }
         } else {
-            // Phase élimination : NOUVELLE LOGIQUE AVEC BRACKET FIXE EN MODE MANUEL
+            // Phase élimination : (pas de shuffle après round=1)
             const previousRoundMatches = matches.value
                 .filter(m => m.pool_id == null && m.round === currentRound.value && m.participants.length === 2)
-                .sort((a, b) => a.id - b.id); // TRI PAR ID POUR BRACKET FIXE
-
-            console.log(`Génération tour ${nextRound} - Mode manuel: ${isManualMode.value}, matchs précédents:`,
+                .sort((a, b) => a.id - b.id);
+            console.log(`Génération tour ${nextRound} - Matchs précédents triés par ID:`,
                 previousRoundMatches.map((m, idx) => `Match ${idx + 1} (ID ${m.id})`));
-
             if (previousRoundMatches.length < 2) {
                 toast.error('Pas assez de matchs terminés dans le tour précédent');
                 return;
             }
-
             // Collecter les gagnants dans l'ordre des matchs triés par ID
             for (const match of previousRoundMatches) {
                 const winner = getMatchWinner(match);
@@ -1340,68 +1337,39 @@ async function generateFinalStage() {
                     return;
                 }
             }
-
             if (qualified.length < 2) {
                 toast.error('Pas assez de participants qualifiés pour le tour suivant');
                 return;
             }
-
-            // EN MODE MANUEL : bracket fixe (gagnant match1 vs gagnant match2, etc.)
-            if (isManualMode.value) {
-                const nextMatches: Match[] = [];
-                // Pairer par paires consécutives : 0vs1, 2vs3, 4vs5, etc.
-                for (let i = 0; i < qualified.length; i += 2) {
-                    const p1 = qualified[i];
-                    const p2 = qualified[i + 1];
-                    if (p1 && p2) {
-                        nextMatches.push({
-                            id: 0,
-                            tournament_id: tournamentId.value,
-                            match_date: null,
-                            participants: [
-                                participantToMatchParticipant(p1),
-                                participantToMatchParticipant(p2),
-                            ].filter((p): p is MatchParticipantSchema => p != null),
-                            status: 'pending',
-                            round: nextRound,
-                            pool_id: undefined,
-                        });
-                    }
+            // Pairing fixe séquentiel
+            // (Garde l'ordre des qualifiés triés par ID précédent → bracket préservé)
+            const nextMatches: Match[] = [];
+            for (let i = 0; i < qualified.length; i += 2) {
+                const p1 = qualified[i];
+                const p2 = qualified[i + 1];
+                if (p1 && p2) {
+                    nextMatches.push({
+                        id: 0,
+                        tournament_id: tournamentId.value,
+                        match_date: null,
+                        participants: [
+                            participantToMatchParticipant(p1),
+                            participantToMatchParticipant(p2),
+                        ].filter((p): p is MatchParticipantSchema => p != null),
+                        status: 'pending',
+                        round: nextRound,
+                        pool_id: undefined,
+                    });
                 }
-
-                if (nextMatches.length === 0) {
-                    toast.error('Aucun match ne peut être généré pour le tour suivant');
-                    return;
-                }
-
-                for (const match of nextMatches) {
-                    await createAndPersistMatch(match);
-                }
-            } else {
-                // Mode automatique : shuffle aléatoire (logique existante)
-                const shuffledQualified = [...qualified].sort(() => Math.random() - 0.5);
-                const nextMatches: Match[] = [];
-                for (let i = 0; i < shuffledQualified.length; i += 2) {
-                    const p1 = shuffledQualified[i];
-                    const p2 = shuffledQualified[i + 1];
-                    if (p1 && p2) {
-                        nextMatches.push({
-                            id: 0,
-                            tournament_id: tournamentId.value,
-                            match_date: null,
-                            participants: [
-                                participantToMatchParticipant(p1),
-                                participantToMatchParticipant(p2),
-                            ].filter((p): p is MatchParticipantSchema => p != null),
-                            status: 'pending',
-                            round: nextRound,
-                            pool_id: undefined,
-                        });
-                    }
-                }
-                for (const match of nextMatches) {
-                    await createAndPersistMatch(match);
-                }
+            }
+            if (nextMatches.length === 0) {
+                toast.error('Aucun match ne peut être généré pour le tour suivant');
+                return;
+            }
+            console.log('Qualifiés pour tour', nextRound, ':', qualified.map(p => getParticipantDisplayNickname(p)));
+            console.log('Matchs générés pour tour', nextRound, ':', nextMatches.map(m => m.participants.map(p => p?.name).join(' vs ')));
+            for (const match of nextMatches) {
+                await createAndPersistMatch(match);
             }
         }
 
