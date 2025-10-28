@@ -63,6 +63,40 @@
                     <button @click="resetTournament(tournament.id)">Réinitialiser</button>
                 </div>
 
+                <!-- Section Correction d'erreur (seulement pour tournois terminés) -->
+                <div v-if="tournament.status === 'finished'" class="error-correction-section module">
+                    <h4>Correction d'erreur de participation</h4>
+                    <p v-if="!showSwapForm">Une inversion de joueurs ? Utilisez l'échange pour corriger sans perdre les
+                        résultats.</p>
+                    <button v-if="!showSwapForm" @click="startSwapPlayers">Échanger 2 joueurs</button>
+
+                    <div v-if="showSwapForm" class="swap-form">
+                        <label>Joueur erroné (listé mais n'a pas joué) :
+                            <select v-model="wrongPlayerId" class="form-input">
+                                <option value="">-- Sélectionner --</option>
+                                <option v-for="participant in tournamentStore.participants" :value="participant.id"
+                                    :key="participant.id">
+                                    {{ getParticipantDisplayNickname(participant) }}
+                                </option>
+                            </select>
+                        </label>
+                        <label>Joueur correct (a joué mais non listé) :
+                            <select v-model="correctPlayerId" class="form-input">
+                                <option value="">-- Sélectionner --</option>
+                                <option v-for="user in allUsers" :value="user.id" :key="user.id">
+                                    {{ user.name ? user.nickname + ' (' + user.name + ')' : user.nickname }}
+                                </option>
+                            </select>
+                        </label>
+                        <div>
+                            <button @click="swapPlayers" :disabled="!wrongPlayerId || !correctPlayerId">Confirmer
+                                l'échange</button>
+                            <button @click="cancelSwap">Annuler</button>
+                        </div>
+                        <p v-if="swapPreview" class="preview">Aperçu : {{ swapPreview }}</p>
+                    </div>
+                </div>
+
                 <!-- Formulaire de lancement du tournoi -->
                 <div v-if="launchingTournamentId === tournament.id" class="launch-form module">
                     <h4>Lancer {{ tournament.name }}</h4>
@@ -448,7 +482,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import backendApi from '../axios/backendApi';
 import { toast } from 'vue3-toastify'
 import { useAuthStore } from '../stores/useAuthStore';
@@ -495,6 +529,72 @@ const manualMatches = ref<{ participant1Id: number | null; participant2Id: numbe
 
 const registeredUsersCount = computed(() => tournamentStore.registeredUsers?.length || 0);
 const participantsCount = computed(() => tournamentStore.participants?.length || 0);
+
+const showSwapForm = ref(false);
+const wrongPlayerId = ref<number | null>(null);
+const correctPlayerId = ref<number | null>(null);
+const swapPreview = ref<string>('');
+
+// Computed pour l'aperçu
+const swapPreviewComputed = computed(() => {
+    if (!wrongPlayerId.value || !correctPlayerId.value) return '';
+    const wrongPlayer = tournamentStore.participants.find(p => p.id === wrongPlayerId.value);
+    const correctPlayer = allUsers.value.find(u => u.id === correctPlayerId.value);
+    if (!wrongPlayer || !correctPlayer) return '';
+    return `${getParticipantDisplayNickname(wrongPlayer)} → ${correctPlayer.name ? correctPlayer.nickname + ' (' + correctPlayer.name + ')' : correctPlayer.nickname}`;
+});
+
+// Fonctions
+const startSwapPlayers = () => {
+    showSwapForm.value = true;
+    wrongPlayerId.value = null;
+    correctPlayerId.value = null;
+    // S'assurer que allUsers est chargé
+    if (allUsers.value.length === 0) fetchAllUsers();
+};
+
+const cancelSwap = () => {
+    showSwapForm.value = false;
+    wrongPlayerId.value = null;
+    correctPlayerId.value = null;
+    swapPreview.value = '';
+};
+
+const swapPlayers = async () => {
+    if (!wrongPlayerId.value || !correctPlayerId.value) return;
+    if (wrongPlayerId.value === correctPlayerId.value) {
+        toast.error('Sélectionnez deux joueurs différents.');
+        return;
+    }
+    loading.value = true;
+    try {
+        // Appel backend pour swap
+        await backendApi.post(`/tournaments/${tournamentId.value}/swap-players`, {
+            wrong_participant_id: wrongPlayerId.value,
+            correct_user_id: correctPlayerId.value,
+        }, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+
+        // Rafraîchir les données
+        await fetchTournament(tournamentId.value);
+        await tournamentStore.fetchParticipants(tournamentId.value);
+        await fetchMatches();
+        await leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
+
+        toast.success('Joueurs échangés avec succès ! Classements mis à jour.');
+        cancelSwap();
+    } catch (err) {
+        handleError(err, 'échange de joueurs');
+    } finally {
+        loading.value = false;
+    }
+};
+
+// Mise à jour du computed pour preview (assigner à la ref pour reactivity)
+watch([wrongPlayerId, correctPlayerId], () => {
+    swapPreview.value = swapPreviewComputed.value;
+});
 
 const hasBarrage = computed(() => {
     const result = matches.value.some(m => m.round === 0 && m.pool_id == null);

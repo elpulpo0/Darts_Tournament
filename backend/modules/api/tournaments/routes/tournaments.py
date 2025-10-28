@@ -22,6 +22,7 @@ from modules.api.tournaments.schemas import (
     ParticipantResponse,
     PlayerResponse,
     TournamentFullDetailSchema,
+    SwapPlayersRequest
 )
 from modules.api.users.functions import get_current_user
 from modules.api.users.models import User
@@ -1102,3 +1103,124 @@ def open_tournament_registrations(
         mode=tournament.mode,
         status=tournament.status,
     )
+
+
+@tournaments_router.post(
+    "/{tournament_id}/swap-players",
+    status_code=status.HTTP_200_OK,
+    summary="Swap a wrong participant with the correct user in a finished tournament",
+    description="Replaces a wrong participant (single mode) with the correct user in all matches, pools, registrations, etc. Preserves scores and results. Requires admin or editor privileges.",
+)
+def swap_players(
+    tournament_id: int,
+    swap_data: SwapPlayersRequest,
+    db: Session = Depends(get_users_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    if not ("admin" in current_user.scopes or "editor" in current_user.scopes):
+        raise HTTPException(
+            status_code=403, detail="Access denied: administrators or editors only."
+        )
+
+    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.status != "finished":
+        raise HTTPException(status_code=400, detail="Only applicable to finished tournaments")
+    if tournament.mode != "single":
+        raise HTTPException(status_code=400, detail="Only supported for single-player mode")
+
+    wrong_participant = db.query(Participant).filter(
+        Participant.id == swap_data.wrong_participant_id,
+        Participant.tournament_id == tournament_id
+    ).first()
+    if not wrong_participant:
+        raise HTTPException(status_code=404, detail="Wrong participant not found")
+
+    correct_user = db.query(User).filter(User.id == swap_data.correct_user_id).first()
+    if not correct_user:
+        raise HTTPException(status_code=404, detail="Correct user not found")
+
+    # Ensure correct_user has no existing participant in this tournament
+    existing_member = db.query(ParticipantMember).join(
+        Participant, ParticipantMember.participant_id == Participant.id
+    ).filter(
+        ParticipantMember.user_id == swap_data.correct_user_id,
+        Participant.tournament_id == tournament_id
+    ).first()
+    if existing_member:
+        raise HTTPException(
+            status_code=400, detail="Correct user already has a participant in this tournament"
+        )
+
+    # Add registration for correct_user if missing
+    existing_reg = db.query(TournamentRegistration).filter(
+        TournamentRegistration.user_id == swap_data.correct_user_id,
+        TournamentRegistration.tournament_id == tournament_id
+    ).first()
+    if not existing_reg:
+        reg = TournamentRegistration(
+            user_id=swap_data.correct_user_id,
+            tournament_id=tournament_id,
+            registration_date=datetime.now(UTC)
+        )
+        db.add(reg)
+
+    # Get wrong_user from wrong_participant (assuming single mode: one member)
+    wrong_member = db.query(ParticipantMember).filter(
+        ParticipantMember.participant_id == swap_data.wrong_participant_id
+    ).first()
+    if not wrong_member:
+        raise HTTPException(status_code=400, detail="No member found for wrong participant")
+    wrong_user_id = wrong_member.user_id
+
+    # Create new participant for correct_user
+    new_participant = Participant(
+        tournament_id=tournament_id,
+        name=None  # Single mode: no team name
+    )
+    db.add(new_participant)
+    db.commit()
+    db.refresh(new_participant)
+
+    # Link correct_user to new_participant
+    new_member = ParticipantMember(
+        participant_id=new_participant.id,
+        user_id=swap_data.correct_user_id
+    )
+    db.add(new_member)
+
+    # Transfer MatchPlayer entries (preserve scores)
+    old_match_players = db.query(MatchPlayer).filter(
+        MatchPlayer.participant_id == swap_data.wrong_participant_id
+    ).all()
+    for mp in old_match_players:
+        new_mp = MatchPlayer(
+            match_id=mp.match_id,
+            participant_id=new_participant.id,
+            score=mp.score
+        )
+        db.add(new_mp)
+        db.delete(mp)
+
+    # Transfer pool associations
+    db.execute(
+        pool_participant_association.update()
+        .where(pool_participant_association.c.participant_id == swap_data.wrong_participant_id)
+        .values(participant_id=new_participant.id)
+    )
+
+    # Clean up old links
+    db.delete(wrong_member)
+    db.delete(wrong_participant)
+
+    db.execute(
+        delete(TournamentRegistration).where(
+            TournamentRegistration.user_id == wrong_user_id,
+            TournamentRegistration.tournament_id == tournament_id
+        )
+    )
+
+    db.commit()
+
+    return {"message": "Players swapped successfully. Leaderboards will update on refresh."}

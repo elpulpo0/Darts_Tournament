@@ -190,3 +190,8 @@ class TournamentFullDetailSchema(BaseModel):
     pools: List[PoolDetailSchema]
     final_matches: List[MatchDetailSchema]
     model_config = ConfigDict(from_attributes=True)
+
+
+class SwapPlayersRequest(BaseModel):
+    wrong_participant_id: int
+    correct_user_id: int
