@@ -17,7 +17,7 @@
                 <span>📱</span> Tourne ton téléphone pour voir toutes les colonnes
             </div>
 
-            <table v-if="leaderboardsStore.seasonLeaderboard.length" class="leaderboardtable">
+            <table v-if="filteredLeaderboard.length" class="leaderboardtable">
                 <thead>
                     <tr>
                         <th></th>
@@ -30,9 +30,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="(entry, index) in leaderboardsStore.seasonLeaderboard"
+                    <tr v-for="(entry, index) in filteredLeaderboard"
                         :class="{ 'current-user': entry.nickname === currentUserName }" :key="entry.user_id">
-                        <td>{{ getRank(index) }}</td>
+                        <td>{{ getRank(index, filteredLeaderboard) }}</td>
                         <td>{{ entry.nickname }}</td>
                         <td>{{ entry.total_points }}</td>
                         <td class="hideonmobile">{{ entry.single_wins }}</td>
@@ -63,14 +63,18 @@ const leaderboardsStore = useLeaderboardsStore();
 const currentUserName = computed(() => authStore.nickname || '');
 const currentYear = new Date().getFullYear();
 
-const getRank = (index: number) => {
+const filteredLeaderboard = computed(() => {
+    return leaderboardsStore.seasonLeaderboard.filter(entry => !entry.nickname.startsWith('guest'));
+});
+
+const getRank = (index: number, leaderboard: any[]) => {
     if (index === 0) return 1;
-    const prevEntry = leaderboardsStore.seasonLeaderboard[index - 1];
-    const currentEntry = leaderboardsStore.seasonLeaderboard[index];
+    const prevEntry = leaderboard[index - 1];
+    const currentEntry = leaderboard[index];
     if (
         prevEntry.total_points === currentEntry.total_points
     ) {
-        return getRank(index - 1);
+        return getRank(index - 1, leaderboard);
     }
     return index + 1;
 };

@@ -13,6 +13,15 @@ const authStore = useAuthStore();
 const leaderboardsStore = useLeaderboardsStore();
 const tournamentStore = useTournamentStore();
 
+const displayNickname = (participant: any) => {
+    if (!participant) return '';
+    const nick = getParticipantDisplayNickname(participant);
+    if (nick.toLowerCase().startsWith('guest')) {
+        return 'Guest';
+    }
+    return nick;
+};
+
 onMounted(() => {
     tournamentStore.fetchTournamentDetail(tournamentId.value);
     leaderboardsStore.fetchPoolsLeaderboard(tournamentId.value, authStore.token);
@@ -110,7 +119,7 @@ const displayMaxRounds = computed(() => winner.value ? maxRounds.value + 1 : max
                         <div class="pool-participants">
                             <span v-for="participant in pool.participants" class="participant-in-pool"
                                 :key="participant.participant_id">
-                                {{ getParticipantDisplayNickname(participant) }}
+                                {{ displayNickname(participant) }}
                             </span>
                         </div>
                     </div>
@@ -138,8 +147,7 @@ const displayMaxRounds = computed(() => winner.value ? maxRounds.value + 1 : max
                                     :key="entry.participant_id">
                                     <td>{{ index + 1 }}</td>
                                     <td>
-                                        {{getParticipantDisplayNickname(tournamentStore.participants.find(p => p.id
-                                            ===
+                                        {{displayNickname(tournamentStore.participants.find(p => p.id ===
                                             entry.participant_id) ?? null)}}</td>
                                     <td>{{ entry.wins }}</td>
                                     <td>{{ entry.total_manches }}</td>
@@ -166,7 +174,7 @@ const displayMaxRounds = computed(() => winner.value ? maxRounds.value + 1 : max
                                     <div v-for="participant in match.participants" class="participant-slot"
                                         :key="participant.participant_id">
                                         <span class="participant-name">
-                                            {{ getParticipantDisplayNickname(participant) }}
+                                            {{ displayNickname(participant) }}
                                         </span>
                                         <span v-if="typeof participant?.score === 'number'" class="score">({{
                                             participant.score }})</span>
@@ -178,7 +186,7 @@ const displayMaxRounds = computed(() => winner.value ? maxRounds.value + 1 : max
                                 <div class="match-cell">
                                     <div class="participant-slot winner-slot">
                                         <span class="participant-name">
-                                            {{ getParticipantDisplayNickname(winner) }}
+                                            {{ displayNickname(winner) }}
                                         </span>
                                     </div>
                                 </div>
