@@ -2,7 +2,7 @@
 import Auth from './components/Auth.vue';
 import Footer from './components/Footer.vue';
 import { useAuthStore } from './stores/useAuthStore';
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 const showDropdown = ref(false);
 
@@ -15,6 +15,24 @@ const closeDropdown = () => {
 };
 
 const authStore = useAuthStore();
+
+let closeHandler: ((e: MouseEvent) => void) | null = null;
+
+onMounted(() => {
+  closeHandler = (e: MouseEvent) => {
+    const dropdown = document.querySelector('.dropdown') as HTMLElement;
+    if (dropdown && !dropdown.contains(e.target as Node)) {
+      closeDropdown();
+    }
+  };
+  document.addEventListener('click', closeHandler);
+});
+
+onUnmounted(() => {
+  if (closeHandler) {
+    document.removeEventListener('click', closeHandler);
+  }
+});
 </script>
 
 <template>
