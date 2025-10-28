@@ -288,11 +288,11 @@ watch(
           <tr>
             <th class="recoltes small" data-label="Name">Pseudo</th>
             <th class="recoltes small" data-label="Name">Nom</th>
-            <th class="recoltes small" data-label="Pseudo Name">Discord</th>
-            <th class="recoltes small" data-label="Email">Email</th>
-            <th class="recoltes small" data-label="Role">Role</th>
-            <th class="recoltes small" data-label="Active">Active</th>
-            <th class="recoltes small" data-label="Last Session">Last Session</th>
+            <th class="recoltes small hideonmobile" data-label="Pseudo Name">Discord</th>
+            <th class="recoltes small hideonmobile" data-label="Email">Email</th>
+            <th class="recoltes small hideonmobile" data-label="Role">Role</th>
+            <th class="recoltes small hideonmobile" data-label="Active">Active</th>
+            <th class="recoltes small hideonmobile" data-label="Last Session">Last Session</th>
             <th class="recoltes small" data-label="Actions"></th>
           </tr>
         </thead>
@@ -300,14 +300,14 @@ watch(
           <tr v-for="user in filteredUsers" :key="user.id">
             <td data-label="Pseudo">{{ user.nickname.charAt(0).toUpperCase() + user.nickname.slice(1) }}</td>
             <td data-label="Nom">{{ user.name }}</td>
-            <td data-label="Pseudo Discord">{{ user.discord }}</td>
-            <td data-label="Email">{{ user.email }}</td>
-            <td data-label="Role">{{ user.role }}</td>
-            <td data-label="Active">
+            <td class="hideonmobile" data-label="Pseudo Discord">{{ user.discord }}</td>
+            <td class="hideonmobile" data-label="Email">{{ user.email }}</td>
+            <td class="hideonmobile" data-label="Role">{{ user.role }}</td>
+            <td class="hideonmobile" data-label="Active">
               <span v-if="user.is_active">✔️</span>
               <span v-else>❌</span>
             </td>
-            <td data-label="Last Session">
+            <td class="hideonmobile" data-label="Last Session">
               <ul v-if="user.tokens && user.tokens.length" class="token-list">
                 <li v-for="token in user.tokens" :key="token.created_at">
                   <strong>{{ new Date(token.created_at).toLocaleDateString() }}</strong>
