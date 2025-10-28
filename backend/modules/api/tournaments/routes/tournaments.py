@@ -22,7 +22,7 @@ from modules.api.tournaments.schemas import (
     ParticipantResponse,
     PlayerResponse,
     TournamentFullDetailSchema,
-    SwapPlayersRequest
+    SwapPlayersRequest,
 )
 from modules.api.users.functions import get_current_user
 from modules.api.users.models import User
@@ -778,8 +778,8 @@ def create_participant(
 @tournaments_router.delete(
     "/{tournament_id}/participants/{participant_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a team participant",
-    description="Deletes a team participant with exactly two users from a tournament in double mode, keeping the users' registrations intact. Requires admin or editor privileges.",
+    summary="Delete a participant",
+    description="Deletes a participant (team in double mode or player in single mode) from a tournament, keeping the users' registrations intact if applicable. Requires admin or editor privileges.",
 )
 def delete_participant(
     tournament_id: int,
@@ -801,11 +801,6 @@ def delete_participant(
             status_code=400,
             detail="Cannot delete participants from a tournament that is not open",
         )
-    if tournament.mode != "double":
-        raise HTTPException(
-            status_code=400,
-            detail="Participant deletion is only allowed in double mode",
-        )
 
     # Verify participant exists
     participant = (
@@ -818,16 +813,24 @@ def delete_participant(
     if not participant:
         raise HTTPException(status_code=404, detail="Participant not found")
 
-    # Verify participant has exactly two users
-    member_count = (
+    # Get member count
+    members = (
         db.query(ParticipantMember)
         .filter(ParticipantMember.participant_id == participant_id)
-        .count()
+        .all()
     )
-    if member_count != 2:
+    member_count = len(members)
+
+    # Mode-specific validation
+    if tournament.mode == "double" and member_count != 2:
         raise HTTPException(
             status_code=400,
-            detail="Participant must have exactly two users to be deleted",
+            detail="Team participant must have exactly two users to be deleted",
+        )
+    elif tournament.mode == "single" and member_count > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Single mode participant cannot have more than one user",
         )
 
     # Delete associated MatchPlayer entries
@@ -846,6 +849,16 @@ def delete_participant(
             pool_participant_association.c.participant_id == participant_id
         )
     )
+
+    # For single mode with 1 member, also delete the associated registration
+    if tournament.mode == "single" and member_count == 1:
+        user_id = members[0].user_id
+        db.execute(
+            delete(TournamentRegistration).where(
+                TournamentRegistration.user_id == user_id,
+                TournamentRegistration.tournament_id == tournament_id,
+            )
+        )
 
     # Delete ParticipantMember entries
     db.execute(
@@ -1126,14 +1139,22 @@ def swap_players(
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
     if tournament.status != "finished":
-        raise HTTPException(status_code=400, detail="Only applicable to finished tournaments")
+        raise HTTPException(
+            status_code=400, detail="Only applicable to finished tournaments"
+        )
     if tournament.mode != "single":
-        raise HTTPException(status_code=400, detail="Only supported for single-player mode")
+        raise HTTPException(
+            status_code=400, detail="Only supported for single-player mode"
+        )
 
-    wrong_participant = db.query(Participant).filter(
-        Participant.id == swap_data.wrong_participant_id,
-        Participant.tournament_id == tournament_id
-    ).first()
+    wrong_participant = (
+        db.query(Participant)
+        .filter(
+            Participant.id == swap_data.wrong_participant_id,
+            Participant.tournament_id == tournament_id,
+        )
+        .first()
+    )
     if not wrong_participant:
         raise HTTPException(status_code=404, detail="Wrong participant not found")
 
@@ -1142,42 +1163,54 @@ def swap_players(
         raise HTTPException(status_code=404, detail="Correct user not found")
 
     # Ensure correct_user has no existing participant in this tournament
-    existing_member = db.query(ParticipantMember).join(
-        Participant, ParticipantMember.participant_id == Participant.id
-    ).filter(
-        ParticipantMember.user_id == swap_data.correct_user_id,
-        Participant.tournament_id == tournament_id
-    ).first()
+    existing_member = (
+        db.query(ParticipantMember)
+        .join(Participant, ParticipantMember.participant_id == Participant.id)
+        .filter(
+            ParticipantMember.user_id == swap_data.correct_user_id,
+            Participant.tournament_id == tournament_id,
+        )
+        .first()
+    )
     if existing_member:
         raise HTTPException(
-            status_code=400, detail="Correct user already has a participant in this tournament"
+            status_code=400,
+            detail="Correct user already has a participant in this tournament",
         )
 
     # Add registration for correct_user if missing
-    existing_reg = db.query(TournamentRegistration).filter(
-        TournamentRegistration.user_id == swap_data.correct_user_id,
-        TournamentRegistration.tournament_id == tournament_id
-    ).first()
+    existing_reg = (
+        db.query(TournamentRegistration)
+        .filter(
+            TournamentRegistration.user_id == swap_data.correct_user_id,
+            TournamentRegistration.tournament_id == tournament_id,
+        )
+        .first()
+    )
     if not existing_reg:
         reg = TournamentRegistration(
             user_id=swap_data.correct_user_id,
             tournament_id=tournament_id,
-            registration_date=datetime.now(UTC)
+            registration_date=datetime.now(UTC),
         )
         db.add(reg)
 
     # Get wrong_user from wrong_participant (assuming single mode: one member)
-    wrong_member = db.query(ParticipantMember).filter(
-        ParticipantMember.participant_id == swap_data.wrong_participant_id
-    ).first()
+    wrong_member = (
+        db.query(ParticipantMember)
+        .filter(ParticipantMember.participant_id == swap_data.wrong_participant_id)
+        .first()
+    )
     if not wrong_member:
-        raise HTTPException(status_code=400, detail="No member found for wrong participant")
+        raise HTTPException(
+            status_code=400, detail="No member found for wrong participant"
+        )
     wrong_user_id = wrong_member.user_id
 
     # Create new participant for correct_user
     new_participant = Participant(
         tournament_id=tournament_id,
-        name=None  # Single mode: no team name
+        name=None,  # Single mode: no team name
     )
     db.add(new_participant)
     db.commit()
@@ -1185,20 +1218,19 @@ def swap_players(
 
     # Link correct_user to new_participant
     new_member = ParticipantMember(
-        participant_id=new_participant.id,
-        user_id=swap_data.correct_user_id
+        participant_id=new_participant.id, user_id=swap_data.correct_user_id
     )
     db.add(new_member)
 
     # Transfer MatchPlayer entries (preserve scores)
-    old_match_players = db.query(MatchPlayer).filter(
-        MatchPlayer.participant_id == swap_data.wrong_participant_id
-    ).all()
+    old_match_players = (
+        db.query(MatchPlayer)
+        .filter(MatchPlayer.participant_id == swap_data.wrong_participant_id)
+        .all()
+    )
     for mp in old_match_players:
         new_mp = MatchPlayer(
-            match_id=mp.match_id,
-            participant_id=new_participant.id,
-            score=mp.score
+            match_id=mp.match_id, participant_id=new_participant.id, score=mp.score
         )
         db.add(new_mp)
         db.delete(mp)
@@ -1206,7 +1238,10 @@ def swap_players(
     # Transfer pool associations
     db.execute(
         pool_participant_association.update()
-        .where(pool_participant_association.c.participant_id == swap_data.wrong_participant_id)
+        .where(
+            pool_participant_association.c.participant_id
+            == swap_data.wrong_participant_id
+        )
         .values(participant_id=new_participant.id)
     )
 
@@ -1217,10 +1252,12 @@ def swap_players(
     db.execute(
         delete(TournamentRegistration).where(
             TournamentRegistration.user_id == wrong_user_id,
-            TournamentRegistration.tournament_id == tournament_id
+            TournamentRegistration.tournament_id == tournament_id,
         )
     )
 
     db.commit()
 
-    return {"message": "Players swapped successfully. Leaderboards will update on refresh."}
+    return {
+        "message": "Players swapped successfully. Leaderboards will update on refresh."
+    }
