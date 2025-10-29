@@ -12,6 +12,7 @@ from modules.api.inscriptions.schemas import (
 )
 import pandas as pd
 from io import BytesIO
+from collections import Counter
 
 inscription_router = APIRouter(prefix="/inscriptions", tags=["Inscriptions"])
 
@@ -236,6 +237,11 @@ def bulk_import_inscriptions_from_excel(
 
     inscriptions_to_create = []
 
+    # ✅ NOUVEAU : RÉCUPÉRER LES EXISTANTS POUR COMPARAISON ET VITESSE
+    existing_inscriptions = db.query(Inscription).filter(Inscription.date == sheet_name).all()
+    existing_by_key = {(inc.name, inc.surname, inc.club): inc for inc in existing_inscriptions}
+    id_to_player_number = {inc.id: inc.player_number for inc in existing_inscriptions}
+
     for idx, row in df.iterrows():
         try:
             name = str(row.get("name", "") or "").strip()
@@ -245,18 +251,6 @@ def bulk_import_inscriptions_from_excel(
             if not all([name, surname, club]):
                 skipped_count += 1
                 continue
-
-            # ✅ CHERCHER SI EXISTANT
-            existing_inscription = (
-                db.query(Inscription)
-                .filter(
-                    Inscription.name == name,
-                    Inscription.surname == surname,
-                    Inscription.club == club,
-                    Inscription.date == sheet_name,
-                )
-                .first()
-            )
 
             # CATEGORIE SIMPLE ET DOUBLE - SANS "nan"
             category_simple_raw = str(row.get("category_simple", "") or "").strip()
@@ -272,6 +266,11 @@ def bulk_import_inscriptions_from_excel(
                 if category_double_raw != "nan" and category_double_raw != ""
                 else None
             )
+
+            # ✅ SKIPPER SI AUCUNE CATÉGORIE
+            if category_simple is None and category_double is None:
+                skipped_count += 1
+                continue
 
             # PLAYER NUMBER
             player_number_raw = row.get("player_number")
@@ -299,13 +298,31 @@ def bulk_import_inscriptions_from_excel(
                     )
                     continue
 
+            # ✅ CHERCHER SI EXISTANT (via dict pour vitesse)
+            key = (name, surname, club)
+            existing_inscription = existing_by_key.get(key)
+
             if existing_inscription:
-                # ✅ MISE À JOUR
+                # ✅ COMPARER POUR DÉTECTER CHANGEMENT
+                existing_partner_pn = id_to_player_number.get(existing_inscription.doublette)
+
+                has_change = (
+                    category_simple != existing_inscription.category_simple
+                    or category_double != existing_inscription.category_double
+                    or player_number != existing_inscription.player_number
+                    or doublette_temp != existing_partner_pn
+                )
+
+                # ✅ TOUJOURS METTRE À JOUR (pour cohérence doublette)
                 existing_inscription.category_simple = category_simple
                 existing_inscription.category_double = category_double
                 existing_inscription.doublette = doublette_temp  # Temp
                 existing_inscription.player_number = player_number
-                updated_count += 1
+
+                # ✅ COMPTER SEULEMENT SI CHANGEMENT
+                if has_change:
+                    updated_count += 1
+                # else: pas de count, ligne inchangée
             else:
                 # ✅ CRÉATION
                 new_inscription = Inscription(
@@ -330,7 +347,7 @@ def bulk_import_inscriptions_from_excel(
     db.commit()
 
     # ✅ RÉSOLUTION DES DOUBLETTES EN DB IDs
-    # Fetch all for this date
+    # Fetch all for this date (avec updates appliqués)
     date_inscriptions = (
         db.query(Inscription).filter(Inscription.date == sheet_name).all()
     )
@@ -342,7 +359,7 @@ def bulk_import_inscriptions_from_excel(
         if inc.player_number is not None
     }
 
-    # Update doublette to DB id
+    # Update doublette to DB id (toutes sont en temp maintenant)
     for inc in date_inscriptions:
         if inc.doublette is not None:
             partner_id = player_to_id.get(inc.doublette)
@@ -355,6 +372,20 @@ def bulk_import_inscriptions_from_excel(
 
     db.commit()
 
+    # ✅ COMPTAGE DES CATÉGORIES
+
+    simple_counts = Counter()
+    double_counts = Counter()
+
+    for inc in date_inscriptions:
+        if inc.category_simple:
+            simple_counts[inc.category_simple] += 1
+        if inc.category_double:
+            double_counts[inc.category_double] += 1
+
+    cat_s_totals = {cat: simple_counts.get(cat, 0) for cat in ["M", "V", "J", "F"]}
+    cat_d_totals = {cat: double_counts.get(cat, 0) for cat in ["F", "M"]}
+
     return {
         "created": created_count,
         "updated": updated_count,
@@ -364,6 +395,8 @@ def bulk_import_inscriptions_from_excel(
         "total_processed": len(df),
         "errors": errors,
         "detail": f"Bulk import completed for '{sheet_name}'",
+        "cat_s_totals": cat_s_totals,
+        "cat_d_totals": cat_d_totals,
     }
 
 
