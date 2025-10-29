@@ -89,7 +89,7 @@
                             </select>
                         </label>
                         <div>
-                            <button @click="swapPlayers" :disabled="!wrongPlayerId || !correctPlayerId">Confirmer
+                            <button :disabled="!wrongPlayerId || !correctPlayerId" @click="swapPlayers">Confirmer
                                 l'échange</button>
                             <button @click="cancelSwap">Annuler</button>
                         </div>

@@ -278,7 +278,7 @@ watch(
     <div v-if="users.length" class="module">
       <div class="toggle-guests">
         <label>
-          <input type="checkbox" v-model="showGuests" />
+          <input v-model="showGuests" type="checkbox" />
           Afficher les Guests
         </label>
       </div>
