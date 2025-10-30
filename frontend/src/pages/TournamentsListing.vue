@@ -13,7 +13,7 @@
                     </div>
                     <p class="info">📅 {{ formatDate(tournament.start_date) }}</p>
                     <p class="info">{{ formatFee(fees[tournament.id]) }}</p>
-                    <p class="info">{{ tournament.description || '' }}</p>
+                    <p class="info">📍 {{ tournament.description || '' }}</p>
                 </div>
                 <img :src="getTournamentImage(tournament.id)" alt="Affiche du tournoi" class="tournament-image"
                     :key="tournament.id">
@@ -28,7 +28,7 @@
         <div v-if="selectedTournament" class="tournament-modal" @click.self="selectedTournament = null">
             <div class="modal-content">
                 <h3>{{ selectedTournament.name }}</h3>
-                <p>{{ selectedTournament.description || 'Aucune description' }}</p>
+                <p v-if="selectedTournament.description" v-html="`<strong>Adresse :</strong> ${selectedTournament.description}`"></p>
                 <p><strong>Date :</strong> {{ formatDate(selectedTournament.start_date) }}</p>
                 <p><strong>Mode :</strong> {{ getModeLabel(selectedTournament.mode) }}</p>
                 <p>{{ formatFee(fees[selectedTournament.id]) }}</p>
@@ -81,7 +81,7 @@
             <div class="modal-content">
                 <h3>Ajouter un tournoi</h3>
                 <input v-model="newTournamentName" placeholder="Nom" class="form-input" />
-                <input v-model="newTournamentDescription" placeholder="Description" class="form-input" />
+                <input v-model="newTournamentDescription" placeholder="Adresse" class="form-input" />
                 <input v-model="newTournamentStartDate" type="datetime-local" class="form-input" />
                 <select v-model="newTournamentMode" class="form-input">
                     <option value="single">Simple</option>
