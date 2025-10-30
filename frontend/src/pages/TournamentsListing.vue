@@ -12,7 +12,7 @@
                         <span>{{ getStatusLabel(tournament.status) }}</span>
                     </div>
                     <p class="info">📅 {{ formatDate(tournament.start_date) }}</p>
-                    <p class="info">{{ formatFee(fees[tournament.id]) }}</p>
+                    <p class="info">💸 {{ formatFee(fees[tournament.id]) }}</p>
                     <p class="info">📍 {{ tournament.description || '' }}</p>
                 </div>
                 <img :src="getTournamentImage(tournament.id)" alt="Affiche du tournoi" class="tournament-image"
@@ -31,7 +31,7 @@
                 <p v-if="selectedTournament.description" v-html="`<strong>Adresse :</strong> ${selectedTournament.description}`"></p>
                 <p><strong>Date :</strong> {{ formatDate(selectedTournament.start_date) }}</p>
                 <p><strong>Mode :</strong> {{ getModeLabel(selectedTournament.mode) }}</p>
-                <p>{{ formatFee(fees[selectedTournament.id]) }}</p>
+                <p><strong>Prix :</strong> {{ formatFee(fees[selectedTournament.id]) }}</p>
 
                 <div v-if="selectedTournament.status === 'open'">
                     <button v-if="!registrationStatus[selectedTournament.id]"
@@ -44,7 +44,7 @@
                             désinscrire</button>
                     </div>
                 </div>
-                <p v-else-if="selectedTournament.status === 'closed' || selectedTournament.status === 'finished'">{{
+                <p v-else-if="selectedTournament.status === 'closed' || selectedTournament.status === 'finished'"><strong>Etat :</strong> {{
                     getStatusLabel(selectedTournament.status) }}</p>
 
                 <div v-if="selectedTournament.status === 'open'" class="participants">
@@ -158,7 +158,7 @@ const formatDate = (date: string) => new Date(date).toLocaleString('fr-FR', { da
 
 const formatFee = (fee?: number) => {
     if (fee === undefined || fee === null || fee === 0) return 'Tournoi gratuit';
-    return `💰 Inscription : ${fee.toFixed(2)} €`;
+    return `Inscription : ${fee.toFixed(2)} €`;
 };
 
 const toggleCreateTournamentForm = () => {
