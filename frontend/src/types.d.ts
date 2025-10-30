@@ -1,8 +1,12 @@
-interface User {
-  id: number;
-  name: string;
-  nickname: string;
-  discord: string;
+type User = {
+  id: number
+  name: string | 'Inconnu'
+  nickname: string
+  discord: string | 'Inconnu'
+  email: string
+  role: string
+  is_active: boolean
+  tokens: { created_at: string, expires_at: string, revoked: boolean }[]
 }
 
 type Participant = {

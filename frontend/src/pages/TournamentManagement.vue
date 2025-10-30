@@ -535,6 +535,9 @@ const wrongPlayerId = ref<number | null>(null);
 const correctPlayerId = ref<number | null>(null);
 const swapPreview = ref<string>('');
 
+const MIN_POOL_SIZE = 4; // Min joueurs par pool pour viabilité round-robin
+const IDEAL_POOL_SIZE = 6; // Taille idéale pour équilibre vitesse/équité
+
 // Computed pour l'aperçu
 const swapPreviewComputed = computed(() => {
     if (!wrongPlayerId.value || !correctPlayerId.value) return '';
@@ -1157,22 +1160,33 @@ async function launchTournament() {
                     throw new Error("Nombre impair de participants non supporté en mode élimination sans ajustement");
                 }
             } else {
-                // Utiliser launchTargetCount, mais limiter entre minPossiblePools et maxPossiblePools
-                numPools = Math.max(minPossiblePools, Math.min(launchTargetCount.value, maxPossiblePools));
+                // Mode manual pool : limiter aux cibles disponibles (1 cible = 1 pool)
+                const maxPoolsFromTargets = launchTargetCount.value || 1;
+                numPools = Math.max(minPossiblePools, Math.min(maxPoolsFromTargets, maxPossiblePools));
+                toast.info(`Mode manual : ${numPools} poules créées (limitées à ${maxPoolsFromTargets} cibles).`);
             }
         } else {
-            // Mode automatique : utiliser launchTargetCount si défini, sinon fallback sur une logique par défaut
-            if (effectiveN <= 4) {
+            // Mode automatique : logique adaptative basée sur cibles et tailles
+            const numTargets = launchTargetCount.value || 1; // Fallback si non saisi
+            if (effectiveN < MIN_POOL_SIZE * 2) {
+                // Trop peu de joueurs : forcer élimination pour fluidité (ex. : 3 joueurs → 1-2 matchs directs)
                 tournamentType = 'elimination';
                 numPools = 0;
+                toast.info(`Avec ${effectiveN} participants, passage en élimination directe (pas de poules viables).`);
             } else {
                 tournamentType = 'pool';
-                if (launchTargetCount.value > 0) {
-                    numPools = Math.max(minPossiblePools, Math.min(launchTargetCount.value, maxPossiblePools));
-                } else {
-                    // Logique par défaut : viser environ 3 à 5 joueurs par poule pour 9 à 13 participants
-                    numPools = Math.max(minPossiblePools, Math.min(Math.ceil(effectiveN / 4), maxPossiblePools));
+                // Calcul pools : min(cibles, ceil(effectiveN / idéal)), ajusté pour >= MIN_POOL_SIZE par pool
+                const proposedPools = Math.ceil(effectiveN / IDEAL_POOL_SIZE);
+                const maxPoolsFromTargets = Math.min(numTargets, maxPossiblePools);
+                numPools = Math.max(minPossiblePools, Math.min(maxPoolsFromTargets, proposedPools));
+                
+                // Ajustement final : si pools trop nombreuses pour MIN_POOL_SIZE, réduire
+                const totalWithMinSize = numPools * MIN_POOL_SIZE;
+                if (totalWithMinSize > effectiveN) {
+                    numPools = Math.ceil(effectiveN / MIN_POOL_SIZE);
                 }
+                
+                toast.success(`Mode auto : ${numPools} poules sur ${numTargets} cibles disponibles (taille idéale ~${IDEAL_POOL_SIZE}).`);
             }
         }
 

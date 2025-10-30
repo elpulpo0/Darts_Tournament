@@ -6,17 +6,6 @@ import { toast } from 'vue3-toastify'
 import { useAuthStore } from '../stores/useAuthStore'
 const authStore = useAuthStore();
 
-type User = {
-  id: number
-  name: string | 'Inconnu'
-  nickname: string
-  discord: string | 'Inconnu'
-  email: string
-  role: string
-  is_active: boolean
-  tokens: { created_at: string, expires_at: string, revoked: boolean }[]
-}
-
 const users = ref<User[]>([])
 const filteredUsers = computed(() => showGuests.value ? users.value : users.value.filter((user: User) => typeof user.name !== 'string' || !user.name.startsWith('Guest ')));
 const showGuests = ref(false);
