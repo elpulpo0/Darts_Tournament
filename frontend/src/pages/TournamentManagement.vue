@@ -23,7 +23,7 @@
                     <label>Nom :
                         <input v-model="editForm.name" class="form-input" />
                     </label>
-                    <label>Description :
+                    <label>Adresse :
                         <textarea v-model="editForm.description" class="form-input" />
                     </label>
                     <label>Date de début :
