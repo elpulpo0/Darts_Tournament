@@ -12,6 +12,7 @@
                         <span>{{ getStatusLabel(tournament.status) }}</span>
                     </div>
                     <p class="info">📅 {{ formatDate(tournament.start_date) }}</p>
+                    <p class="info">{{ formatFee(fees[tournament.id]) }}</p>
                     <p class="info">{{ tournament.description || '' }}</p>
                 </div>
                 <img :src="getTournamentImage(tournament.id)" alt="Affiche du tournoi" class="tournament-image"
@@ -30,6 +31,7 @@
                 <p>{{ selectedTournament.description || 'Aucune description' }}</p>
                 <p><strong>Date :</strong> {{ formatDate(selectedTournament.start_date) }}</p>
                 <p><strong>Mode :</strong> {{ getModeLabel(selectedTournament.mode) }}</p>
+                <p>{{ formatFee(fees[selectedTournament.id]) }}</p>
 
                 <div v-if="selectedTournament.status === 'open'">
                     <button v-if="!registrationStatus[selectedTournament.id]"
@@ -112,6 +114,10 @@ const authStore = useAuthStore();
 const router = useRouter();
 const tournamentStore = useTournamentStore();
 
+const fees: Record<number, number> = {
+    4: 3,
+};
+
 const selectedTournament = ref<Tournament | null>(null);
 const loading = ref(false);
 const showCreateTournament = ref(false);
@@ -149,6 +155,11 @@ const getModeLabel = (mode: Tournament['mode']) => {
 };
 
 const formatDate = (date: string) => new Date(date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+
+const formatFee = (fee?: number) => {
+    if (fee === undefined || fee === null || fee === 0) return 'Tournoi gratuit';
+    return `💰 Inscription : ${fee.toFixed(2)} €`;
+};
 
 const toggleCreateTournamentForm = () => {
     showCreateTournament.value = !showCreateTournament.value;
