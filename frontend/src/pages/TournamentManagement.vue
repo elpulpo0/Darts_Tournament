@@ -11,7 +11,7 @@
                     <p>Nom : {{ tournament.name }}</p>
                     <p>Type : {{ tournament.type || 'Non défini' }}</p>
                     <p>Mode : {{ tournament.mode || 'Non défini' }}</p>
-                    <p>Description : {{ tournament.description || 'Aucune description' }}</p>
+                    <p>Adresse : {{ tournament.description || 'Aucune description' }}</p>
                     <p>Date de début : {{ new Date(tournament.start_date.split('T')[0]).toLocaleDateString() }}</p>
                     <p>Statut : {{ tournament.status }}</p>
                     <button @click="startEditing">Modifier le tournoi</button>
