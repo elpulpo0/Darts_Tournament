@@ -33,6 +33,15 @@ class NotifyUserLogin:
         self.type = type
 
 
+# Classe simplifiée pour les confirmations PayPal
+class NotifyPaymentConfirmation:
+    def __init__(self, buyer_name, product, amount, type="paymentConfirmed"):
+        self.buyer_name = buyer_name
+        self.product = product
+        self.amount = amount
+        self.type = type
+
+
 def notify_telegram(user):
     if user.type == "userCreate":
         message = (
@@ -53,6 +62,13 @@ def notify_telegram(user):
             "<b>📝 New registration detected!</b>\n\n"
             f"<b>👤 Name:</b> {user.nickname}\n"
             f"<b>🏆 Tournament:</b> {user.tournamentName}\n"
+        )
+    # Bloc simplifié pour les paiements PayPal
+    elif user.type == "paymentConfirmed":
+        message = (
+            f"Nom de l'acheteur: {user.buyer_name}\n"
+            f"Produit: {user.product}\n"
+            f"Montant: {user.amount} €"
         )
     else:
         logger.error(f"Unknown user type: {user.type}")

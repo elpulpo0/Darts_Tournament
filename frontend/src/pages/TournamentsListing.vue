@@ -28,7 +28,8 @@
         <div v-if="selectedTournament" class="tournament-modal" @click.self="selectedTournament = null">
             <div class="modal-content">
                 <h3>{{ selectedTournament.name }}</h3>
-                <p v-if="selectedTournament.description" v-html="`<strong>Adresse :</strong> ${selectedTournament.description}`"></p>
+                <p v-if="selectedTournament.description"
+                    v-html="`<strong>Adresse :</strong> ${selectedTournament.description}`"></p>
                 <p><strong>Date :</strong> {{ formatDate(selectedTournament.start_date) }}</p>
                 <p><strong>Mode :</strong> {{ getModeLabel(selectedTournament.mode) }}</p>
                 <p><strong>Prix :</strong> {{ formatFee(fees[selectedTournament.id]) }}</p>
@@ -43,9 +44,21 @@
                         <button @click="unregisterFromTournament(selectedTournament.id)">Se
                             désinscrire</button>
                     </div>
+                    <div
+                        v-if="registrationStatus[selectedTournament.id] && fees[selectedTournament.id] > 0 && authStore.nickname == 'El Pulpo'">
+                        <form action="https://www.paypal.com/ncp/payment/6386LFJYNC53E" method="post" target="_blank"
+                            style="display:inline-grid;justify-items:center;align-content:start;gap:0.5rem;">
+                            <input type="hidden" name="custom" :value="`${authStore.nickname} (${authStore.name})`" />
+                            <button style="background-color: #FFD140;" type="submit">Payer via <img
+                                    src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg"
+                                    alt="paypal" style="height:0.875rem;vertical-align:middle;" /></button>
+                        </form>
+                    </div>
                 </div>
-                <p v-else-if="selectedTournament.status === 'closed' || selectedTournament.status === 'finished'"><strong>Etat :</strong> {{
-                    getStatusLabel(selectedTournament.status) }}</p>
+                <p v-else-if="selectedTournament.status === 'closed' || selectedTournament.status === 'finished'">
+                    <strong>Etat :</strong> {{
+                        getStatusLabel(selectedTournament.status) }}
+                </p>
 
                 <div v-if="selectedTournament.status === 'open'" class="participants">
                     <h4>Participants ({{ tournamentStore.participants?.length || 0 }})</h4>

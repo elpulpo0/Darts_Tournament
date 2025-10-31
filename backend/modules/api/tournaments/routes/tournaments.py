@@ -338,7 +338,7 @@ def register_to_tournament(
             tournamentName=tournament.name,
             type="userRegister",
         )
-    notify_telegram(notify_user)
+        notify_telegram(notify_user)
 
     return TournamentRegistrationResponse(
         id=first_registration.id,

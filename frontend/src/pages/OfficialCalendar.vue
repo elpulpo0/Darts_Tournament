@@ -102,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import backendApi from '../axios/backendApi';
 import { toast } from 'vue3-toastify';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -308,10 +308,6 @@ const updateEvent = async () => {
         handleError(err, 'mise à jour du tournoi');
     }
 };
-
-watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
-    if (isAuthenticated) eventStore.fetchEvents();
-}, { immediate: true });
 
 onMounted(async () => {
     if (authStore.isAuthenticated) {
