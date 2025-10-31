@@ -1,10 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from modules.database.dependencies import get_users_db
-from modules.api.tournaments.models import (
-    Tournament,
-)
-from modules.api.users.models import User
 from modules.api.users.telegram import notify_telegram, NotifyPaymentConfirmation
 
 import requests
@@ -56,39 +52,18 @@ async def paypal_ipn_handler(request: Request, db: Session = Depends(get_users_d
     # Récupérer montant
     mc_gross = float(params.get("mc_gross", 0))
 
-    # Parser custom
-    custom = params.get("custom", "")
-    if not custom:
-        raise HTTPException(status_code=400, detail="Missing custom data")
-
-    custom_parts = custom.split(",")
-    user_id = int(custom_parts[0].split(":")[1]) if len(custom_parts) > 0 else None
-    tournament_id = (
-        int(custom_parts[1].split(":")[1]) if len(custom_parts) > 1 else None
-    )
-
-    if not user_id or not tournament_id:
-        raise HTTPException(status_code=400, detail="Invalid custom format")
-
-    # Récupérer user et tournament
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
-    if not tournament:
-        raise HTTPException(status_code=404, detail="Tournament not found")
-
     # Nom acheteur depuis PayPal
     first_name = params.get("first_name", "")
     last_name = params.get("last_name", "")
-    buyer_name = f"{first_name} {last_name}".strip() or user.nickname
+    buyer_name = f"{first_name} {last_name}".strip()
+
+    item = params.get("item_name1", "")
 
     # Notification Telegram
     # if not os.getenv("TEST_MODE") and os.getenv("ENV") != "dev":
     notify_user = NotifyPaymentConfirmation(
         buyer_name=buyer_name,
-        product=tournament.name,
+        product=item,
         amount=mc_gross,
     )
     notify_telegram(notify_user)

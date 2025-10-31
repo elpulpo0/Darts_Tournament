@@ -48,7 +48,6 @@
                         v-if="registrationStatus[selectedTournament.id] && fees[selectedTournament.id] > 0 && authStore.nickname == 'El Pulpo'">
                         <form action="https://www.paypal.com/ncp/payment/6386LFJYNC53E" method="post" target="_blank"
                             style="display:inline-grid;justify-items:center;align-content:start;gap:0.5rem;">
-                            <input type="hidden" name="custom" :value="`${authStore.nickname} (${authStore.name})`" />
                             <button style="background-color: #FFD140;" type="submit">Payer via <img
                                     src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg"
                                     alt="paypal" style="height:0.875rem;vertical-align:middle;" /></button>
