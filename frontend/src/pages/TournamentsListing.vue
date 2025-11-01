@@ -53,8 +53,7 @@
                         <button @click="unregisterFromTournament(selectedTournament.id)">Se
                             désinscrire</button>
                     </div>
-                    <div v-if="registrationStatus[selectedTournament.id] && fees[selectedTournament.id] > 0 &&
-                        ['El Pulpo', 'Pamplemousse', 'Léa', 'Slibar'].includes(authStore.nickname)">
+                    <div v-if="registrationStatus[selectedTournament.id] && fees[selectedTournament.id] > 0">
                         <button v-if="!paymentStatus[selectedTournament.id]"
                             style="background-color: #635bff; color: white;"
                             @click="payWithStripe(selectedTournament.id)">
