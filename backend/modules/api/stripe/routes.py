@@ -98,15 +98,11 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_users_db)):
         # Récup infos user/tournoi depuis metadata
         user_id = int(metadata.get("user_id"))
         tournament_id = int(metadata.get("tournament_id"))
-        buyer_name = metadata.get("nickname", "Inconnu")  # Ou full name si ajouté
 
         # Optionnel: Query DB pour plus d'infos user (ex: si metadata incomplet)
         user = db.query(User).filter(User.id == user_id).first()
         if user:
-            buyer_name = (
-                user.name or buyer_name
-            )  # Utilise name si dispo, fallback nickname
-            # Ajoute d'autres infos si needed (ex: email = user.email)
+            buyer_name = user.name if user.name else user.nickname
 
         tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
         if not tournament:
