@@ -34,9 +34,15 @@
                     v-html="`<strong>Adresse :</strong> ${selectedTournament.description}`"></p>
                 <p><strong>Date :</strong> {{ formatDate(selectedTournament.start_date) }}</p>
                 <p><strong>Mode :</strong> {{ getModeLabel(selectedTournament.mode) }}</p>
-                <p v-if="fees[selectedTournament.id] > 0"><strong>Inscription :</strong> {{
-                    (fees[selectedTournament.id]).toFixed(2) }} €</p>
-                <p v-else><strong>Tournoi Gratuit</strong></p>
+                <p v-if="fees[selectedTournament.id] > 0 && paymentStatus[selectedTournament.id]">
+                    <strong>Inscription :</strong> {{ (fees[selectedTournament.id]).toFixed(2) }}€ <b>(Payé ✔️)</b>
+                </p>
+                <p v-else-if="fees[selectedTournament.id] > 0">
+                    <strong>Inscription :</strong> {{ (fees[selectedTournament.id]).toFixed(2) }}€
+                </p>
+                <p v-else>
+                    <strong>Tournoi Gratuit</strong>
+                </p>
 
                 <div v-if="selectedTournament.status === 'open'">
                     <button v-if="!registrationStatus[selectedTournament.id]"
@@ -48,9 +54,9 @@
                             désinscrire</button>
                     </div>
                     <div v-if="registrationStatus[selectedTournament.id] && fees[selectedTournament.id] > 0 &&
-                        authStore.nickname == 'El Pulpo'">
-                        <p v-if="paymentStatus[selectedTournament.id]"><b>Payé ✅</b></p>
-                        <button v-else style="background-color: #635bff; color: white;"
+                        ['El Pulpo', 'Pamplemousse', 'Léa', 'Slibar'].includes(authStore.nickname)">
+                        <button v-if="!paymentStatus[selectedTournament.id]"
+                            style="background-color: #635bff; color: white;"
                             @click="payWithStripe(selectedTournament.id)">
                             Payer via Stripe
                         </button>
@@ -116,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import backendApi from '../axios/backendApi';
 import { toast } from 'vue3-toastify'
@@ -302,20 +308,22 @@ const payWithStripe = async (tournamentId: number) => {
     }
 };
 
-// Gérer les query params de retour Stripe
-onMounted(() => {
+const handleStripeResponse = () => {
     if (route.query.success === 'true') {
         toast.success('Paiement réussi !');
-        // Optionnel : recharger les tournois ou le statut paiement
         tournamentStore.fetchTournaments();
-        // Nettoyer l'URL
-        router.replace({ query: {} });
+        setTimeout(() => {
+            router.replace({ query: {} });
+        }, 3000);
     } else if (route.query.cancel === 'true') {
         toast.error('Paiement annulé.');
-        // Nettoyer l'URL
-        router.replace({ query: {} });
+        setTimeout(() => {
+            router.replace({ query: {} });
+        }, 3000);
     }
-});
+};
+
+watch(() => route.query, handleStripeResponse, { deep: true, immediate: true });
 </script>
 
 <style scoped>
