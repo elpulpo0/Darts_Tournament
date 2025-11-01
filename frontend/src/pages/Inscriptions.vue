@@ -37,7 +37,7 @@
                     <p>Total d'inscrits en simple : {{ dateGroup.simpleTotal }}</p>
                     <p>Nombre total d'équipes en double : {{ dateGroup.doubleTeams }}</p>
                 </div>
-                
+
                 <table class="leaderboardtable">
                     <thead>
                         <tr>
@@ -55,7 +55,12 @@
                             <td class="club">{{ getClubName(inscription.club) }}</td>
                             <td class="hideonmobile">{{ formatCategory(inscription.category_simple) }}</td>
                             <td class="hideonmobile">{{ formatCategory(inscription.category_double) }}</td>
-                            <td class="hideonmobile">{{ getDoubletteDisplay(inscription) }}</td>
+                            <td class="hideonmobile">
+                                <span v-if="!inscription.category_double">-</span>
+                                <span v-else-if="!getDoubletteDisplay(inscription)" class="current-user">Cherche
+                                    doublette</span>
+                                <span v-else>{{ getDoubletteDisplay(inscription) }}</span>
+                            </td>
                         </tr>
                     </tbody>
                     <p v-else class="no-entries">Aucune inscription pour cette date.</p>
@@ -190,7 +195,7 @@ const getClubName = (clubCode: string) => {
 };
 
 const formatCategory = (category: string | null) => {
-    if (!category) return '';
+    if (!category) return '-';
     return categoryMapping[category] || category;
 };
 
