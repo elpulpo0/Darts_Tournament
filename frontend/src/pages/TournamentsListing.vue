@@ -12,7 +12,9 @@
                         <span>{{ getStatusLabel(tournament.status) }}</span>
                     </div>
                     <p class="info">📅 {{ formatDate(tournament.start_date) }}</p>
-                    <p class="info">💸 {{ formatFee(fees[tournament.id]) }}</p>
+                    <p class="info">💸 {{ fees[tournament.id] > 0 ? 'Inscription : ' + (fees[tournament.id]).toFixed(2)
+                        + '€' :
+                        'Tournoi gratuit' }}</p>
                     <p class="info">📍 {{ tournament.description || '' }}</p>
                 </div>
                 <img :src="getTournamentImage(tournament.id)" alt="Affiche du tournoi" class="tournament-image"
@@ -32,7 +34,9 @@
                     v-html="`<strong>Adresse :</strong> ${selectedTournament.description}`"></p>
                 <p><strong>Date :</strong> {{ formatDate(selectedTournament.start_date) }}</p>
                 <p><strong>Mode :</strong> {{ getModeLabel(selectedTournament.mode) }}</p>
-                <p><strong>Prix :</strong> {{ formatFee(fees[selectedTournament.id]) }}</p>
+                <p v-if="fees[selectedTournament.id] > 0"><strong>Inscription :</strong> {{
+                    (fees[selectedTournament.id]).toFixed(2) }} €</p>
+                <p v-else><strong>Tournoi Gratuit</strong></p>
 
                 <div v-if="selectedTournament.status === 'open'">
                     <button v-if="!registrationStatus[selectedTournament.id]"
@@ -40,13 +44,12 @@
                         S’inscrire
                     </button>
                     <div v-else>
-                        <p>Vous êtes inscrit.</p>
                         <button @click="unregisterFromTournament(selectedTournament.id)">Se
                             désinscrire</button>
                     </div>
                     <div v-if="registrationStatus[selectedTournament.id] && fees[selectedTournament.id] > 0 &&
                         authStore.nickname == 'El Pulpo'">
-                        <p v-if="paymentStatus[selectedTournament.id]">Payé ✅</p>
+                        <p v-if="paymentStatus[selectedTournament.id]"><b>Payé ✅</b></p>
                         <button v-else style="background-color: #635bff; color: white;"
                             @click="payWithStripe(selectedTournament.id)">
                             Payer via Stripe
@@ -113,7 +116,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import backendApi from '../axios/backendApi';
 import { toast } from 'vue3-toastify'
 import { useAuthStore } from '../stores/useAuthStore';
@@ -123,6 +127,7 @@ import { useTournamentStore } from '../stores/useTournamentStore';
 
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const tournamentStore = useTournamentStore();
 
 const fees: Record<number, number> = {
@@ -167,11 +172,6 @@ const getModeLabel = (mode: Tournament['mode']) => {
 };
 
 const formatDate = (date: string) => new Date(date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
-
-const formatFee = (fee?: number) => {
-    if (fee === undefined || fee === null || fee === 0) return 'Tournoi gratuit';
-    return `Inscription : ${fee.toFixed(2)} €`;
-};
 
 const toggleCreateTournamentForm = () => {
     showCreateTournament.value = !showCreateTournament.value;
@@ -301,6 +301,21 @@ const payWithStripe = async (tournamentId: number) => {
         handleError(err, 'paiement Stripe');
     }
 };
+
+// Gérer les query params de retour Stripe
+onMounted(() => {
+    if (route.query.success === 'true') {
+        toast.success('Paiement réussi !');
+        // Optionnel : recharger les tournois ou le statut paiement
+        tournamentStore.fetchTournaments();
+        // Nettoyer l'URL
+        router.replace({ query: {} });
+    } else if (route.query.cancel === 'true') {
+        toast.error('Paiement annulé.');
+        // Nettoyer l'URL
+        router.replace({ query: {} });
+    }
+});
 </script>
 
 <style scoped>

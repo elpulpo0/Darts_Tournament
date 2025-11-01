@@ -11,6 +11,10 @@ from modules.api.users.functions import get_current_user
 from modules.api.users.telegram import notify_telegram, NotifyPaymentConfirmation
 import stripe
 import os
+from typing import List
+from modules.api.tournaments.schemas import (
+    TournamentPaymentResponse,
+)
 
 # Initialise Stripe avec ta clé secrète
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
@@ -20,6 +24,40 @@ payments_router = APIRouter(prefix="/payments", tags=["Payments"])
 
 class CheckoutCreate(BaseModel):
     amount: int  # Montant en centimes, passé depuis le frontend
+
+
+# Listes pour les noms en français
+jours_semaine = [
+    "lundi",
+    "mardi",
+    "mercredi",
+    "jeudi",
+    "vendredi",
+    "samedi",
+    "dimanche",
+]
+mois = [
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre",
+]
+
+
+def require_admin(current_user: User = Depends(get_current_user)):
+    if (
+        current_user.role != "admin"
+    ):  # Ajusté à role basé sur votre /me (user.role.role)
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
 
 
 @payments_router.post("/pay_for_tournament/{tournament_id}")
@@ -38,9 +76,25 @@ async def pay_for_tournament(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    amount = checkout_data.amount
+    amount = checkout_data.amount  # Montant en centimes (ex: 300 pour 3€)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Invalid amount")
+
+    # Calcul des frais Stripe (1.5% + 0.25€, en centimes)
+    processing_fees = int(amount * 0.015) + 25  # 0.25€ = 25 centimes
+    total_amount = amount + processing_fees
+
+    # Assumer que tournament.start_date est un objet datetime
+    dt = tournament.start_date
+
+    # Formater
+    jour_semaine = jours_semaine[dt.weekday()]
+    jour_mois = dt.day
+    nom_mois = mois[dt.month - 1]
+    annee = dt.year
+    heure = dt.strftime("%H:%M")
+
+    formatted_date = f"{jour_semaine} {jour_mois} {nom_mois} {annee} à {heure}"
 
     try:
         # Crée la Checkout Session
@@ -51,18 +105,17 @@ async def pay_for_tournament(
                     "price_data": {
                         "currency": "eur",
                         "product_data": {
-                            "name": f"Inscription Tournoi: {tournament.name}",
+                            "name": f"Tournoi: {tournament.name}",
+                            "description": f"Inscription au tournoi du {formatted_date}. Inclut frais de traitement : {processing_fees / 100} €",
                         },
-                        "unit_amount": amount,
+                        "unit_amount": total_amount,
                     },
                     "quantity": 1,
                 }
             ],
             mode="payment",  # One-time payment
-            success_url="https://badarts.fr/tournaments",
-            cancel_url="https://badarts.fr/tournaments",
-            # success_url="https://badarts.fr/tournaments?success=true&session_id={CHECKOUT_SESSION_ID}",
-            # cancel_url="https://badarts.fr/tournaments?cancel=true",
+            success_url="https://badarts.fr/tournaments?success=true",
+            cancel_url="https://badarts.fr/tournaments?cancel=true",
             metadata={  # Métadonnées pour webhook (récup infos user)
                 "user_id": str(user.id),
                 "tournament_id": str(tournament.id),
@@ -162,3 +215,41 @@ async def check_payment(
     if not payment:
         return {"paid": False}
     return {"paid": payment.paid}
+
+
+@payments_router.delete("/{tournament_id}/{user_id}")
+async def delete_payment(
+    tournament_id: int,
+    user_id: int,
+    db: Session = Depends(get_users_db),
+    current_user: User = Depends(require_admin),
+):
+    payment = (
+        db.query(TournamentPayment)
+        .filter(
+            TournamentPayment.user_id == user_id,
+            TournamentPayment.tournament_id == tournament_id,
+        )
+        .first()
+    )
+
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    db.delete(payment)
+    db.commit()
+    return {"message": "Payment deleted successfully"}
+
+
+@payments_router.get("/{tournament_id}", response_model=List[TournamentPaymentResponse])
+async def list_payments(
+    tournament_id: int,
+    db: Session = Depends(get_users_db),
+    current_user: User = Depends(require_admin),
+):
+    payments = (
+        db.query(TournamentPayment)
+        .filter(TournamentPayment.tournament_id == tournament_id)
+        .all()
+    )
+    return payments
