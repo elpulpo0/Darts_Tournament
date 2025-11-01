@@ -13,7 +13,7 @@ APP_NAME = os.getenv("APP_NAME")
 PORT_FRONT = os.getenv("PORT_FRONT")
 ENV = os.getenv("ENV")
 PRINTFUL = os.getenv("PRINTFUL")
-PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 frontend_dir = os.path.join(base_dir, "frontend")
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         f.write(f"VITE_APP_NAME={APP_NAME}\n")
         f.write(f"VITE_ENV={ENV}\n")
         f.write(f"VITE_PRINTFUL={PRINTFUL}\n")
-        f.write(f"VITE_PAYPAL_CLIENT_ID={PAYPAL_CLIENT_ID}\n")
+        f.write(f"VITE_STRIPE_PUBLISHABLE_KEY={STRIPE_PUBLISHABLE_KEY}\n")
 
     logger.info(f"✅ File '{frontend_env_path}' successfully generated.")
 

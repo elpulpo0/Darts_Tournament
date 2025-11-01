@@ -45,30 +45,31 @@ class NotifyPaymentConfirmation:
 def notify_telegram(user):
     if user.type == "userCreate":
         message = (
-            "<b>🧩 New user created!</b>\n\n"
-            f"<b>👤 Name:</b> {user.name}\n"
-            f"<b>📧 Email:</b> {user.email}\n"
-            f"<b>🛡️ Role:</b> {user.role}\n"
+            "<b>🧩 Nouveau compte crée !</b>\n\n"
+            f"👤 Nom :</b> {user.name}\n"
+            f"📧 Email :</b> {user.email}\n"
+            f"🛡️ Role :</b> {user.role}\n"
         )
     elif user.type == "login":
         message = (
-            "<b>🔐 New login detected!</b>\n\n"
-            f"<b>👤 Name:</b> {user.name}\n"
-            f"<b>🛡️ Role:</b> {user.role}\n"
-            f"<b>🔑 Scopes:</b> {', '.join(user.scopes)}"
+            "<b>🔐 Nouvelle connection détéctée!</b>\n\n"
+            f"👤 Nom :</b> {user.name}\n"
+            f"🛡️ Role :</b> {user.role}\n"
+            f"🔑 Scopes :</b> {', '.join(user.scopes)}"
         )
     elif user.type == "userRegister":
         message = (
-            "<b>📝 New registration detected!</b>\n\n"
-            f"<b>👤 Name:</b> {user.nickname}\n"
-            f"<b>🏆 Tournament:</b> {user.tournamentName}\n"
+            "<b>📝 Nouvelle inscription détéctée!</b>\n\n"
+            f"👤 Nom :</b> {user.nickname}\n"
+            f"🏆 Tournoi :</b> {user.tournamentName}\n"
         )
     # Bloc simplifié pour les paiements PayPal
     elif user.type == "paymentConfirmed":
         message = (
-            f"Nom de l'acheteur: {user.buyer_name}\n"
-            f"Produit: {user.product}\n"
-            f"Montant: {user.amount} €"
+            "<b>📝 Paiement reçu !</b>\n\n"
+            f"Nom de l'acheteur : {user.buyer_name}\n"
+            f"Produit : {user.product}\n"
+            f"Montant : {user.amount} €"
         )
     else:
         logger.error(f"Unknown user type: {user.type}")

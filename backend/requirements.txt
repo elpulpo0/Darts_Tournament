@@ -21,3 +21,4 @@ pandas==2.3.3
 fuzzywuzzy==0.18.0
 openpyxl==3.1.5
 python-Levenshtein==0.27.1
+stripe==13.1.1

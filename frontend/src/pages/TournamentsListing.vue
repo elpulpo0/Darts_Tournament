@@ -44,14 +44,12 @@
                         <button @click="unregisterFromTournament(selectedTournament.id)">Se
                             désinscrire</button>
                     </div>
-                    <div
-                        v-if="registrationStatus[selectedTournament.id] && fees[selectedTournament.id] > 0 && authStore.nickname == 'El Pulpo'">
-                        <form action="https://www.paypal.com/ncp/payment/6386LFJYNC53E" method="post" target="_blank"
-                            style="display:inline-grid;justify-items:center;align-content:start;gap:0.5rem;">
-                            <button style="background-color: #FFD140;" type="submit">Payer via <img
-                                    src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-wordmark-color.svg"
-                                    alt="paypal" style="height:0.875rem;vertical-align:middle;" /></button>
-                        </form>
+                    <div v-if="registrationStatus[selectedTournament.id] && fees[selectedTournament.id] > 0 &&
+                        authStore.nickname == 'El Pulpo'">
+                        <button style="background-color: #635bff; color: white;"
+                            @click="payWithStripe(selectedTournament.id)">
+                            Payer via Stripe
+                        </button>
                     </div>
                 </div>
                 <p v-else-if="selectedTournament.status === 'closed' || selectedTournament.status === 'finished'">
@@ -266,6 +264,21 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
 const openProjection = () => {
     if (!selectedTournament.value) return;
     router.push(`/tournaments/${selectedTournament.value.id}/projection`);
+};
+
+const payWithStripe = async (tournamentId: number) => {
+    try {
+        const fee = fees[tournamentId] || 0;
+        const amount = fee * 100;  // Convert to centimes
+        const response = await backendApi.post(`/payments/create-checkout-session/${tournamentId}`, { amount }, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+        const { url } = response.data;
+        window.location.href = url;  // Redirect vers Checkout Stripe
+    } catch (err) {
+        toast.error('Erreur paiement');
+        handleError(err, 'paiement Stripe');
+    }
 };
 </script>
 

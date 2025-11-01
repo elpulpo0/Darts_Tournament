@@ -12,7 +12,7 @@ from modules.api.tournaments.routes.leaderboards import leaderboards_router
 from modules.api.tournaments.routes.matches import matches_router
 from modules.api.tournaments.routes.pools import pools_router
 from modules.api.tournaments.routes.tournaments import tournaments_router
-from modules.api.tournaments.routes.paypal import paypal_router
+from modules.api.stripe.routes import payments_router
 from modules.api.calendar.routes import calendar_router
 from modules.api.official_leaderboards.lsef import leaderboards_lsef_router
 from modules.api.official_leaderboards.cmer import leaderboards_cmer_router
@@ -59,7 +59,7 @@ def create_app() -> FastAPI:
     router.include_router(tournaments_router)
     router.include_router(leaderboards_router)
     router.include_router(pools_router)
-    router.include_router(paypal_router)
+    router.include_router(payments_router)
     router.include_router(matches_router)
     router.include_router(leaderboards_lsef_router)
     router.include_router(leaderboards_cmer_router)

@@ -40,7 +40,7 @@ services:
           VITE_PORT_BACK: ${PORT_BACK}
           VITE_ENV: ${ENV}
           VITE_PRINTFUL: ${PRINTFUL}
-          VITE_PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
     restart: always
     env_file:
       - .env
