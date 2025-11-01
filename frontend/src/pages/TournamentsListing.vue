@@ -46,7 +46,8 @@
                     </div>
                     <div v-if="registrationStatus[selectedTournament.id] && fees[selectedTournament.id] > 0 &&
                         authStore.nickname == 'El Pulpo'">
-                        <button style="background-color: #635bff; color: white;"
+                        <p v-if="paymentStatus[selectedTournament.id]">Payé ✅</p>
+                        <button v-else style="background-color: #635bff; color: white;"
                             @click="payWithStripe(selectedTournament.id)">
                             Payer via Stripe
                         </button>
@@ -136,6 +137,7 @@ const newTournamentDescription = ref('');
 const newTournamentStartDate = ref('');
 const newTournamentMode = ref<'single' | 'double'>('single');
 const registrationStatus = ref<{ [key: number]: boolean }>({});
+const paymentStatus = ref<{ [key: number]: boolean }>({});
 
 const isEditor = computed(() => authStore.scopes.includes('editor') || authStore.scopes.includes('admin'));
 
@@ -238,6 +240,22 @@ const checkIfUserRegistered = async (tournamentId: number): Promise<boolean> => 
     }
 };
 
+const checkIfUserPaid = async (tournamentId: number): Promise<boolean> => {
+    try {
+        const { data } = await backendApi.get(`/payments/check/${tournamentId}`, {
+            headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+        return data.paid;
+    } catch (err: any) {
+        if (err.response?.status === 401) {
+            toast.error('Connexion requise.');
+        } else {
+            handleError(err, 'vérification du paiement');
+        }
+        return false;
+    }
+};
+
 const unregisterFromTournament = async (tournamentId: number) => {
     try {
         await backendApi.delete(`/tournaments/registrations/${tournamentId}`, {
@@ -255,6 +273,9 @@ const selectTournament = async (tournament: Tournament) => {
     selectedTournament.value = tournament;
     await tournamentStore.fetchParticipants(tournament.id);
     registrationStatus.value[tournament.id] = await checkIfUserRegistered(tournament.id);
+    if (fees[tournament.id] > 0) {
+        paymentStatus.value[tournament.id] = await checkIfUserPaid(tournament.id);
+    }
 };
 
 watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
@@ -270,7 +291,7 @@ const payWithStripe = async (tournamentId: number) => {
     try {
         const fee = fees[tournamentId] || 0;
         const amount = fee * 100;  // Convert to centimes
-        const response = await backendApi.post(`/payments/create-checkout-session/${tournamentId}`, { amount }, {
+        const response = await backendApi.post(`/payments/pay_for_tournament/${tournamentId}`, { amount }, {
             headers: { Authorization: `Bearer ${authStore.token}` },
         });
         const { url } = response.data;

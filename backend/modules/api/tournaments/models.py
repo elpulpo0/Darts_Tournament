@@ -164,3 +164,11 @@ class MatchPlayer(UsersBase):
         back_populates="match_participations",
         overlaps="matches,participants",
     )
+
+
+class TournamentPayment(UsersBase):
+    __tablename__ = "tournament_payments"
+
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), primary_key=True)
+    paid = Column(Boolean, default=False)

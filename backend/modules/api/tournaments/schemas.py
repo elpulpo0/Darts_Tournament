@@ -195,3 +195,16 @@ class TournamentFullDetailSchema(BaseModel):
 class SwapPlayersRequest(BaseModel):
     wrong_participant_id: int
     correct_user_id: int
+
+
+class TournamentPaymentCreate(BaseModel):
+    user_id: int
+    tournament_id: int
+    paid: bool = False
+
+
+class TournamentPaymentResponse(BaseModel):
+    user_id: int
+    tournament_id: int
+    paid: bool
+    model_config = ConfigDict(from_attributes=True)
